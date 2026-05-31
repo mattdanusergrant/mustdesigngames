@@ -2,7 +2,7 @@
 
 Mobile-web tactical card-battler. Two sides, three heroes each, on a small grid. Play proceeds in **rounds**; within a round, every living unit gets one turn in **Speed order**. Cards add sidekicks, spells, and battlefield effects. Win by eliminating all three enemy heroes.
 
-Current build: **v0.9** (`index.html`).
+Current build: **v0.10** (`index.html`).
 
 ---
 
@@ -15,19 +15,51 @@ Current build: **v0.9** (`index.html`).
 
 ## Sides
 
-Each side starts with **3 distinct heroes** on the board, placed in their back row at columns 1, 2, 3:
+Each side fields **3 heroes** drafted from a 12-hero roster. HP must come from the polyhedral dice set `{4, 6, 8, 10, 12, 20}`.
 
-| Hero | Sym | HP | ATK | Move | Range | Speed | Notes |
-|---|---|---|---|---|---|---|---|
-| Knight | K | 10 | 1 | 1 | 1 | 3 | Tankiest hero, slowest in the bunch |
-| Mage   | M | 6  | 1 | 1 | 2 | 4 | Heals adjacent ally for +3 as an action; ranged |
-| Ranger | R | 8  | 1 | 1 | 2 | 5 | Fastest, range 2 |
+| Hero | Sym | HP | ATK | Move | Range | Speed | Tags | Notes |
+|---|---|---|---|---|---|---|---|---|
+| Knight      | K | 10 | 1 | 1 | 1 | 3 | —    | Tanky melee |
+| Ranger      | R | 8  | 1 | 1 | 2 | 5 | —    | Fast ranged |
+| Mage        | M | 6  | 1 | 1 | 2 | 4 | heal | Ranged caster, can heal adjacent ally |
+| Berserker   | B | 8  | 2 | 1 | 1 | 4 | —    | High-damage melee |
+| Paladin     | P | 10 | 1 | 1 | 1 | 2 | heal | Tank with adjacent-ally heal |
+| Assassin    | A | 6  | 2 | 2 | 1 | 6 | flank | Mobile flanker, ×2 side / ×2.5 rear |
+| Druid       | D | 8  | 1 | 1 | 2 | 3 | heal | Ranged healer |
+| Warlock     | W | 6  | 1 | 1 | 3 | 3 | —    | Longest range in the roster |
+| Sentinel    | S | 12 | 1 | 1 | 1 | 1 | —    | Heavy tank, always acts last |
+| Scout       | T | 4  | 1 | 2 | 2 | 6 | —    | Mobile recon, fragile |
+| Crusader    | C | 10 | 1 | 1 | 1 | 4 | —    | Balanced fighter |
+| Necromancer | N | 6  | 1 | 1 | 2 | 3 | —    | Caster |
 
-Heroes never appear in the deck. They are gold-bordered on the board and tracked in mini HP bars above the grid.
+Heroes never appear in the deck. They are gold-bordered on the board.
 
-## Sidekicks
+## Draft & deploy
 
-Currently **not in the deck.** The Skirmisher and Scout classes remain defined in the engine for future use but no card summons them in v0.9.
+Each match begins with a draft phase, followed by a deploy phase, then play.
+
+### Draft (1-2-2-1 snake)
+
+| Pick | Player |
+|---|---|
+| 1 | P1 |
+| 2 | P2 |
+| 3 | P2 |
+| 4 | P1 |
+| 5 | P1 |
+| 6 | P2 |
+
+Each side ends with 3 heroes from the 12-hero roster. A pick removes the hero from the pool — no duplicates across sides.
+
+### Deploy
+
+After the draft, P1 places each of their 3 heroes into rows 2-3 (their half of the board); then P2 places into rows 0-1. Placement is sequential — for each hero in draft order, the player taps a highlighted empty tile in their deploy zone. An **Auto-place** button packs everything into a default formation (back-rank centered).
+
+P2 (the AI) auto-deploys with a simple rule: ranged units to row 0, melee to row 1, centered.
+
+### Decks
+
+For v0.10 the deck is the fixed 30-card Knight/Ranger/Mage suite, used by both sides regardless of who they drafted. Suites for the other 9 heroes are not yet authored — a future task.
 
 ## Round structure
 
@@ -143,31 +175,32 @@ Shield persists across rounds until consumed. ATK buffs and move buffs both clea
 
 For tabletop play, place the matching die next to each minifig showing its current HP; rotate it down as damage is taken; the unit dies when the die would go below 1.
 
-| Unit | Max HP | Die |
-|---|---|---|
-| Knight | 10 | d10 |
-| Ranger | 8 | d8 |
-| Mage | 6 | d6 |
-| Skirmisher | 4 | d4 |
-| Scout | 4 | d4 |
+| Die | Heroes |
+|---|---|
+| d4  | Scout |
+| d6  | Mage, Assassin, Warlock, Necromancer |
+| d8  | Ranger, Berserker, Druid |
+| d10 | Knight, Paladin, Crusader |
+| d12 | Sentinel |
+| d20 | *(reserved for future heavyweights)* |
 
 Healing rotates the die back up (capped at max).
 
 ## Combat
 
 - **Facing**: each unit has a cardinal facing. Moving or attacking re-faces toward the destination/target.
-- **Arc multipliers**: front ×1, side ×1.5, rear ×2. Skirmisher: side ×2, rear ×2.5.
+- **Arc multipliers**: front ×1, side ×1.5, rear ×2. Assassin (flank tag): side ×2, rear ×2.5.
 - **High ground**: attacker on `terrain="high"` gets +1 ATK before the arc multiplier.
-- **Damage**: `round((ATK + highground) × arc)`.
+- **Damage**: `round((ATK + highground) × arc)`. Shield absorbs before HP.
 - **Range**: Manhattan distance. No line-of-sight blocking currently.
 
 ## Aether
 
-- Both sides gain +1 max aether per round (cap 10), refilling to full each round. Standard ramp curve, now keyed to rounds instead of side-turns.
+- Both sides gain +1 max aether per round (cap 10), refilling to full each round.
 
 ## Win condition
 
-A side loses when all three of its heroes are at 0 HP. Sidekicks dying does not end the game.
+A side loses when all three of its heroes are at 0 HP.
 
 ## AI sketch
 

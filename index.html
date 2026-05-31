@@ -136,6 +136,38 @@
   #codex .cdx-card.cat-Artifact{border-left-color:var(--gold);}
   #codex .cdx-card.cat-Action{border-left-color:#c7c9d1;}
   #codex .cdx-card.spell{border-left-color:#b878ff;}
+  #draft{position:fixed; inset:0; background:rgba(8,9,12,.96); display:none; align-items:flex-start; justify-content:center; z-index:30; overflow-y:auto; padding:18px 10px;}
+  #draft.open{display:flex;}
+  #draft .dbox{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px 14px; max-width:460px; width:100%;}
+  #draft h2{margin:0 0 2px; text-align:center; color:var(--gold); letter-spacing:3px;}
+  #draft .d-sub{font-size:11px; color:var(--dim); text-align:center; margin-bottom:8px;}
+  #draft .d-status{text-align:center; font-size:12px; color:#fff; padding:6px; background:rgba(212,165,116,.1); border-radius:6px; margin-bottom:10px; font-weight:600;}
+  #draft .d-teams{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;}
+  #draft .d-team{background:rgba(255,255,255,.03); border:1px solid var(--line); border-radius:8px; padding:6px;}
+  #draft .d-team-h{font-size:10px; color:var(--dim); text-align:center; margin-bottom:4px; letter-spacing:1px;}
+  #draft .d-A .d-team-h{color:#7fb04a;}
+  #draft .d-B .d-team-h{color:#c14a3a;}
+  #draft .d-slots{display:flex; flex-direction:column; gap:3px; min-height:90px;}
+  #draft .d-slot{font-size:11px; padding:4px 6px; background:rgba(0,0,0,.3); border-radius:4px; color:#fff;}
+  #draft .d-slot.empty{color:var(--dim); border:1px dashed var(--line); background:transparent;}
+  #draft .d-roster{display:grid; grid-template-columns:repeat(3,1fr); gap:6px;}
+  #draft .rcard{background:#1a1c22; border:1px solid var(--line); border-radius:8px; padding:8px 6px; text-align:center; cursor:pointer; transition:transform .08s, background .08s;}
+  #draft .rcard:hover:not(.taken):not(.cant){background:#23262e;}
+  #draft .rcard.taken{opacity:.35; cursor:not-allowed; position:relative;}
+  #draft .rcard.taken::after{content:attr(data-by); position:absolute; top:2px; right:4px; font-size:9px; font-weight:700;}
+  #draft .rcard.taken.by-A::after{color:#7fb04a;}
+  #draft .rcard.taken.by-B::after{color:#c14a3a;}
+  #draft .rcard.cant{opacity:.5; cursor:not-allowed;}
+  #draft .rcard .rsym{font-size:22px; font-weight:800; color:var(--gold);}
+  #draft .rcard .rname{font-size:11px; color:#fff; margin:2px 0;}
+  #draft .rcard .rstats{font-size:9px; color:var(--dim); line-height:1.3;}
+  #draft .rcard .rtags{font-size:9px; color:#b878ff; margin-top:2px; min-height:11px;}
+
+  #deployBar{display:none; position:fixed; left:0; right:0; top:0; background:#1a1c22; border-bottom:1px solid var(--gold); padding:8px 12px; z-index:8; align-items:center; justify-content:space-between; gap:8px;}
+  #deployBar.show{display:flex;}
+  #deployBar #deployMsg{font-size:13px; color:#fff; font-weight:600; flex:1;}
+  body.deploy #app{margin-top:46px;}
+
   #over{position:fixed; inset:0; background:rgba(8,9,12,.85); display:none; align-items:center; justify-content:center; z-index:9;}
   #over .box{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:22px; text-align:center; max-width:300px;}
   #over h2{margin:0 0 6px;} #over p{color:var(--dim); font-size:13px; margin:0 0 16px;}
@@ -157,42 +189,60 @@
     <button class="btn ghost" id="newBtn">New</button>
   </div>
 
-  <div class="legend">K Knight · R Ranger · M Mage · 30-card deck (5 equipment + 5 actions per hero) &nbsp;|&nbsp; SIDE ×1.5 / REAR ×2 · ▲ +1 ATK · ⛨ shield · +A atk-buff</div>
+  <div class="legend">12-hero roster · 1-2-2-1 snake draft · 3 units per side &nbsp;|&nbsp; SIDE ×1.5 / REAR ×2 · ⛨ shield · +A atk-buff</div>
   <button class="title" id="titleBtn" onclick="openCodex()">
     <h1>SIGIL TACTICS</h1>
-    <div class="sub">v0.9 · Knight · Ranger · Mage · tap for rules &amp; cards</div>
+    <div class="sub">v0.10 · 12 heroes · draft &amp; deploy · tap for rules</div>
   </button>
 </div>
 
 <div id="codex"><div class="cbox">
   <button class="x" onclick="closeCodex()">×</button>
   <h2>SIGIL TACTICS</h2>
-  <div class="cdx-sub">v0.9 — 4×5 grid · Knight · Ranger · Mage · 30-card deck (5 equip + 5 actions per hero)</div>
+  <div class="cdx-sub">v0.10 — 4×5 grid · 12-hero roster · snake draft · 3 units per side · 30-card deck</div>
+
+  <h3>Match flow</h3>
+  <ul>
+    <li><b>Draft (1-2-2-1 snake):</b> P1 picks 1, P2 picks 2, P1 picks 2, P2 picks 1. Each side ends with 3 heroes.</li>
+    <li><b>Deploy:</b> P1 places each drafted hero into rows 2–3, then P2 places into rows 0–1.</li>
+    <li><b>Play:</b> standard initiative-order combat.</li>
+  </ul>
 
   <h3>Rules</h3>
   <ul>
     <li><b>Win:</b> defeat all 3 enemy heroes.</li>
     <li><b>Initiative:</b> each round, units act in Speed order (high → low). A unit can move + attack (or skip either).</li>
-    <li><b>Facing:</b> attacks from the SIDE deal ×1.5, REAR ×2.</li>
+    <li><b>Facing:</b> attacks from the SIDE deal ×1.5, REAR ×2 (Assassin: ×2 / ×2.5).</li>
     <li><b>Terrain:</b> ▲ high ground gives +1 ATK while standing on it.</li>
-    <li><b>Cards:</b> draw 1 at the start of each round (hand cap 8, start 3). Cards can be played at the start of one of your units' turns. Each card is one-shot.</li>
+    <li><b>Cards:</b> draw 1 at the start of each round (hand cap 8, start 3). Cards may be played at the start of one of your units' turns. Each card is one-shot.</li>
     <li><b>Aether:</b> spent to play cards. Refreshes / grows each round.</li>
-    <li><b>Shield (⛨N):</b> absorbs damage before HP. Persists across rounds until consumed.</li>
+    <li><b>Shield (⛨N):</b> absorbs damage before HP. Persists across rounds.</li>
     <li><b>ATK buff (+NA):</b> bonus damage that clears at round start.</li>
     <li><b>Move buff:</b> extra movement on the buffed unit's next turn only.</li>
+    <li><b>HP dice:</b> every unit's max HP is a polyhedral die face count (4/6/8/10/12/20).</li>
   </ul>
 
-  <h3>Heroes</h3>
-  <table class="cdx-tbl"><tr><th>Hero</th><th>HP</th><th>ATK</th><th>Move</th><th>Range</th><th>Speed</th></tr>
-    <tr><td>K Knight</td><td>10</td><td>1</td><td>1</td><td>1</td><td>3</td></tr>
-    <tr><td>R Ranger</td><td>8</td><td>1</td><td>1</td><td>2</td><td>5</td></tr>
-    <tr><td>M Mage</td><td>6</td><td>1</td><td>1</td><td>2</td><td>4</td></tr>
+  <h3>Hero roster (12)</h3>
+  <table class="cdx-tbl"><tr><th>Hero</th><th>HP</th><th>ATK</th><th>Move</th><th>Range</th><th>Speed</th><th>Tags</th></tr>
+    <tr><td>K Knight</td><td>10</td><td>1</td><td>1</td><td>1</td><td>3</td><td>—</td></tr>
+    <tr><td>R Ranger</td><td>8</td><td>1</td><td>1</td><td>2</td><td>5</td><td>—</td></tr>
+    <tr><td>M Mage</td><td>6</td><td>1</td><td>1</td><td>2</td><td>4</td><td>heal</td></tr>
+    <tr><td>B Berserker</td><td>8</td><td>2</td><td>1</td><td>1</td><td>4</td><td>—</td></tr>
+    <tr><td>P Paladin</td><td>10</td><td>1</td><td>1</td><td>1</td><td>2</td><td>heal</td></tr>
+    <tr><td>A Assassin</td><td>6</td><td>2</td><td>2</td><td>1</td><td>6</td><td>flank</td></tr>
+    <tr><td>D Druid</td><td>8</td><td>1</td><td>1</td><td>2</td><td>3</td><td>heal</td></tr>
+    <tr><td>W Warlock</td><td>6</td><td>1</td><td>1</td><td>3</td><td>3</td><td>—</td></tr>
+    <tr><td>S Sentinel</td><td>12</td><td>1</td><td>1</td><td>1</td><td>1</td><td>—</td></tr>
+    <tr><td>T Scout</td><td>4</td><td>1</td><td>2</td><td>2</td><td>6</td><td>—</td></tr>
+    <tr><td>C Crusader</td><td>10</td><td>1</td><td>1</td><td>1</td><td>4</td><td>—</td></tr>
+    <tr><td>N Necromancer</td><td>6</td><td>1</td><td>1</td><td>2</td><td>3</td><td>—</td></tr>
   </table>
 
   <h3>Card categories</h3>
   <ul class="kinds">
     <li><b>Equipment (5 per hero)</b> — one each of Weapon, Armor, Helmet, Boots, Artifact.</li>
     <li><b>Actions (5 per hero)</b> — moves, attacks, and effects performed by a hero. <b>Spells</b> are a subtype of action (purple stripe, tag <i>SPL</i>) — mechanically identical to actions, distinguished only by flavor.</li>
+    <li><i>TODO:</i> the deck is currently the fixed 30-card Knight/Ranger/Mage suite for both sides. Suites for the other 9 heroes are not yet authored — drafting a non-K/R/M hero gives you their unit but no themed cards.</li>
   </ul>
 
   <h3>Card kinds (effects)</h3>
@@ -210,6 +260,22 @@
   <div id="cdxCards"></div>
 </div></div>
 
+<div id="draft"><div class="dbox">
+  <h2>DRAFT</h2>
+  <div class="d-sub">1-2-2-1 snake · pick from the 12-hero roster</div>
+  <div class="d-status" id="draftStatus">—</div>
+  <div class="d-teams">
+    <div class="d-team d-A"><div class="d-team-h">YOU (P1)</div><div class="d-slots" id="draftA"></div></div>
+    <div class="d-team d-B"><div class="d-team-h">AI (P2)</div><div class="d-slots" id="draftB"></div></div>
+  </div>
+  <div class="d-roster" id="draftRoster"></div>
+</div></div>
+
+<div id="deployBar">
+  <div id="deployMsg">—</div>
+  <button class="btn ghost" id="deployAuto">Auto-place</button>
+</div>
+
 <div id="over"><div class="box"><h2 id="overT"></h2><p id="overP"></p><button class="btn" onclick="location.reload()">Play again</button></div></div>
 
 <script>
@@ -217,15 +283,23 @@
 const R=4,C=5;
 
 /* ---------- definitions ---------- */
+// 12-hero roster. HP must come from {4,6,8,10,12,20} (polyhedral dice).
 const CLASSES={
-  // heroes (placed at start, never in deck)
-  knight:{name:"Knight",sym:"K",hp:10,atk:1,move:1,range:1,speed:3,hero:true},
-  ranger:{name:"Ranger",sym:"R",hp:8, atk:1,move:1,range:2,speed:5,hero:true},
-  mage:  {name:"Mage",  sym:"M",hp:6, atk:1,move:1,range:2,speed:4,hero:true,heal:true},
-  // sidekicks (defined but not in any deck)
-  skirmisher:{name:"Skirmisher",sym:"S",hp:4,atk:1,move:1,range:1,speed:1,cost:2,flank:true},
-  scout:{name:"Scout",sym:"s",hp:4,atk:1,move:1,range:2,speed:2,cost:2}
+  knight:     {name:"Knight",     sym:"K", hp:10, atk:1, move:1, range:1, speed:3, hero:true},
+  ranger:     {name:"Ranger",     sym:"R", hp:8,  atk:1, move:1, range:2, speed:5, hero:true},
+  mage:       {name:"Mage",       sym:"M", hp:6,  atk:1, move:1, range:2, speed:4, hero:true, heal:true},
+  berserker:  {name:"Berserker",  sym:"B", hp:8,  atk:2, move:1, range:1, speed:4, hero:true},
+  paladin:    {name:"Paladin",    sym:"P", hp:10, atk:1, move:1, range:1, speed:2, hero:true, heal:true},
+  assassin:   {name:"Assassin",   sym:"A", hp:6,  atk:2, move:2, range:1, speed:6, hero:true, flank:true},
+  druid:      {name:"Druid",      sym:"D", hp:8,  atk:1, move:1, range:2, speed:3, hero:true, heal:true},
+  warlock:    {name:"Warlock",    sym:"W", hp:6,  atk:1, move:1, range:3, speed:3, hero:true},
+  sentinel:   {name:"Sentinel",   sym:"S", hp:12, atk:1, move:1, range:1, speed:1, hero:true},
+  scout:      {name:"Scout",      sym:"T", hp:4,  atk:1, move:2, range:2, speed:6, hero:true},
+  crusader:   {name:"Crusader",   sym:"C", hp:10, atk:1, move:1, range:1, speed:4, hero:true},
+  necromancer:{name:"Necromancer",sym:"N", hp:6,  atk:1, move:1, range:2, speed:3, hero:true}
 };
+const ROSTER=Object.keys(CLASSES);
+const DRAFT_SEQUENCE=["A","B","B","A","A","B"]; // 1-2-2-1 snake, 3v3
 const CARDS={
   // Knight suite (10): 5 equipment + 5 actions (1 spell-action)
   kn_weapon:    {hero:"K", cat:"Weapon",   kind:"dmg",          cost:2, dmg:2,    sym:"⚔", name:"Greatsword"},
@@ -271,6 +345,7 @@ const OPP={N:"S",S:"N",E:"W",W:"E"};
 
 let board, players, sel, busy, uid, heroes, units, roundNum, acted, activeId, over;
 let initiativeToken, liveToken, prevBracketSpeed, prevBracketWasCrossTie;
+let phase, draft, pickIdx, deployPlayer, deployIdx;
 
 /* ---------- helpers ---------- */
 function deployRows(o){ return o==="A"?[2,3]:[0,1]; }
@@ -294,24 +369,159 @@ function newGame(){
   board=[]; for(let r=0;r<R;r++){board.push([]); for(let c=0;c<C;c++) board[r].push({unit:null,terrain:null});}
   uid=0; sel=null; busy=false; over=false; units=[]; acted=new Set(); activeId=null; roundNum=0;
   heroes={A:[],B:[]};
-  const layout=[["knight",1],["mage",2],["ranger",3]];
-  for(const [cls,col] of layout){
-    const ua=newUnit("A",cls,3,col,"N"); place(ua); heroes.A.push(ua);
-    const ub=newUnit("B",cls,0,col,"S"); place(ub); heroes.B.push(ub);
-  }
   players={
     A:{aether:0,maxAether:0,deck:shuffle(DECK.slice()),hand:[],human:true},
     B:{aether:0,maxAether:0,deck:shuffle(DECK.slice()),hand:[],human:false}
   };
-  for(let i=0;i<3;i++){players.A.hand.push(players.A.deck.pop()); players.B.hand.push(players.B.deck.pop());}
   document.getElementById("over").style.display="none";
-  // Initial initiative determination: highest-speed unit acts first; tied → random.
-  // The side NOT acting first gets the Initiative token.
+  draft={A:[],B:[]}; pickIdx=0; deployPlayer=null; deployIdx=0;
+  phase="draft";
+  openDraftUI();
+  render();
+  advanceDraft();
+}
+
+/* ---------- draft phase ---------- */
+function openDraftUI(){ document.getElementById("draft").classList.add("open"); buildDraftRoster(); renderDraft(); }
+function closeDraftUI(){ document.getElementById("draft").classList.remove("open"); }
+function draftedSet(){ return new Set([...draft.A, ...draft.B]); }
+function buildDraftRoster(){
+  const root=document.getElementById("draftRoster"); root.innerHTML="";
+  for(const cls of ROSTER){
+    const c=CLASSES[cls];
+    const tags=[c.heal?"heal":"", c.flank?"flank":""].filter(Boolean).join(" · ");
+    const el=document.createElement("div");
+    el.className="rcard"; el.dataset.cls=cls;
+    el.innerHTML=`<div class="rsym">${c.sym}</div><div class="rname">${c.name}</div>`+
+      `<div class="rstats">HP ${c.hp} · ATK ${c.atk} · MV ${c.move} · RNG ${c.range} · SPD ${c.speed}</div>`+
+      `<div class="rtags">${tags}</div>`;
+    el.onclick=()=>onDraftPick(cls);
+    root.appendChild(el);
+  }
+}
+function renderDraft(){
+  const taken=new Set(); for(const cls of draft.A) taken.add(cls+":A"); for(const cls of draft.B) taken.add(cls+":B");
+  const takenAll=draftedSet();
+  for(const el of document.querySelectorAll("#draftRoster .rcard")){
+    const cls=el.dataset.cls;
+    el.className="rcard";
+    if(takenAll.has(cls)){
+      const by=draft.A.includes(cls)?"A":"B";
+      el.classList.add("taken","by-"+by);
+      el.dataset.by="P"+(by==="A"?1:2);
+    } else if(phase!=="draft" || currentPicker()!=="A" || busy){
+      el.classList.add("cant");
+    }
+  }
+  // team slots
+  const slotsA=document.getElementById("draftA"), slotsB=document.getElementById("draftB");
+  slotsA.innerHTML=""; slotsB.innerHTML="";
+  for(let i=0;i<3;i++){
+    const sa=document.createElement("div"); sa.className="d-slot"+(draft.A[i]?"":" empty");
+    sa.textContent=draft.A[i]?`${CLASSES[draft.A[i]].sym}  ${CLASSES[draft.A[i]].name}`:"—"; slotsA.appendChild(sa);
+    const sb=document.createElement("div"); sb.className="d-slot"+(draft.B[i]?"":" empty");
+    sb.textContent=draft.B[i]?`${CLASSES[draft.B[i]].sym}  ${CLASSES[draft.B[i]].name}`:"—"; slotsB.appendChild(sb);
+  }
+  // status
+  const stat=document.getElementById("draftStatus");
+  if(pickIdx>=DRAFT_SEQUENCE.length){ stat.textContent="Draft complete — deploying…"; }
+  else {
+    const who=currentPicker(); const remainingPicks=DRAFT_SEQUENCE.slice(pickIdx).filter(p=>p===who).length;
+    stat.textContent=`${who==="A"?"YOUR":"AI"} pick — ${remainingPicks} left in this phase`;
+  }
+}
+function currentPicker(){ return DRAFT_SEQUENCE[pickIdx]; }
+function onDraftPick(cls){
+  if(phase!=="draft" || busy) return;
+  if(currentPicker()!=="A") return;
+  if(draftedSet().has(cls)) return;
+  doPick("A",cls);
+}
+function doPick(player,cls){
+  draft[player].push(cls);
+  pickIdx++;
+  renderDraft();
+  if(pickIdx>=DRAFT_SEQUENCE.length){ setTimeout(finishDraft,400); return; }
+  advanceDraft();
+}
+function advanceDraft(){
+  if(currentPicker()==="B"){
+    busy=true; renderDraft();
+    setTimeout(()=>{ busy=false; aiDraftPick(); },550);
+  }
+}
+function aiDraftPick(){
+  const taken=draftedSet();
+  const pool=ROSTER.filter(c=>!taken.has(c));
+  // very simple: prefer high HP first pick, otherwise random
+  const cls=pool[Math.floor(Math.random()*pool.length)];
+  doPick("B",cls);
+}
+function finishDraft(){
+  closeDraftUI();
+  phase="deploy"; deployPlayer="A"; deployIdx=0;
+  document.body.classList.add("deploy");
+  document.getElementById("deployBar").classList.add("show");
+  document.getElementById("deployAuto").onclick=onDeployAuto;
+  beginDeployStep();
+}
+
+/* ---------- deploy phase ---------- */
+function deployRowsFor(o){ return o==="A"?[2,3]:[0,1]; }
+function deployFacing(o){ return o==="A"?"N":"S"; }
+function freeDeployTiles(o){
+  const tiles=[]; for(const r of deployRowsFor(o)) for(let c=0;c<C;c++) if(!board[r][c].unit) tiles.push({r,c});
+  return tiles;
+}
+function beginDeployStep(){
+  if(deployIdx>=draft[deployPlayer].length){
+    if(deployPlayer==="A"){ deployPlayer="B"; deployIdx=0; busy=true; render(); setTimeout(()=>{ busy=false; aiDeployAll(); },350); return; }
+    return finishDeploy();
+  }
+  const cls=draft[deployPlayer][deployIdx];
+  const c=CLASSES[cls];
+  if(deployPlayer==="A"){
+    document.getElementById("deployMsg").innerHTML=`<b>Place ${c.name}</b> (${deployIdx+1}/${draft.A.length}) — tap a highlighted tile in your half.`;
+  } else {
+    document.getElementById("deployMsg").textContent=`AI placing ${c.name}…`;
+  }
+  render();
+}
+function onDeployAuto(){
+  if(phase!=="deploy" || deployPlayer!=="A" || busy) return;
+  const free=freeDeployTiles("A");
+  // default: back row, centered, then forward
+  const order=free.sort((x,y)=>(y.r-x.r) || Math.abs((C-1)/2-x.c)-Math.abs((C-1)/2-y.c));
+  while(deployIdx<draft.A.length && order.length){
+    const t=order.shift(); placeDeployedUnit("A",draft.A[deployIdx],t.r,t.c); deployIdx++;
+  }
+  beginDeployStep();
+}
+function placeDeployedUnit(owner,cls,r,c){
+  const u=newUnit(owner,cls,r,c,deployFacing(owner)); place(u); heroes[owner].push(u);
+}
+function aiDeployAll(){
+  const cands=draft.B.map(cls=>({cls,c:CLASSES[cls]}));
+  const ranged=cands.filter(x=>x.c.range>=2);
+  const melee=cands.filter(x=>x.c.range<=1);
+  const slotR=[{r:0,c:2},{r:0,c:1},{r:0,c:3},{r:0,c:0},{r:0,c:4}];
+  const slotM=[{r:1,c:2},{r:1,c:1},{r:1,c:3},{r:1,c:0},{r:1,c:4}];
+  for(const x of ranged){ const t=slotR.shift()||slotM.shift(); placeDeployedUnit("B",x.cls,t.r,t.c); }
+  for(const x of melee){ const t=slotM.shift()||slotR.shift(); placeDeployedUnit("B",x.cls,t.r,t.c); }
+  deployIdx=draft.B.length;
+  render();
+  setTimeout(finishDeploy,400);
+}
+function finishDeploy(){
+  phase="play";
+  document.body.classList.remove("deploy");
+  document.getElementById("deployBar").classList.remove("show");
+  for(let i=0;i<3;i++){players.A.hand.push(players.A.deck.pop()); players.B.hand.push(players.B.deck.pop());}
   const maxSpd=Math.max(...units.map(u=>u.speed));
   const sidesAtMax=new Set(units.filter(u=>u.speed===maxSpd).map(u=>u.owner));
   let firstActor;
   if(sidesAtMax.size===1){ firstActor=[...sidesAtMax][0]; liveToken=firstActor==="A"?"B":"A"; }
-  else { firstActor=Math.random()<0.5?"A":"B"; liveToken=firstActor; /* so first-actor goes first in the tied bracket; flip after leaves token with the other side */ }
+  else { firstActor=Math.random()<0.5?"A":"B"; liveToken=firstActor; }
   initiativeToken=liveToken;
   startRound();
   render();
@@ -514,6 +724,16 @@ function canPlayCardNow(){
 /* ---------- player interaction ---------- */
 function onTile(r,c){
   if(busy||over) return;
+  if(phase==="deploy"){
+    if(deployPlayer!=="A") return;
+    const cell=board[r][c];
+    if(cell._hl==="deploy"){
+      placeDeployedUnit("A",draft.A[deployIdx],r,c); deployIdx++;
+      beginDeployStep();
+    }
+    return;
+  }
+  if(phase!=="play") return;
   const u=activeUnit(); if(!u||u.owner!=="A") return;
   const cell=board[r][c];
   if(sel&&sel.t==="card"){
@@ -672,7 +892,12 @@ function endGame(winner){
 function clearHl(){ for(let r=0;r<R;r++)for(let c=0;c<C;c++) board[r][c]._hl=null; }
 function computeHl(){
   clearHl();
-  if(over||busy) return;
+  if(over) return;
+  if(phase==="deploy" && deployPlayer==="A" && !busy){
+    for(const t of freeDeployTiles("A")) board[t.r][t.c]._hl="deploy";
+    return;
+  }
+  if(phase!=="play"||busy) return;
   const u=activeUnit(); if(!u||u.owner!=="A") return;
   if(sel&&sel.t==="card"){
     const key=players.A.hand[sel.i]; const card=CARDS[key];
@@ -739,6 +964,13 @@ function render(){
     t.onclick=()=>onTile(r,c);
     bd.appendChild(t);
   }
+  const playing=(phase==="play");
+  document.getElementById("hand").style.display=playing?"":"none";
+  document.getElementById("init").style.display=playing?"":"none";
+  document.getElementById("heroesA").style.display=playing?"":"none";
+  document.getElementById("heroesB").style.display=playing?"":"none";
+  document.querySelector(".barrow").style.display=playing?"":"none";
+  if(!playing){ return; }
   renderHeroes(); renderInit();
   document.getElementById("aether").textContent=players.A.aether+" / "+players.A.maxAether;
   const h=document.getElementById("hand"); h.innerHTML="";
