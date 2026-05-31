@@ -2,7 +2,7 @@
 
 Mobile-web tactical card-battler. Two sides, three heroes each, on a small grid. Play proceeds in **rounds**; within a round, every living unit gets one turn in **Speed order**. Cards add sidekicks, spells, and battlefield effects. Win by eliminating all three enemy heroes.
 
-Current build: **v0.6** (`index.html`).
+Current build: **v0.7** (`index.html`).
 
 ---
 
@@ -19,9 +19,9 @@ Each side starts with **3 distinct heroes** on the board, placed in their back r
 
 | Hero | Sym | HP | ATK | Move | Range | Speed | Notes |
 |---|---|---|---|---|---|---|---|
-| Vanguard | V | 7 | 3 | 1 | 1 | 2 | Frontline bruiser |
-| Warden | W | 6 | 2 | 1 | 1 | 3 | Heals adjacent ally for +3 as an action |
-| Archer | A | 5 | 2 | 1 | 2 | 3 | Ranged — pays in ATK for the reach |
+| Vanguard | V | 6 | 1 | 1 | 1 | 3 | Tankiest hero, slowest in the bunch |
+| Warden | W | 5 | 1 | 1 | 1 | 4 | Heals adjacent ally for +3 as an action |
+| Archer | A | 4 | 1 | 1 | 2 | 5 | Fragile, fastest, range 2 |
 
 Heroes never appear in the deck. They are gold-bordered on the board and tracked in mini HP bars above the grid.
 
@@ -31,8 +31,8 @@ Cheaper units played from hand. They count toward unit density but **not** towar
 
 | Sidekick | Sym | HP | ATK | Move | Range | Speed | Cost | Notes |
 |---|---|---|---|---|---|---|---|---|
-| Skirmisher | S | 4 | 2 | 1 | 1 | 4 | 2 | Flanker — side ×2, rear ×2.5 |
-| Scout | s | 4 | 2 | 1 | 2 | 4 | 2 | Same cost as Skirmisher — pays HP-and-flank for range |
+| Scout | s | 3 | 1 | 1 | 2 | 2 | 2 | Slower than every hero; ranged |
+| Skirmisher | S | 3 | 1 | 1 | 1 | 1 | 2 | Always acts last; flank ×2 / rear ×2.5 |
 
 ## Round structure
 
@@ -89,6 +89,20 @@ Hand size cap 8; draw 1 at start of each round. Starting hand 3.
 Deck (12 cards): Skirmisher×3, Scout×2, Potion×3, Bolt×2, High Ground×2.
 
 **Summoning sickness — none.** A sidekick summoned this round is inserted into initiative at its Speed and acts this round if its slot hasn't passed (i.e. if any pending unit has equal-or-lower Speed). A Skirmisher (Speed 5) summoned by your Vanguard (Speed 2) effectively jumps the queue and acts the same round.
+
+## HP & dice tracking
+
+Every unit's max HP fits within the faces of a single **d6**. For tabletop play, place one d6 next to each minifig showing its current HP; rotate the die down as damage is taken. When the die would drop below 1, the unit is dead.
+
+| Unit | Max HP | Die starts on |
+|---|---|---|
+| Vanguard | 6 | 6 |
+| Warden | 5 | 5 |
+| Archer | 4 | 4 |
+| Skirmisher | 3 | 3 |
+| Scout | 3 | 3 |
+
+Healing rotates the die back up (Potion +4 caps at max; Warden heal +3 caps at max). The digital UI shows the HP number; the dice convention is for IRL only.
 
 ## Combat
 

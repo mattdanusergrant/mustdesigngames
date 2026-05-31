@@ -120,7 +120,7 @@
 
   <div class="legend">V Vanguard · A Archer · W Warden · S Skirmisher · s Scout · + Potion · ϟ Bolt · ▲ High Ground &nbsp;|&nbsp; SIDE ×1.5 / REAR ×2 · ▲ +1 ATK</div>
   <h1>SIGIL TACTICS</h1>
-  <div class="sub">v0.6 prototype · stats pass · move 1 · tighter speed buckets</div>
+  <div class="sub">v0.7 prototype · ATK 1 · unique speeds · HP fits a d6</div>
 </div>
 
 <div id="over"><div class="box"><h2 id="overT"></h2><p id="overP"></p><button class="btn" onclick="location.reload()">Play again</button></div></div>
@@ -132,12 +132,12 @@ const R=4,C=5;
 /* ---------- definitions ---------- */
 const CLASSES={
   // heroes (placed at start, never in deck)
-  vanguard:{name:"Vanguard",sym:"V",hp:7,atk:3,move:1,range:1,speed:2,hero:true},
-  archer:{name:"Archer",sym:"A",hp:5,atk:2,move:1,range:2,speed:3,hero:true},
-  warden:{name:"Warden",sym:"W",hp:6,atk:2,move:1,range:1,speed:3,hero:true,heal:true},
+  vanguard:{name:"Vanguard",sym:"V",hp:6,atk:1,move:1,range:1,speed:3,hero:true},
+  archer:{name:"Archer",sym:"A",hp:4,atk:1,move:1,range:2,speed:5,hero:true},
+  warden:{name:"Warden",sym:"W",hp:5,atk:1,move:1,range:1,speed:4,hero:true,heal:true},
   // sidekicks (unit cards)
-  skirmisher:{name:"Skirmisher",sym:"S",hp:4,atk:2,move:1,range:1,speed:4,cost:2,flank:true},
-  scout:{name:"Scout",sym:"s",hp:4,atk:2,move:1,range:2,speed:4,cost:2}
+  skirmisher:{name:"Skirmisher",sym:"S",hp:3,atk:1,move:1,range:1,speed:1,cost:2,flank:true},
+  scout:{name:"Scout",sym:"s",hp:3,atk:1,move:1,range:2,speed:2,cost:2}
 };
 const CARDS={
   skirmisher:{kind:"unit",cls:"skirmisher",cost:2,sym:"S",name:"Skirmisher"},
