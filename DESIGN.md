@@ -2,7 +2,7 @@
 
 Mobile-web tactical card-battler. Two sides, three heroes each, on a small grid. Play proceeds in **rounds**; within a round, every living unit gets one turn in **Speed order**. Cards add sidekicks, spells, and battlefield effects. Win by eliminating all three enemy heroes.
 
-Current build: **v0.3** (`index.html`).
+Current build: **v0.5** (`index.html`).
 
 ---
 
@@ -41,16 +41,28 @@ Play proceeds in numbered rounds.
 1. **Start of round**
    - Both sides gain +1 max aether (cap 10) and refill to full.
    - Both sides draw 1 card (hand cap 8).
-   - Each living unit rolls a fresh `initRoll` (random tiebreaker).
    - All units lose their `hasMoved` / `hasActed` flags.
 2. **Initiative pass**
-   - Build an ordered list of all living units who have not yet acted this round.
-   - Sort by `(-speed, initRoll)` — higher Speed first, random tiebreak among ties.
-   - Activate the top unit (its owner takes its turn), then mark it acted.
-   - Repeat until the list is empty.
+   - Repeatedly pick the next unit to activate per the Initiative System (below) until no unacted units remain.
 3. **Next round** — back to step 1.
 
-The initiative ribbon above the board shows current and upcoming activations (acted units are faded).
+The initiative ribbon above the board shows the current Initiative token holder (◆) plus current and upcoming activations (acted units are faded).
+
+## Initiative System
+
+Activation order is **strictly by Speed**, ties broken by the Initiative token.
+
+**Game start.** The unit with the highest Speed acts first. If multiple units are tied for highest Speed, randomly pick which one. The player who is **not** taking that first action gains the **Initiative token**.
+
+**Speed ties during play.** Whenever multiple pending units share the same top Speed and they belong to different sides, the units belonging to the token-holder go first (in id order), then the opponent's tied units. The token then transfers to the opponent.
+
+**Within-side ties.** Units of the same side at the same Speed activate in id order (older units / heroes first).
+
+**Tie-bracket semantics.** A "tie" is resolved per *bracket* (a single Speed value with both sides represented). All token-holder units in the bracket act, then all opponent units, and the token transfers once at the end of the bracket.
+
+**Persistence.** Token state persists between rounds. Each cross-side tie consumed during a round flips it.
+
+**Summons mid-round.** A summoned sidekick is inserted into the remaining initiative at its Speed using the live token state. If it joins an already-active cross-tie bracket, its side's order within the bracket follows the token-holder rule.
 
 ## A unit's turn
 
@@ -108,7 +120,7 @@ For each AI-owned unit on its turn:
 ## Open questions / next up
 
 - **Hero variety**: only one hero set right now (V/W/A) shared by both sides. Drafting or asymmetric rosters would add identity.
-- **Speed counter-play**: nothing currently modifies Speed mid-match. Haste / Slow effects, initiative-swap spells, or wait-actions (delay your slot) would deepen the layer.
+- **Speed counter-play**: nothing currently modifies Speed mid-match. Haste / Slow effects, initiative-swap spells, or wait-actions (delay your slot) would deepen the layer. A card that steals or pre-spends the Initiative token would also be interesting.
 - **Card play during enemy turns**: currently disallowed (instant/reaction cards would be a separate system).
 - **Items vs spells**: currently mechanically identical (one-shot). If equippable items return, need card category, slot model, and removal rules.
 - **More spells**: Smoke (skip a unit's next turn), Charge (+ATK this turn), Knockback, AoE — design space is wide open.

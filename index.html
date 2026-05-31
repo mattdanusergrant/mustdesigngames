@@ -120,7 +120,7 @@
 
   <div class="legend">V Vanguard · A Archer · W Warden · S Skirmisher · s Scout · + Potion · ϟ Bolt · ▲ High Ground &nbsp;|&nbsp; SIDE ×1.5 / REAR ×2 · ▲ +1 ATK</div>
   <h1>SIGIL TACTICS</h1>
-  <div class="sub">v0.4 prototype · round-based · speed initiative</div>
+  <div class="sub">v0.5 prototype · round-based · speed initiative + token</div>
 </div>
 
 <div id="over"><div class="box"><h2 id="overT"></h2><p id="overP"></p><button class="btn" onclick="location.reload()">Play again</button></div></div>
@@ -153,6 +153,7 @@ const VEC={N:[-1,0],S:[1,0],E:[0,1],W:[0,-1]};
 const OPP={N:"S",S:"N",E:"W",W:"E"};
 
 let board, players, sel, busy, uid, heroes, units, roundNum, acted, activeId, over;
+let initiativeToken, liveToken, prevBracketSpeed, prevBracketWasCrossTie;
 
 /* ---------- helpers ---------- */
 function deployRows(o){ return o==="A"?[2,3]:[0,1]; }
@@ -164,7 +165,7 @@ function newUnit(owner,cls,r,c,facing){
   const d=CLASSES[cls];
   const u={id:++uid,owner,cls,r,c,facing,hp:d.hp,maxHp:d.hp,atk:d.atk,move:d.move,range:d.range,speed:d.speed,
     flank:!!d.flank,heal:!!d.heal,hero:!!d.hero,sym:d.sym,name:d.name,
-    hasMoved:false,hasActed:false,initRoll:Math.random()};
+    hasMoved:false,hasActed:false};
   units.push(u);
   return u;
 }
@@ -186,12 +187,21 @@ function newGame(){
   };
   for(let i=0;i<3;i++){players.A.hand.push(players.A.deck.pop()); players.B.hand.push(players.B.deck.pop());}
   document.getElementById("over").style.display="none";
+  // Initial initiative determination: highest-speed unit acts first; tied → random.
+  // The side NOT acting first gets the Initiative token.
+  const maxSpd=Math.max(...units.map(u=>u.speed));
+  const sidesAtMax=new Set(units.filter(u=>u.speed===maxSpd).map(u=>u.owner));
+  let firstActor;
+  if(sidesAtMax.size===1){ firstActor=[...sidesAtMax][0]; liveToken=firstActor==="A"?"B":"A"; }
+  else { firstActor=Math.random()<0.5?"A":"B"; liveToken=firstActor; /* so first-actor goes first in the tied bracket; flip after leaves token with the other side */ }
+  initiativeToken=liveToken;
   startRound();
   render();
   promptOrAi();
 }
 
 /* ---------- round / initiative ---------- */
+function flipToken(){ liveToken = liveToken==="A" ? "B" : "A"; }
 function startRound(){
   roundNum++;
   for(const o of ["A","B"]){
@@ -199,19 +209,65 @@ function startRound(){
     p.maxAether=Math.min(10,p.maxAether+1); p.aether=p.maxAether;
     if(p.deck.length && p.hand.length<8) p.hand.push(p.deck.pop());
   }
-  for(const u of units){ u.hasMoved=false; u.hasActed=false; u.initRoll=Math.random(); }
+  for(const u of units){ u.hasMoved=false; u.hasActed=false; }
   acted=new Set();
+  liveToken=initiativeToken;
+  prevBracketSpeed=null;
+  prevBracketWasCrossTie=false;
   advance();
 }
-function remainingInitiative(){
-  return units.filter(u=>u.hp>0 && !acted.has(u.id))
-    .sort((a,b)=> (b.speed-a.speed) || (a.initRoll-b.initRoll));
+function pendingUnits(){ return units.filter(u=>u.hp>0 && !acted.has(u.id)); }
+function bracketOrder(bracket, tokenForBracket){
+  const sA=bracket.filter(u=>u.owner==="A").sort((a,b)=>a.id-b.id);
+  const sB=bracket.filter(u=>u.owner==="B").sort((a,b)=>a.id-b.id);
+  const cross=sA.length>0 && sB.length>0;
+  if(cross){
+    const first=tokenForBracket==="A"?sA:sB;
+    const second=tokenForBracket==="A"?sB:sA;
+    return {order:[...first,...second], cross:true};
+  }
+  return {order:[...sA,...sB], cross:false};
 }
 function advance(){
-  const rem=remainingInitiative();
-  if(!rem.length){ activeId=null; if(!over) startRound(); return; }
-  const next=rem[0]; activeId=next.id; sel=null;
-  next.hasMoved=false; next.hasActed=false;
+  const pending=pendingUnits();
+  if(!pending.length){
+    if(prevBracketWasCrossTie) flipToken();
+    initiativeToken=liveToken;
+    activeId=null;
+    if(!over) startRound();
+    return;
+  }
+  const topSpd=Math.max(...pending.map(u=>u.speed));
+  const isNewBracket=(prevBracketSpeed===null||topSpd<prevBracketSpeed);
+  if(isNewBracket){
+    if(prevBracketSpeed!==null && prevBracketWasCrossTie) flipToken();
+  }
+  const bracket=pending.filter(u=>u.speed===topSpd);
+  const {order,cross}=bracketOrder(bracket, liveToken);
+  if(isNewBracket){ prevBracketWasCrossTie=cross; }
+  prevBracketSpeed=topSpd;
+  activeId=order[0].id;
+  sel=null;
+}
+// Forecast remaining order for the initiative ribbon, given current live state.
+function forecastRemaining(){
+  const result=[];
+  let pendingIds=new Set(pendingUnits().map(u=>u.id));
+  let simToken=liveToken;
+  let simPrevSpd=prevBracketSpeed;
+  let simPrevCross=prevBracketWasCrossTie;
+  while(pendingIds.size){
+    const pend=units.filter(u=>pendingIds.has(u.id));
+    const topSpd=Math.max(...pend.map(u=>u.speed));
+    const isNew=(simPrevSpd===null||topSpd<simPrevSpd);
+    if(isNew && simPrevSpd!==null && simPrevCross){ simToken = simToken==="A"?"B":"A"; }
+    const bracket=pend.filter(u=>u.speed===topSpd);
+    const {order,cross}=bracketOrder(bracket, simToken);
+    for(const u of order){ result.push(u); pendingIds.delete(u.id); }
+    if(isNew){ simPrevCross=cross; }
+    simPrevSpd=topSpd;
+  }
+  return result;
 }
 function endActiveTurn(){
   const u=activeUnit(); if(u){ acted.add(u.id); }
@@ -447,8 +503,9 @@ function renderHeroes(){
 function renderInit(){
   const el=document.getElementById("init"); el.innerHTML="";
   const lbl=document.createElement("span"); lbl.className="lbl"; lbl.textContent="R"+roundNum; el.appendChild(lbl);
-  // Order: active first, then upcoming by speed, then acted (faded) at end
-  const rem=remainingInitiative();
+  const tok=document.createElement("span"); tok.className="ichip "+liveToken;
+  tok.innerHTML=`◆<span class="spd">init</span>`; el.appendChild(tok);
+  const rem=forecastRemaining();
   const actedList=units.filter(u=>u.hp>0 && acted.has(u.id));
   const order=[...rem, ...actedList];
   for(const u of order){
