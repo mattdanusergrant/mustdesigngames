@@ -184,9 +184,9 @@
 
   <h3>Heroes</h3>
   <table class="cdx-tbl"><tr><th>Hero</th><th>HP</th><th>ATK</th><th>Move</th><th>Range</th><th>Speed</th></tr>
-    <tr><td>K Knight</td><td>6</td><td>1</td><td>1</td><td>1</td><td>3</td></tr>
-    <tr><td>R Ranger</td><td>4</td><td>1</td><td>1</td><td>2</td><td>5</td></tr>
-    <tr><td>M Mage</td><td>5</td><td>1</td><td>1</td><td>1</td><td>4</td></tr>
+    <tr><td>K Knight</td><td>10</td><td>1</td><td>1</td><td>1</td><td>3</td></tr>
+    <tr><td>R Ranger</td><td>8</td><td>1</td><td>1</td><td>2</td><td>5</td></tr>
+    <tr><td>M Mage</td><td>6</td><td>1</td><td>1</td><td>2</td><td>4</td></tr>
   </table>
 
   <h3>Card categories</h3>
@@ -219,9 +219,9 @@ const R=4,C=5;
 /* ---------- definitions ---------- */
 const CLASSES={
   // heroes (placed at start, never in deck)
-  knight:{name:"Knight",sym:"K",hp:6,atk:1,move:1,range:1,speed:3,hero:true},
-  ranger:{name:"Ranger",sym:"R",hp:4,atk:1,move:1,range:2,speed:5,hero:true},
-  mage:  {name:"Mage",  sym:"M",hp:5,atk:1,move:1,range:1,speed:4,hero:true,heal:true},
+  knight:{name:"Knight",sym:"K",hp:10,atk:1,move:1,range:1,speed:3,hero:true},
+  ranger:{name:"Ranger",sym:"R",hp:8, atk:1,move:1,range:2,speed:5,hero:true},
+  mage:  {name:"Mage",  sym:"M",hp:6, atk:1,move:1,range:2,speed:4,hero:true,heal:true},
   // sidekicks (defined but not in any deck)
   skirmisher:{name:"Skirmisher",sym:"S",hp:3,atk:1,move:1,range:1,speed:1,cost:2,flank:true},
   scout:{name:"Scout",sym:"s",hp:3,atk:1,move:1,range:2,speed:2,cost:2}

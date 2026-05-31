@@ -19,9 +19,9 @@ Each side starts with **3 distinct heroes** on the board, placed in their back r
 
 | Hero | Sym | HP | ATK | Move | Range | Speed | Notes |
 |---|---|---|---|---|---|---|---|
-| Knight | K | 6 | 1 | 1 | 1 | 3 | Tankiest hero, slowest in the bunch |
-| Mage   | M | 5 | 1 | 1 | 1 | 4 | Heals adjacent ally for +3 as an action |
-| Ranger | R | 4 | 1 | 1 | 2 | 5 | Fragile, fastest, range 2 |
+| Knight | K | 10 | 1 | 1 | 1 | 3 | Tankiest hero, slowest in the bunch |
+| Mage   | M | 6  | 1 | 1 | 2 | 4 | Heals adjacent ally for +3 as an action; ranged |
+| Ranger | R | 8  | 1 | 1 | 2 | 5 | Fastest, range 2 |
 
 Heroes never appear in the deck. They are gold-bordered on the board and tracked in mini HP bars above the grid.
 
@@ -137,19 +137,17 @@ Shield persists across rounds until consumed. ATK buffs and move buffs both clea
 | 9 | Action · Spell | Bless | 2 | Ally +1 ATK this round |
 | 10 | Action · Spell | Smite | 2 | 2 dmg to enemy |
 
-## HP & dice tracking
+## HP tracking
 
-Every unit's max HP fits within the faces of a single **d6**. For tabletop play, place one d6 next to each minifig showing its current HP; rotate the die down as damage is taken. When the die would drop below 1, the unit is dead.
+Hero HP now exceeds a single d6, so tabletop play needs a d10 (or d12) per hero — or a paper tracker. Sidekicks still fit on a d6.
 
-| Unit | Max HP | Die starts on |
-|---|---|---|
-| Knight | 6 | 6 |
-| Mage | 5 | 5 |
-| Ranger | 4 | 4 |
-| Skirmisher | 3 | 3 |
-| Scout | 3 | 3 |
-
-Healing rotates the die back up (Potion +4 caps at max; Mage heal +3 caps at max). The digital UI shows the HP number; the dice convention is for IRL only.
+| Unit | Max HP |
+|---|---|
+| Knight | 10 |
+| Ranger | 8 |
+| Mage | 6 |
+| Skirmisher | 3 |
+| Scout | 3 |
 
 ## Combat
 
