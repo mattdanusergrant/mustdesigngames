@@ -21,17 +21,17 @@ Each side fields **3 heroes** drafted from a **9-hero active roster**. Three add
 
 | Glyph | Hero | HP | ATK | Move | Range | Speed | Tags | Notes |
 |---|---|---|---|---|---|---|---|---|
-| 🛡️ | Paladin   | 10 | 1 | 1 | 1 | 2  | heal  | Tank with adjacent-ally heal |
-| ⚔️ | Knight    | 10 | 1 | 1 | 1 | 3  | —     | Tanky melee |
-| 🩸 | Warlock   | 6  | 1 | 1 | 3 | 5  | —     | Longest range in the roster |
-| 🌿 | Druid     | 8  | 1 | 1 | 2 | 6  | heal  | Ranged healer |
-| 🔮 | Mage      | 6  | 1 | 1 | 2 | 7  | heal  | Ranged caster, adjacent-ally heal |
-| 🪓 | Berserker | 8  | 2 | 1 | 1 | 9  | —     | High-damage melee |
-| 🏹 | Ranger    | 8  | 1 | 1 | 2 | 10 | —     | Fast ranged |
-| 👁️ | Scout     | 4  | 1 | 2 | 2 | 11 | —     | Mobile recon, fragile |
-| 🗡️ | Assassin  | 6  | 2 | 2 | 1 | 12 | flank | Fastest, ×2 side / ×2.5 rear |
+| 🛡️ | Paladin   | 10 | 1 | 1 | 1 | 1 | heal  | Tank with adjacent-ally heal |
+| ⚔️ | Knight    | 10 | 1 | 1 | 1 | 2 | —     | Tanky melee |
+| 🩸 | Warlock   | 6  | 1 | 1 | 3 | 3 | —     | Longest range in the roster |
+| 🌿 | Druid     | 8  | 1 | 1 | 2 | 4 | heal  | Ranged healer |
+| 🔮 | Mage      | 6  | 1 | 1 | 2 | 5 | heal  | Ranged caster, adjacent-ally heal |
+| 🪓 | Berserker | 8  | 2 | 1 | 1 | 6 | —     | High-damage melee |
+| 🏹 | Ranger    | 8  | 1 | 1 | 2 | 7 | —     | Fast ranged |
+| 👁️ | Scout     | 4  | 1 | 2 | 2 | 8 | —     | Mobile recon, fragile |
+| 🗡️ | Assassin  | 6  | 2 | 2 | 1 | 9 | flank | Fastest, ×2 side / ×2.5 rear |
 
-Active-roster speeds are unique: `{2, 3, 5, 6, 7, 9, 10, 11, 12}`. Combined with the snake draft (no class duplicates within a match), initiative ties between heroes never occur.
+Active-roster speeds form a contiguous `{1, 2, 3, 4, 5, 6, 7, 8, 9}` — all unique. Combined with the snake draft (no class duplicates within a match), initiative ties between heroes never occur. Hidden-roster speeds (Sentinel 1, Necromancer 4, Crusader 8) currently collide with active speeds; if any of those are un-hidden later, the active roster will need to be re-numbered accordingly.
 
 ### Hidden roster (3, not in draft)
 
