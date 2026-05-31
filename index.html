@@ -140,7 +140,7 @@
   #draft.open{display:flex;}
   #draft .dbox{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px 14px; max-width:460px; width:100%;}
   #draft h2{margin:0 0 2px; text-align:center; color:var(--gold); letter-spacing:3px;}
-  #draft .d-sub{font-size:11px; color:var(--dim); text-align:center; margin-bottom:8px;}
+  #draft .d-sub{font-size:11px; color:var(--dim); text-align:left; line-height:1.5; margin-top:12px; padding-top:10px; border-top:1px solid var(--line);}
   #draft .d-status{text-align:center; font-size:12px; color:#fff; padding:6px; background:rgba(212,165,116,.1); border-radius:6px; margin-bottom:10px; font-weight:600;}
   #draft .d-teams{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;}
   #draft .d-team{background:rgba(255,255,255,.03); border:1px solid var(--line); border-radius:8px; padding:6px;}
@@ -258,14 +258,14 @@
 </div></div>
 
 <div id="draft"><div class="dbox">
-  <h2>DRAFT</h2>
-  <div class="d-sub">1-2-2-1 snake · pick from the 12-hero roster</div>
+  <h2>SIGIL TACTICS — DRAFT</h2>
   <div class="d-status" id="draftStatus">—</div>
+  <div class="d-roster" id="draftRoster"></div>
   <div class="d-teams">
     <div class="d-team d-A"><div class="d-team-h">YOU (P1)</div><div class="d-slots" id="draftA"></div></div>
     <div class="d-team d-B"><div class="d-team-h">AI (P2)</div><div class="d-slots" id="draftB"></div></div>
   </div>
-  <div class="d-roster" id="draftRoster"></div>
+  <div class="d-sub">1-2-2-1 snake draft: P1 picks 1, P2 picks 2, P1 picks 2, P2 picks 1. Each side ends with 3 heroes from the 9-hero active roster — once picked, a hero is locked out for both sides. After the draft, place your heroes on rows 2–3 of the board; the AI then places into rows 0–1.</div>
 </div></div>
 
 <div id="deployBar">
