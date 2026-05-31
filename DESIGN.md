@@ -2,7 +2,7 @@
 
 Mobile-web tactical card-battler. Two sides, three heroes each, on a small grid. Play proceeds in **rounds**; within a round, every living unit gets one turn in **Speed order**. Cards add sidekicks, spells, and battlefield effects. Win by eliminating all three enemy heroes.
 
-Current build: **v0.8** (`index.html`).
+Current build: **v0.9** (`index.html`).
 
 ---
 
@@ -19,15 +19,15 @@ Each side starts with **3 distinct heroes** on the board, placed in their back r
 
 | Hero | Sym | HP | ATK | Move | Range | Speed | Notes |
 |---|---|---|---|---|---|---|---|
-| Vanguard | V | 6 | 1 | 1 | 1 | 3 | Tankiest hero, slowest in the bunch |
-| Warden | W | 5 | 1 | 1 | 1 | 4 | Heals adjacent ally for +3 as an action |
-| Archer | A | 4 | 1 | 1 | 2 | 5 | Fragile, fastest, range 2 |
+| Knight | K | 6 | 1 | 1 | 1 | 3 | Tankiest hero, slowest in the bunch |
+| Mage   | M | 5 | 1 | 1 | 1 | 4 | Heals adjacent ally for +3 as an action |
+| Ranger | R | 4 | 1 | 1 | 2 | 5 | Fragile, fastest, range 2 |
 
 Heroes never appear in the deck. They are gold-bordered on the board and tracked in mini HP bars above the grid.
 
 ## Sidekicks
 
-Currently **not in the deck.** The Skirmisher and Scout classes remain defined in the engine for future use but no card summons them in v0.8.
+Currently **not in the deck.** The Skirmisher and Scout classes remain defined in the engine for future use but no card summons them in v0.9.
 
 ## Round structure
 
@@ -63,17 +63,22 @@ Activation order is **strictly by Speed**, ties broken by the Initiative token.
 
 When a unit is the active one, its owner does **one** of:
 
-- **Act normally** — move (up to `move`) and/or perform one action (attack any enemy in range; Warden may instead heal an adjacent ally).
+- **Act normally** — move (up to `move`) and/or perform one action (attack any enemy in range; Mage may instead heal an adjacent ally).
 - **Play one card** from hand — spends aether and the unit's entire activation. No move, no attack on this turn.
 - **Pass** — end the turn with no effect (the END TURN button).
 
-Movement updates facing toward the destination; attacks update facing toward the target. A Warden may attack instead of healing.
+Movement updates facing toward the destination; attacks update facing toward the target. A Mage may attack instead of healing.
 
 ## Cards
 
-Each side runs a **30-card deck** built from three 10-card hero suites — Vanguard, Archer, Warden. Both sides currently use identical decks. Hand cap 8; draw 1 at start of each round; starting hand 3.
+Each side runs a **30-card deck** built from three 10-card hero suites — Knight, Ranger, Mage. Each hero contributes **5 equipment + 5 actions**. Both sides currently use identical decks. Hand cap 8; draw 1 at start of each round; starting hand 3.
 
-Every card is a **one-shot consumable.** Categories (Weapon / Armor / Helmet / Artifact / Action / Spell) are flavor tags that drive theme and card-back color; mechanically a card is one of these **kinds**:
+**Categories:**
+- **Equipment** — one each of: Weapon, Armor, Helmet, Boots, Artifact.
+- **Action** — moves, attacks, and effects performed by a hero.
+- **Spell** — a *subtype of action*. Mechanically identical to a non-spell action; distinguished by flavor (and shown with a purple stripe and `SPL` tag in-game).
+
+Every card is a **one-shot consumable.** Mechanically a card resolves as one of these **kinds**:
 
 | Kind | Target | Effect |
 |---|---|---|
@@ -87,50 +92,50 @@ Every card is a **one-shot consumable.** Categories (Weapon / Armor / Helmet / A
 
 Shield persists across rounds until consumed. ATK buffs and move buffs both clear (atk-buff at round start, move-buff at end of the buffed unit's turn).
 
-### Vanguard suite (10)
+### Knight suite (10) — 5 equip, 5 actions (1 spell)
 
-| # | Category | Name | Cost | Effect |
+| # | Slot/Type | Name | Cost | Effect |
 |---|---|---|---|---|
 | 1 | Weapon | Greatsword | 2 | 2 dmg to enemy |
 | 2 | Armor | Plate Mail | 2 | +2 shield to ally |
 | 3 | Helmet | Iron Helm | 1 | +1 shield to ally |
-| 4 | Artifact | War Banner | 3 | +1 shield to all allies |
-| 5 | Action | Charge | 1 | Ally +2 move this turn |
-| 6 | Action | Bulwark | 1 | Heal ally +2 |
-| 7 | Action | Rally | 3 | All allies +1 ATK this round |
-| 8 | Spell | Battle Cry | 2 | Ally +2 ATK this round |
-| 9 | Spell | Iron Will | 2 | Heal ally +3 |
-| 10 | Spell | Sundering Blow | 3 | 3 dmg to enemy |
+| 4 | Boots | Steel Greaves | 1 | Ally +1 move this turn |
+| 5 | Artifact | War Banner | 3 | +1 shield to all allies |
+| 6 | Action | Charge | 1 | Ally +2 move this turn |
+| 7 | Action | Bulwark | 1 | Heal ally +2 |
+| 8 | Action | Rally | 3 | All allies +1 ATK this round |
+| 9 | Action | Sundering Blow | 3 | 3 dmg to enemy |
+| 10 | Action · Spell | Battle Cry | 2 | Ally +2 ATK this round |
 
-### Archer suite (10)
+### Ranger suite (10) — 5 equip, 5 actions (2 spells)
 
-| # | Category | Name | Cost | Effect |
+| # | Slot/Type | Name | Cost | Effect |
 |---|---|---|---|---|
 | 1 | Weapon | Longbow | 2 | 2 dmg to enemy |
 | 2 | Armor | Leather Cloak | 1 | +1 shield to ally |
 | 3 | Helmet | Hawk Hood | 1 | Ally +1 move this turn |
-| 4 | Artifact | Hunter's Mark | 2 | 2 dmg to enemy |
-| 5 | Action | Quick Shot | 1 | 1 dmg to enemy |
-| 6 | Action | Volley | 3 | 2 dmg to enemy |
-| 7 | Action | Reposition | 1 | Ally +1 move this turn |
-| 8 | Spell | Wind Step | 2 | Ally +2 move this turn |
-| 9 | Spell | Piercing Arrow | 3 | 3 dmg to enemy |
-| 10 | Spell | Eagle's Eye | 1 | Ally +1 ATK this round |
+| 4 | Boots | Swift Boots | 2 | Ally +2 move this turn |
+| 5 | Artifact | Hunter's Mark | 2 | 2 dmg to enemy |
+| 6 | Action | Quick Shot | 1 | 1 dmg to enemy |
+| 7 | Action | Volley | 3 | 2 dmg to enemy |
+| 8 | Action | Reposition | 1 | Ally +1 move this turn |
+| 9 | Action · Spell | Piercing Arrow | 3 | 3 dmg to enemy |
+| 10 | Action · Spell | Eagle's Eye | 1 | Ally +1 ATK this round |
 
-### Warden suite (10)
+### Mage suite (10) — 5 equip, 5 actions (all spells)
 
-| # | Category | Name | Cost | Effect |
+| # | Slot/Type | Name | Cost | Effect |
 |---|---|---|---|---|
-| 1 | Weapon | Quarterstaff | 1 | 1 dmg to enemy |
+| 1 | Weapon | Staff | 1 | 1 dmg to enemy |
 | 2 | Armor | Robe of Mending | 2 | Heal ally +2 |
 | 3 | Helmet | Crown of Light | 2 | +2 shield to ally |
-| 4 | Artifact | Sacred Chalice | 4 | Heal ally +6 (caps at maxHp) |
-| 5 | Action | Mend | 2 | Heal ally +3 |
-| 6 | Action | Restore | 4 | Heal ally +5 |
-| 7 | Action | Shield Wall | 3 | +1 shield to all allies |
-| 8 | Spell | Heal | 2 | Heal ally +3 |
-| 9 | Spell | Bless | 2 | Ally +1 ATK this round |
-| 10 | Spell | Smite | 2 | 2 dmg to enemy |
+| 4 | Boots | Cleric Sandals | 1 | Heal ally +1 |
+| 5 | Artifact | Sacred Chalice | 4 | Heal ally +6 (caps at maxHp) |
+| 6 | Action · Spell | Mend | 2 | Heal ally +3 |
+| 7 | Action · Spell | Restore | 4 | Heal ally +5 |
+| 8 | Action · Spell | Shield Wall | 3 | +1 shield to all allies |
+| 9 | Action · Spell | Bless | 2 | Ally +1 ATK this round |
+| 10 | Action · Spell | Smite | 2 | 2 dmg to enemy |
 
 ## HP & dice tracking
 
@@ -138,13 +143,13 @@ Every unit's max HP fits within the faces of a single **d6**. For tabletop play,
 
 | Unit | Max HP | Die starts on |
 |---|---|---|
-| Vanguard | 6 | 6 |
-| Warden | 5 | 5 |
-| Archer | 4 | 4 |
+| Knight | 6 | 6 |
+| Mage | 5 | 5 |
+| Ranger | 4 | 4 |
 | Skirmisher | 3 | 3 |
 | Scout | 3 | 3 |
 
-Healing rotates the die back up (Potion +4 caps at max; Warden heal +3 caps at max). The digital UI shows the HP number; the dice convention is for IRL only.
+Healing rotates the die back up (Potion +4 caps at max; Mage heal +3 caps at max). The digital UI shows the HP number; the dice convention is for IRL only.
 
 ## Combat
 
@@ -168,7 +173,7 @@ For each AI-owned unit on its turn:
 
 1. Score the best possible card play *with* this unit's turn (heal a wounded hero, bolt a hero or finishable target, deploy a sidekick, place terrain).
 2. Score the unit's best normal action (best attack arc-adjusted damage; small baseline for "advance toward enemy").
-3. Choose whichever scores higher. If acting normally, Warden heals first if adjacent ally is wounded, then attacks/advances.
+3. Choose whichever scores higher. If acting normally, Mage heals first if adjacent ally is wounded, then attacks/advances.
 4. Targets prefer heroes, low-HP enemies, and finishing blows.
 
 ---
@@ -180,6 +185,6 @@ For each AI-owned unit on its turn:
 - **Card play during enemy turns**: currently disallowed (instant/reaction cards would be a separate system).
 - **Items vs spells**: currently mechanically identical (one-shot). If equippable items return, need card category, slot model, and removal rules.
 - **More spells**: Smoke (skip a unit's next turn), Charge (+ATK this turn), Knockback, AoE — design space is wide open.
-- **Line of sight / cover**: Archer is currently unblocked, which lets it sit in the back row safely.
+- **Line of sight / cover**: Ranger is currently unblocked, which lets it sit in the back row safely.
 - **Win-condition variants**: "kill any 2" as a faster mode; objective tiles as an alternative axis.
 - **Mobile UX**: initiative ribbon may need horizontal scroll affordance; consider tap-and-hold for card details.

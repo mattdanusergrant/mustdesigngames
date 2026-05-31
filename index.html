@@ -103,9 +103,11 @@
   .card.cat-Weapon{box-shadow:inset 0 -3px 0 #c14a3a;}
   .card.cat-Armor{box-shadow:inset 0 -3px 0 #4a78c1;}
   .card.cat-Helmet{box-shadow:inset 0 -3px 0 #4ac1a8;}
+  .card.cat-Boots{box-shadow:inset 0 -3px 0 #7fb04a;}
   .card.cat-Artifact{box-shadow:inset 0 -3px 0 var(--gold);}
   .card.cat-Action{box-shadow:inset 0 -3px 0 #c7c9d1;}
-  .card.cat-Spell{box-shadow:inset 0 -3px 0 #b878ff;}
+  .card.spell{box-shadow:inset 0 -3px 0 #b878ff;}
+  .card.spell .cs{color:#d6bcff;}
 
   .legend{font-size:10px; color:var(--dim); text-align:center; line-height:1.5;}
   #codex{position:fixed; inset:0; background:rgba(8,9,12,.92); display:none; align-items:flex-start; justify-content:center; z-index:20; overflow-y:auto; padding:20px 12px;}
@@ -130,9 +132,10 @@
   #codex .cdx-card.cat-Weapon{border-left-color:#c14a3a;}
   #codex .cdx-card.cat-Armor{border-left-color:#4a78c1;}
   #codex .cdx-card.cat-Helmet{border-left-color:#4ac1a8;}
+  #codex .cdx-card.cat-Boots{border-left-color:#7fb04a;}
   #codex .cdx-card.cat-Artifact{border-left-color:var(--gold);}
   #codex .cdx-card.cat-Action{border-left-color:#c7c9d1;}
-  #codex .cdx-card.cat-Spell{border-left-color:#b878ff;}
+  #codex .cdx-card.spell{border-left-color:#b878ff;}
   #over{position:fixed; inset:0; background:rgba(8,9,12,.85); display:none; align-items:center; justify-content:center; z-index:9;}
   #over .box{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:22px; text-align:center; max-width:300px;}
   #over h2{margin:0 0 6px;} #over p{color:var(--dim); font-size:13px; margin:0 0 16px;}
@@ -154,23 +157,23 @@
     <button class="btn ghost" id="newBtn">New</button>
   </div>
 
-  <div class="legend">V Vanguard · A Archer · W Warden · 30-card deck (3 hero suites × 10) &nbsp;|&nbsp; SIDE ×1.5 / REAR ×2 · ▲ +1 ATK · ⛨ shield · +A atk-buff</div>
+  <div class="legend">K Knight · R Ranger · M Mage · 30-card deck (5 equipment + 5 actions per hero) &nbsp;|&nbsp; SIDE ×1.5 / REAR ×2 · ▲ +1 ATK · ⛨ shield · +A atk-buff</div>
   <button class="title" id="titleBtn" onclick="openCodex()">
     <h1>SIGIL TACTICS</h1>
-    <div class="sub">v0.8 prototype · tap for rules &amp; card list</div>
+    <div class="sub">v0.9 · Knight · Ranger · Mage · tap for rules &amp; cards</div>
   </button>
 </div>
 
 <div id="codex"><div class="cbox">
   <button class="x" onclick="closeCodex()">×</button>
   <h2>SIGIL TACTICS</h2>
-  <div class="cdx-sub">v0.8 — 4×5 grid, 3 heroes per side, 30-card deck</div>
+  <div class="cdx-sub">v0.9 — 4×5 grid · Knight · Ranger · Mage · 30-card deck (5 equip + 5 actions per hero)</div>
 
   <h3>Rules</h3>
   <ul>
-    <li><b>Win:</b> defeat all 3 enemy heroes. Sidekick units don't count.</li>
+    <li><b>Win:</b> defeat all 3 enemy heroes.</li>
     <li><b>Initiative:</b> each round, units act in Speed order (high → low). A unit can move + attack (or skip either).</li>
-    <li><b>Facing:</b> attacks from the SIDE deal ×1.5, REAR ×2. Skirmishers do ×2 / ×2.5.</li>
+    <li><b>Facing:</b> attacks from the SIDE deal ×1.5, REAR ×2.</li>
     <li><b>Terrain:</b> ▲ high ground gives +1 ATK while standing on it.</li>
     <li><b>Cards:</b> draw 1 at the start of each round (hand cap 8, start 3). Cards can be played at the start of one of your units' turns. Each card is one-shot.</li>
     <li><b>Aether:</b> spent to play cards. Refreshes / grows each round.</li>
@@ -181,12 +184,18 @@
 
   <h3>Heroes</h3>
   <table class="cdx-tbl"><tr><th>Hero</th><th>HP</th><th>ATK</th><th>Move</th><th>Range</th><th>Speed</th></tr>
-    <tr><td>V Vanguard</td><td>6</td><td>1</td><td>2</td><td>1</td><td>2</td></tr>
-    <tr><td>A Archer</td><td>4</td><td>1</td><td>2</td><td>3</td><td>3</td></tr>
-    <tr><td>W Warden</td><td>5</td><td>1</td><td>2</td><td>1</td><td>4</td></tr>
+    <tr><td>K Knight</td><td>6</td><td>1</td><td>1</td><td>1</td><td>3</td></tr>
+    <tr><td>R Ranger</td><td>4</td><td>1</td><td>1</td><td>2</td><td>5</td></tr>
+    <tr><td>M Mage</td><td>5</td><td>1</td><td>1</td><td>1</td><td>4</td></tr>
   </table>
 
-  <h3>Card kinds</h3>
+  <h3>Card categories</h3>
+  <ul class="kinds">
+    <li><b>Equipment (5 per hero)</b> — one each of Weapon, Armor, Helmet, Boots, Artifact.</li>
+    <li><b>Actions (5 per hero)</b> — moves, attacks, and effects performed by a hero. <b>Spells</b> are a subtype of action (purple stripe, tag <i>SPL</i>) — mechanically identical to actions, distinguished only by flavor.</li>
+  </ul>
+
+  <h3>Card kinds (effects)</h3>
   <ul class="kinds">
     <li><b>dmg</b> — N damage to target enemy (shield absorbs first)</li>
     <li><b>heal</b> — restore N HP to target ally (caps at maxHp)</li>
@@ -210,49 +219,49 @@ const R=4,C=5;
 /* ---------- definitions ---------- */
 const CLASSES={
   // heroes (placed at start, never in deck)
-  vanguard:{name:"Vanguard",sym:"V",hp:6,atk:1,move:1,range:1,speed:3,hero:true},
-  archer:{name:"Archer",sym:"A",hp:4,atk:1,move:1,range:2,speed:5,hero:true},
-  warden:{name:"Warden",sym:"W",hp:5,atk:1,move:1,range:1,speed:4,hero:true,heal:true},
-  // sidekicks (unit cards)
+  knight:{name:"Knight",sym:"K",hp:6,atk:1,move:1,range:1,speed:3,hero:true},
+  ranger:{name:"Ranger",sym:"R",hp:4,atk:1,move:1,range:2,speed:5,hero:true},
+  mage:  {name:"Mage",  sym:"M",hp:5,atk:1,move:1,range:1,speed:4,hero:true,heal:true},
+  // sidekicks (defined but not in any deck)
   skirmisher:{name:"Skirmisher",sym:"S",hp:3,atk:1,move:1,range:1,speed:1,cost:2,flank:true},
   scout:{name:"Scout",sym:"s",hp:3,atk:1,move:1,range:2,speed:2,cost:2}
 };
 const CARDS={
-  // Vanguard suite (10)
-  vg_weapon:   {hero:"V", cat:"Weapon",   kind:"dmg",         cost:2, dmg:2,    sym:"⚔", name:"Greatsword"},
-  vg_armor:    {hero:"V", cat:"Armor",    kind:"shield",      cost:2, amount:2, sym:"⛨", name:"Plate Mail"},
-  vg_helm:     {hero:"V", cat:"Helmet",   kind:"shield",      cost:1, amount:1, sym:"⛑", name:"Iron Helm"},
-  vg_artifact: {hero:"V", cat:"Artifact", kind:"shield-all",  cost:3, amount:1, sym:"⚑", name:"War Banner"},
-  vg_act_charge:{hero:"V",cat:"Action",   kind:"charge",      cost:1, amount:2, sym:"»", name:"Charge"},
-  vg_act_bulwark:{hero:"V",cat:"Action",  kind:"heal",        cost:1, amount:2, sym:"+", name:"Bulwark"},
-  vg_act_rally:{hero:"V", cat:"Action",   kind:"buff-atk-all",cost:3, amount:1, sym:"!", name:"Rally"},
-  vg_spell_cry:{hero:"V", cat:"Spell",    kind:"buff-atk",    cost:2, amount:2, sym:"☄", name:"Battle Cry"},
-  vg_spell_will:{hero:"V",cat:"Spell",    kind:"heal",        cost:2, amount:3, sym:"✦", name:"Iron Will"},
-  vg_spell_sun:{hero:"V", cat:"Spell",    kind:"dmg",         cost:3, dmg:3,    sym:"✸", name:"Sundering Blow"},
+  // Knight suite (10): 5 equipment + 5 actions (1 spell-action)
+  kn_weapon:    {hero:"K", cat:"Weapon",   kind:"dmg",          cost:2, dmg:2,    sym:"⚔", name:"Greatsword"},
+  kn_armor:     {hero:"K", cat:"Armor",    kind:"shield",       cost:2, amount:2, sym:"⛨", name:"Plate Mail"},
+  kn_helm:      {hero:"K", cat:"Helmet",   kind:"shield",       cost:1, amount:1, sym:"⛑", name:"Iron Helm"},
+  kn_boots:     {hero:"K", cat:"Boots",    kind:"charge",       cost:1, amount:1, sym:"⫯", name:"Steel Greaves"},
+  kn_artifact:  {hero:"K", cat:"Artifact", kind:"shield-all",   cost:3, amount:1, sym:"⚑", name:"War Banner"},
+  kn_act_charge:{hero:"K", cat:"Action",   kind:"charge",       cost:1, amount:2, sym:"»", name:"Charge"},
+  kn_act_bulwark:{hero:"K",cat:"Action",   kind:"heal",         cost:1, amount:2, sym:"+", name:"Bulwark"},
+  kn_act_rally: {hero:"K", cat:"Action",   kind:"buff-atk-all", cost:3, amount:1, sym:"!", name:"Rally"},
+  kn_act_sunder:{hero:"K", cat:"Action",   kind:"dmg",          cost:3, dmg:3,    sym:"✸", name:"Sundering Blow"},
+  kn_spell_cry: {hero:"K", cat:"Action",   kind:"buff-atk",     cost:2, amount:2, sym:"☄", name:"Battle Cry", spell:true},
 
-  // Archer suite (10)
-  ar_weapon:   {hero:"A", cat:"Weapon",   kind:"dmg",         cost:2, dmg:2,    sym:"➶", name:"Longbow"},
-  ar_armor:    {hero:"A", cat:"Armor",    kind:"shield",      cost:1, amount:1, sym:"⛨", name:"Leather Cloak"},
-  ar_helm:     {hero:"A", cat:"Helmet",   kind:"charge",      cost:1, amount:1, sym:"⛑", name:"Hawk Hood"},
-  ar_artifact: {hero:"A", cat:"Artifact", kind:"dmg",         cost:2, dmg:2,    sym:"⚑", name:"Hunter's Mark"},
-  ar_act_quick:{hero:"A", cat:"Action",   kind:"dmg",         cost:1, dmg:1,    sym:"›", name:"Quick Shot"},
-  ar_act_volley:{hero:"A",cat:"Action",   kind:"dmg",         cost:3, dmg:2,    sym:"⋮", name:"Volley"},
-  ar_act_rep:  {hero:"A", cat:"Action",   kind:"charge",      cost:1, amount:1, sym:"»", name:"Reposition"},
-  ar_spell_wind:{hero:"A",cat:"Spell",    kind:"charge",      cost:2, amount:2, sym:"≋", name:"Wind Step"},
-  ar_spell_pierce:{hero:"A",cat:"Spell",  kind:"dmg",         cost:3, dmg:3,    sym:"✸", name:"Piercing Arrow"},
-  ar_spell_eye:{hero:"A", cat:"Spell",    kind:"buff-atk",    cost:1, amount:1, sym:"◉", name:"Eagle's Eye"},
+  // Ranger suite (10): 5 equipment + 5 actions (2 spell-actions)
+  rn_weapon:    {hero:"R", cat:"Weapon",   kind:"dmg",          cost:2, dmg:2,    sym:"➶", name:"Longbow"},
+  rn_armor:     {hero:"R", cat:"Armor",    kind:"shield",       cost:1, amount:1, sym:"⛨", name:"Leather Cloak"},
+  rn_helm:      {hero:"R", cat:"Helmet",   kind:"charge",       cost:1, amount:1, sym:"⛑", name:"Hawk Hood"},
+  rn_boots:     {hero:"R", cat:"Boots",    kind:"charge",       cost:2, amount:2, sym:"⫯", name:"Swift Boots"},
+  rn_artifact:  {hero:"R", cat:"Artifact", kind:"dmg",          cost:2, dmg:2,    sym:"⚑", name:"Hunter's Mark"},
+  rn_act_quick: {hero:"R", cat:"Action",   kind:"dmg",          cost:1, dmg:1,    sym:"›", name:"Quick Shot"},
+  rn_act_volley:{hero:"R", cat:"Action",   kind:"dmg",          cost:3, dmg:2,    sym:"⋮", name:"Volley"},
+  rn_act_rep:   {hero:"R", cat:"Action",   kind:"charge",       cost:1, amount:1, sym:"»", name:"Reposition"},
+  rn_spell_pierce:{hero:"R",cat:"Action",  kind:"dmg",          cost:3, dmg:3,    sym:"✸", name:"Piercing Arrow", spell:true},
+  rn_spell_eye: {hero:"R", cat:"Action",   kind:"buff-atk",     cost:1, amount:1, sym:"◉", name:"Eagle's Eye", spell:true},
 
-  // Warden suite (10)
-  wr_weapon:   {hero:"W", cat:"Weapon",   kind:"dmg",         cost:1, dmg:1,    sym:"⚔", name:"Quarterstaff"},
-  wr_armor:    {hero:"W", cat:"Armor",    kind:"heal",        cost:2, amount:2, sym:"⛨", name:"Robe of Mending"},
-  wr_helm:     {hero:"W", cat:"Helmet",   kind:"shield",      cost:2, amount:2, sym:"⛑", name:"Crown of Light"},
-  wr_artifact: {hero:"W", cat:"Artifact", kind:"heal",        cost:4, amount:6, sym:"⚱", name:"Sacred Chalice"},
-  wr_act_mend: {hero:"W", cat:"Action",   kind:"heal",        cost:2, amount:3, sym:"+", name:"Mend"},
-  wr_act_restore:{hero:"W",cat:"Action",  kind:"heal",        cost:4, amount:5, sym:"+", name:"Restore"},
-  wr_act_wall: {hero:"W", cat:"Action",   kind:"shield-all",  cost:3, amount:1, sym:"⛨", name:"Shield Wall"},
-  wr_spell_heal:{hero:"W",cat:"Spell",    kind:"heal",        cost:2, amount:3, sym:"✚", name:"Heal"},
-  wr_spell_bless:{hero:"W",cat:"Spell",   kind:"buff-atk",    cost:2, amount:1, sym:"☼", name:"Bless"},
-  wr_spell_smite:{hero:"W",cat:"Spell",   kind:"dmg",         cost:2, dmg:2,    sym:"ϟ", name:"Smite"}
+  // Mage suite (10): 5 equipment + 5 actions (all spell-actions)
+  mg_weapon:    {hero:"M", cat:"Weapon",   kind:"dmg",          cost:1, dmg:1,    sym:"⚔", name:"Staff"},
+  mg_armor:     {hero:"M", cat:"Armor",    kind:"heal",         cost:2, amount:2, sym:"⛨", name:"Robe of Mending"},
+  mg_helm:      {hero:"M", cat:"Helmet",   kind:"shield",       cost:2, amount:2, sym:"⛑", name:"Crown of Light"},
+  mg_boots:     {hero:"M", cat:"Boots",    kind:"heal",         cost:1, amount:1, sym:"⫯", name:"Cleric Sandals"},
+  mg_artifact:  {hero:"M", cat:"Artifact", kind:"heal",         cost:4, amount:6, sym:"⚱", name:"Sacred Chalice"},
+  mg_spell_mend:{hero:"M", cat:"Action",   kind:"heal",         cost:2, amount:3, sym:"✚", name:"Mend", spell:true},
+  mg_spell_restore:{hero:"M",cat:"Action", kind:"heal",         cost:4, amount:5, sym:"✚", name:"Restore", spell:true},
+  mg_spell_wall:{hero:"M", cat:"Action",   kind:"shield-all",   cost:3, amount:1, sym:"⛨", name:"Shield Wall", spell:true},
+  mg_spell_bless:{hero:"M",cat:"Action",   kind:"buff-atk",     cost:2, amount:1, sym:"☼", name:"Bless", spell:true},
+  mg_spell_smite:{hero:"M",cat:"Action",   kind:"dmg",          cost:2, dmg:2,    sym:"ϟ", name:"Smite", spell:true}
 };
 // Deck: each side runs the full 30-card suite (3 heroes × 10 cards).
 const DECK=Object.keys(CARDS);
@@ -285,7 +294,7 @@ function newGame(){
   board=[]; for(let r=0;r<R;r++){board.push([]); for(let c=0;c<C;c++) board[r].push({unit:null,terrain:null});}
   uid=0; sel=null; busy=false; over=false; units=[]; acted=new Set(); activeId=null; roundNum=0;
   heroes={A:[],B:[]};
-  const layout=[["vanguard",1],["warden",2],["archer",3]];
+  const layout=[["knight",1],["mage",2],["ranger",3]];
   for(const [cls,col] of layout){
     const ua=newUnit("A",cls,3,col,"N"); place(ua); heroes.A.push(ua);
     const ub=newUnit("B",cls,0,col,"S"); place(ub); heroes.B.push(ub);
@@ -462,9 +471,9 @@ function attack(attacker,defender){
   say(`${attacker.name} hit ${defender.name} <b>(${arc.toUpperCase()} ×${mult})</b> for ${taken}${shielded?` <i>(${shielded} absorbed)</i>`:""}.`);
   killCheck(defender);
 }
-function healAct(warden,ally){
-  ally.hp=Math.min(ally.maxHp,ally.hp+3); warden.hasActed=true;
-  say(`${warden.name} mended ${ally.name} (+3).`);
+function healAct(mage,ally){
+  ally.hp=Math.min(ally.maxHp,ally.hp+3); mage.hasActed=true;
+  say(`${mage.name} mended ${ally.name} (+3).`);
 }
 function summon(o,cls,r,c){ const u=newUnit(o,cls,r,c,o==="A"?"N":"S"); place(u); return u; }
 
@@ -632,13 +641,15 @@ function cardEffText(c){
 }
 function buildCodex(){
   const root=document.getElementById("cdxCards"); if(!root||root.dataset.built) return;
-  const groups={V:{name:"Vanguard suite",cards:[]}, A:{name:"Archer suite",cards:[]}, W:{name:"Warden suite",cards:[]}};
+  const groups={K:{name:"Knight suite",cards:[]}, R:{name:"Ranger suite",cards:[]}, M:{name:"Mage suite",cards:[]}};
   for(const k in CARDS){ const c=CARDS[k]; if(groups[c.hero]) groups[c.hero].cards.push(c); }
   let html="";
-  for(const h of ["V","A","W"]){
-    html+=`<div class="suite"><div class="suite-h">${groups[h].name}</div>`;
+  for(const h of ["K","R","M"]){
+    html+=`<div class="suite"><div class="suite-h">${groups[h].name} — 5 equipment + 5 actions</div>`;
     for(const c of groups[h].cards){
-      html+=`<div class="cdx-card cat-${c.cat}"><span>${c.cost}</span><span class="cdx-cat">${c.cat}</span><span class="cdx-name">${c.name}</span><span>${c.sym}</span><span class="cdx-eff">${cardEffText(c)}</span></div>`;
+      const cls="cdx-card cat-"+c.cat+(c.spell?" spell":"");
+      const tag=c.spell?`${c.cat}·Spell`:c.cat;
+      html+=`<div class="${cls}"><span>${c.cost}</span><span class="cdx-cat">${tag}</span><span class="cdx-name">${c.name}</span><span>${c.sym}</span><span class="cdx-eff">${cardEffText(c)}</span></div>`;
     }
     html+=`</div>`;
   }
@@ -734,8 +745,9 @@ function render(){
   const cardable=canPlayCardNow();
   players.A.hand.forEach((key,i)=>{ const card=CARDS[key]; const el=document.createElement("div");
     const cant=!cardable||card.cost>players.A.aether||busy||over;
-    el.className="card cat-"+card.cat+(cant?" cant":"")+((sel&&sel.t==="card"&&sel.i===i)?" sel":"");
-    el.innerHTML=`<span class="cc">${card.cost}</span><span class="cat">${card.cat.slice(0,3).toUpperCase()}</span><span class="cs">${card.sym}</span><span class="cn">${card.name}</span><span class="ho">${card.hero}</span>`;
+    el.className="card cat-"+card.cat+(card.spell?" spell":"")+(cant?" cant":"")+((sel&&sel.t==="card"&&sel.i===i)?" sel":"");
+    const tag=card.spell?"SPL":card.cat.slice(0,3).toUpperCase();
+    el.innerHTML=`<span class="cc">${card.cost}</span><span class="cat">${tag}</span><span class="cs">${card.sym}</span><span class="cn">${card.name}</span><span class="ho">${card.hero}</span>`;
     el.onclick=()=>onCard(i); h.appendChild(el); });
   const ebtn=document.getElementById("endBtn"); const u=activeUnit();
   ebtn.disabled = over || busy || !u || u.owner!=="A";
