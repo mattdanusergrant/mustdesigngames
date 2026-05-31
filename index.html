@@ -19,7 +19,12 @@
   html,body{margin:0; background:var(--bg); color:var(--ink);
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;}
   #app{max-width:480px; margin:0 auto; padding:8px 8px 14px; display:flex; flex-direction:column; gap:8px; min-height:100vh;}
-  h1{font-size:16px; margin:2px 0 0; letter-spacing:.5px; text-align:center; color:var(--gold);}
+  h1{font-size:32px; margin:10px 0 0; letter-spacing:2px; text-align:center; color:var(--gold); font-weight:800;}
+  button.title{width:100%; background:transparent; border:none; padding:6px 0; cursor:pointer; border-top:1px solid var(--line); border-bottom:1px solid var(--line); margin-top:8px; transition:background .12s;}
+  button.title:hover{background:rgba(212,165,116,.08);}
+  button.title:active{background:rgba(212,165,116,.16);}
+  button.title h1{margin:0;}
+  button.title .sub{margin:-2px 0 0;}
   .sub{font-size:11px; color:var(--dim); text-align:center; margin:-2px 0 2px;}
 
   .heroes{display:flex; flex-direction:column; gap:4px;}
@@ -103,6 +108,31 @@
   .card.cat-Spell{box-shadow:inset 0 -3px 0 #b878ff;}
 
   .legend{font-size:10px; color:var(--dim); text-align:center; line-height:1.5;}
+  #codex{position:fixed; inset:0; background:rgba(8,9,12,.92); display:none; align-items:flex-start; justify-content:center; z-index:20; overflow-y:auto; padding:20px 12px;}
+  #codex.open{display:flex;}
+  #codex .cbox{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px 16px 22px; max-width:420px; width:100%; position:relative;}
+  #codex h2{margin:0 0 2px; text-align:center; color:var(--gold); letter-spacing:2px;}
+  #codex .cdx-sub{font-size:11px; color:var(--dim); text-align:center; margin-bottom:14px;}
+  #codex h3{margin:14px 0 6px; font-size:13px; color:var(--gold); border-bottom:1px solid var(--line); padding-bottom:3px;}
+  #codex ul{margin:0; padding-left:18px; font-size:12px; color:#d6d8de; line-height:1.55;}
+  #codex ul.kinds li{margin-bottom:2px;}
+  #codex .cdx-tbl{width:100%; border-collapse:collapse; font-size:12px;}
+  #codex .cdx-tbl th, #codex .cdx-tbl td{padding:3px 6px; border-bottom:1px solid var(--line); text-align:left;}
+  #codex .cdx-tbl th{color:var(--dim); font-weight:600;}
+  #codex .x{position:absolute; top:8px; right:10px; background:transparent; border:none; color:var(--dim); font-size:22px; cursor:pointer; line-height:1;}
+  #codex .x:hover{color:#fff;}
+  #codex .suite{margin-bottom:10px;}
+  #codex .suite-h{font-size:12px; color:var(--gold); margin:8px 0 4px; font-weight:700;}
+  #codex .cdx-card{display:grid; grid-template-columns:18px 60px 1fr 18px; gap:6px; align-items:center; font-size:11px; padding:3px 4px; border-left:3px solid var(--line); margin-bottom:2px; background:rgba(255,255,255,.02);}
+  #codex .cdx-card .cdx-cat{color:var(--dim); font-size:10px;}
+  #codex .cdx-card .cdx-name{color:#fff;}
+  #codex .cdx-card .cdx-eff{color:var(--dim); font-size:10px; grid-column:1/-1; padding-left:24px;}
+  #codex .cdx-card.cat-Weapon{border-left-color:#c14a3a;}
+  #codex .cdx-card.cat-Armor{border-left-color:#4a78c1;}
+  #codex .cdx-card.cat-Helmet{border-left-color:#4ac1a8;}
+  #codex .cdx-card.cat-Artifact{border-left-color:var(--gold);}
+  #codex .cdx-card.cat-Action{border-left-color:#c7c9d1;}
+  #codex .cdx-card.cat-Spell{border-left-color:#b878ff;}
   #over{position:fixed; inset:0; background:rgba(8,9,12,.85); display:none; align-items:center; justify-content:center; z-index:9;}
   #over .box{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:22px; text-align:center; max-width:300px;}
   #over h2{margin:0 0 6px;} #over p{color:var(--dim); font-size:13px; margin:0 0 16px;}
@@ -125,9 +155,51 @@
   </div>
 
   <div class="legend">V Vanguard · A Archer · W Warden · 30-card deck (3 hero suites × 10) &nbsp;|&nbsp; SIDE ×1.5 / REAR ×2 · ▲ +1 ATK · ⛨ shield · +A atk-buff</div>
-  <h1>SIGIL TACTICS</h1>
-  <div class="sub">v0.8 prototype · 30-card hero suites · equip / action / spell</div>
+  <button class="title" id="titleBtn" onclick="openCodex()">
+    <h1>SIGIL TACTICS</h1>
+    <div class="sub">v0.8 prototype · tap for rules &amp; card list</div>
+  </button>
 </div>
+
+<div id="codex"><div class="cbox">
+  <button class="x" onclick="closeCodex()">×</button>
+  <h2>SIGIL TACTICS</h2>
+  <div class="cdx-sub">v0.8 — 4×5 grid, 3 heroes per side, 30-card deck</div>
+
+  <h3>Rules</h3>
+  <ul>
+    <li><b>Win:</b> defeat all 3 enemy heroes. Sidekick units don't count.</li>
+    <li><b>Initiative:</b> each round, units act in Speed order (high → low). A unit can move + attack (or skip either).</li>
+    <li><b>Facing:</b> attacks from the SIDE deal ×1.5, REAR ×2. Skirmishers do ×2 / ×2.5.</li>
+    <li><b>Terrain:</b> ▲ high ground gives +1 ATK while standing on it.</li>
+    <li><b>Cards:</b> draw 1 at the start of each round (hand cap 8, start 3). Cards can be played at the start of one of your units' turns. Each card is one-shot.</li>
+    <li><b>Aether:</b> spent to play cards. Refreshes / grows each round.</li>
+    <li><b>Shield (⛨N):</b> absorbs damage before HP. Persists across rounds until consumed.</li>
+    <li><b>ATK buff (+NA):</b> bonus damage that clears at round start.</li>
+    <li><b>Move buff:</b> extra movement on the buffed unit's next turn only.</li>
+  </ul>
+
+  <h3>Heroes</h3>
+  <table class="cdx-tbl"><tr><th>Hero</th><th>HP</th><th>ATK</th><th>Move</th><th>Range</th><th>Speed</th></tr>
+    <tr><td>V Vanguard</td><td>6</td><td>1</td><td>2</td><td>1</td><td>2</td></tr>
+    <tr><td>A Archer</td><td>4</td><td>1</td><td>2</td><td>3</td><td>3</td></tr>
+    <tr><td>W Warden</td><td>5</td><td>1</td><td>2</td><td>1</td><td>4</td></tr>
+  </table>
+
+  <h3>Card kinds</h3>
+  <ul class="kinds">
+    <li><b>dmg</b> — N damage to target enemy (shield absorbs first)</li>
+    <li><b>heal</b> — restore N HP to target ally (caps at maxHp)</li>
+    <li><b>shield</b> — +N shield on target ally</li>
+    <li><b>shield-all</b> — +N shield on every ally</li>
+    <li><b>buff-atk</b> — target ally +N ATK this round</li>
+    <li><b>buff-atk-all</b> — every ally +N ATK this round</li>
+    <li><b>charge</b> — target ally +N move this turn</li>
+  </ul>
+
+  <h3>Deck — 30 cards (3 hero suites × 10)</h3>
+  <div id="cdxCards"></div>
+</div></div>
 
 <div id="over"><div class="box"><h2 id="overT"></h2><p id="overP"></p><button class="btn" onclick="location.reload()">Play again</button></div></div>
 
@@ -546,6 +618,36 @@ function bestStep(u,goal){ const tiles=reachable(u); if(!tiles.length) return nu
   const cur=Math.abs(u.r-goal.r)+Math.abs(u.c-goal.c); const top=tiles[0];
   return (Math.abs(top.r-goal.r)+Math.abs(top.c-goal.c))<cur?top:null;
 }
+
+/* ---------- codex ---------- */
+function cardEffText(c){
+  if(c.kind==="dmg") return `${c.dmg} dmg to enemy`;
+  if(c.kind==="heal") return `heal ally +${c.amount}`;
+  if(c.kind==="shield") return `+${c.amount} shield to ally`;
+  if(c.kind==="shield-all") return `+${c.amount} shield to all allies`;
+  if(c.kind==="buff-atk") return `ally +${c.amount} ATK this round`;
+  if(c.kind==="buff-atk-all") return `all allies +${c.amount} ATK this round`;
+  if(c.kind==="charge") return `ally +${c.amount} move this turn`;
+  return c.kind;
+}
+function buildCodex(){
+  const root=document.getElementById("cdxCards"); if(!root||root.dataset.built) return;
+  const groups={V:{name:"Vanguard suite",cards:[]}, A:{name:"Archer suite",cards:[]}, W:{name:"Warden suite",cards:[]}};
+  for(const k in CARDS){ const c=CARDS[k]; if(groups[c.hero]) groups[c.hero].cards.push(c); }
+  let html="";
+  for(const h of ["V","A","W"]){
+    html+=`<div class="suite"><div class="suite-h">${groups[h].name}</div>`;
+    for(const c of groups[h].cards){
+      html+=`<div class="cdx-card cat-${c.cat}"><span>${c.cost}</span><span class="cdx-cat">${c.cat}</span><span class="cdx-name">${c.name}</span><span>${c.sym}</span><span class="cdx-eff">${cardEffText(c)}</span></div>`;
+    }
+    html+=`</div>`;
+  }
+  root.innerHTML=html; root.dataset.built="1";
+}
+function openCodex(){ buildCodex(); document.getElementById("codex").classList.add("open"); }
+function closeCodex(){ document.getElementById("codex").classList.remove("open"); }
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeCodex(); });
+document.addEventListener("click",e=>{ const cx=document.getElementById("codex"); if(e.target===cx) closeCodex(); });
 
 /* ---------- render ---------- */
 function say(html){ document.getElementById("status").innerHTML=html; }
