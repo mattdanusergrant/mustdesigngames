@@ -293,7 +293,7 @@
     <li><b>Initiative:</b> each round, units act in Speed order (high → low). A unit may move and take one action (attack, heal, or play a card) — in either order — then ends its turn.</li>
     <li><b>Facing:</b> attacks from the SIDE deal ×1.5, REAR ×2 (Assassin: ×2 / ×2.5).</li>
     <li><b>Terrain:</b> ▲ high ground gives +1 ATK while standing on it.</li>
-    <li><b>Cards:</b> start with 2 in hand, no max. <b>Draw 1 at the end of every turn</b> (yours or the AI's). Each card is one-shot.</li>
+    <li><b>Cards:</b> start with 3 in hand, no max. <b>Draw 1 at the end of every turn</b> (yours or the AI's). Each card is one-shot.</li>
     <li><b>Opportunity cost:</b> there is no aether. Playing a card counts as the unit's <i>action</i> for the turn — so the choice is "attack/heal with this unit, or play this card." You may still move first either way. You cannot play a card after attacking or healing.</li>
     <li><b>Shield (⛨N):</b> absorbs damage before HP. Persists across rounds.</li>
     <li><b>ATK buff (+NA):</b> bonus damage that clears at round start.</li>
@@ -949,7 +949,7 @@ function finishDeploy(){
   for(const o of ["A","B"]){
     players[o].deck=shuffle(buildDeckFor(o));
   }
-  for(let i=0;i<2;i++){players.A.hand.push(players.A.deck.pop()); players.B.hand.push(players.B.deck.pop());}
+  for(let i=0;i<3;i++){players.A.hand.push(players.A.deck.pop()); players.B.hand.push(players.B.deck.pop());}
   const maxSpd=Math.max(...units.map(u=>u.speed));
   const sidesAtMax=new Set(units.filter(u=>u.speed===maxSpd).map(u=>u.owner));
   let firstActor;
