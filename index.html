@@ -294,7 +294,7 @@
     <li><b>Facing:</b> attacks from the SIDE deal ×1.5, REAR ×2 (Assassin: ×2 / ×2.5).</li>
     <li><b>Terrain:</b> ▲ high ground gives +1 ATK while standing on it.</li>
     <li><b>Cards:</b> start with 2 in hand, no max. <b>Draw 1 at the end of every turn</b> (yours or the AI's). Each card is one-shot.</li>
-    <li><b>Opportunity cost:</b> there is no aether. Playing a card <i>replaces</i> the active unit's normal turn — so the choice is "use this unit, or play this card." Aim to always have a card better than the unit's normal action.</li>
+    <li><b>Opportunity cost:</b> there is no aether. Playing a card counts as the unit's <i>action</i> for the turn — so the choice is "attack/heal with this unit, or play this card." You may still move first either way. You cannot play a card after attacking or healing.</li>
     <li><b>Shield (⛨N):</b> absorbs damage before HP. Persists across rounds.</li>
     <li><b>ATK buff (+NA):</b> bonus damage that clears at round start.</li>
     <li><b>Move buff:</b> extra movement on the buffed unit's next turn only.</li>
@@ -1163,7 +1163,8 @@ function playCard(owner,handIdx,target){
   }
 }
 function canPlayCardNow(){
-  const u=activeUnit(); return u && u.owner==="A" && !u.hasMoved && !u.hasActed;
+  // Card is the unit's action this turn — playable before or after moving, but not after an attack/heal.
+  const u=activeUnit(); return u && u.owner==="A" && !u.hasActed;
 }
 
 /* ---------- player interaction ---------- */

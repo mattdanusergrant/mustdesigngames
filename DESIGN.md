@@ -146,7 +146,7 @@ Activation order is **strictly by Speed**, ties broken by the Initiative token.
 When a unit is the active one, its owner does **one** of:
 
 - **Act normally** — move (up to `move`) and/or perform one action (attack any enemy in range; Mage may instead heal an adjacent ally).
-- **Play one card** from hand — consumes the unit's entire turn. No move, no attack on this turn. There is no resource cost; the trade-off is opportunity cost.
+- **Play one card** from hand — counts as the unit's *action* for the turn. The unit may move first (or not), then play a card instead of attacking/healing. A card cannot follow an attack/heal — one action per turn. There is no resource cost; the trade-off is opportunity cost.
 - **Pass** — end the turn with no effect (the END TURN button).
 
 Movement updates facing toward the destination; attacks update facing toward the target. A Mage may attack instead of healing.
@@ -160,7 +160,7 @@ The card pool spans **9 hero suites × 10 cards = 90 cards total**. Each hero co
 - **Starting hand:** 2 cards.
 - **Max hand size:** none.
 - **Draw timing:** at the end of every turn — yours or the AI's — the active unit's owner draws 1 card from their deck.
-- **No aether / no costs.** Cards have no resource gate. A card's price is paid in **opportunity cost**: playing a card *consumes the active unit's entire turn* (no move, no attack — the card is what that turn does).
+- **No aether / no costs.** Cards have no resource gate. A card's price is paid in **opportunity cost**: a card takes the active unit's *action slot* for the turn — the unit may still move before playing it, but cannot also attack or heal that turn.
 - **Design target:** a card should be tuned so that, in the moment, it is the *best play* the active unit could make this turn. The intended loop is: play 1 of your 2 cards → draw 1 → consider the new card next turn → repeat. If most cards are weaker than a normal attack, players will just attack and the system breaks down.
 
 ### Card-value baselines
