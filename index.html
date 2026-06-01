@@ -264,14 +264,14 @@
   <div class="legend">9-hero roster · 90-card pool · your deck = your 3 drafted heroes' 30 cards &nbsp;|&nbsp; SIDE ×1.5 / REAR ×2 · ⛨ shield · +A atk-buff</div>
   <button class="title" id="titleBtn" onclick="openCodex()">
     <h1>SIGIL TACTICS</h1>
-    <div class="sub">v0.16 · offense-focused cards · campaign · tap for rules</div>
+    <div class="sub">v0.17 · compound effects · vuln · pyromancer mage · tap for rules</div>
   </button>
 </div>
 
 <div id="codex"><div class="cbox">
   <button class="x" onclick="closeCodex()">×</button>
   <h2>SIGIL TACTICS</h2>
-  <div class="cdx-sub">v0.16 — offense-focused 90-card pool (14% defensive) · campaign + skirmish</div>
+  <div class="cdx-sub">v0.17 — no pure buffs · compound cards (dmg+vuln, heal+shield, etc.) · pyromancer mage</div>
 
   <h3>Modes</h3>
   <ul>
@@ -307,7 +307,7 @@
     <tr><td>⚔️ Knight</td><td>10</td><td>1</td><td>1</td><td>1</td><td>2</td><td>—</td></tr>
     <tr><td>🩸 Warlock</td><td>6</td><td>1</td><td>1</td><td>3</td><td>3</td><td>—</td></tr>
     <tr><td>🌿 Druid</td><td>8</td><td>1</td><td>1</td><td>2</td><td>4</td><td>heal</td></tr>
-    <tr><td>🔮 Mage</td><td>6</td><td>1</td><td>1</td><td>2</td><td>5</td><td>heal</td></tr>
+    <tr><td>🔮 Mage</td><td>6</td><td>1</td><td>1</td><td>2</td><td>5</td><td>—</td></tr>
     <tr><td>🪓 Berserker</td><td>8</td><td>2</td><td>1</td><td>1</td><td>6</td><td>—</td></tr>
     <tr><td>🏹 Ranger</td><td>8</td><td>1</td><td>1</td><td>2</td><td>7</td><td>—</td></tr>
     <tr><td>👁️ Scout</td><td>4</td><td>1</td><td>2</td><td>2</td><td>8</td><td>—</td></tr>
@@ -322,17 +322,25 @@
   </ul>
 
   <h3>Card kinds (effects)</h3>
+  <p style="font-size:11px;color:var(--dim);margin:4px 0 6px;">No pure buffs/debuffs — every card causes something this turn. Some compound kinds also carry a lasting secondary effect.</p>
   <ul class="kinds">
     <li><b>dmg</b> — N damage to target enemy (shield absorbs first)</li>
-    <li><b>dmg-adj</b> — N damage to target enemy + S splash damage to enemies orthogonally adjacent to it</li>
-    <li><b>heal</b> — restore N HP to target ally (caps at maxHp)</li>
+    <li><b>dmg-adj</b> — N damage to target + S splash to orthogonal adjacent enemies</li>
+    <li><b>dmg-vuln</b> — N damage + target gains <i>vulnerable</i> (next attack on them does +V extra)</li>
+    <li><b>dmg-self-buff</b> — N damage + caster +B ATK this round</li>
+    <li><b>dmg-self-charge</b> — N damage + caster +M extra move this turn</li>
+    <li><b>dmg-self-heal</b> — N damage + caster heals H HP (lifesteal)</li>
+    <li><b>dmg-team-buff</b> — N damage + every ally +B ATK this round</li>
+    <li><b>heal</b> — restore N HP to target ally</li>
     <li><b>heal-all</b> — restore N HP to every ally</li>
+    <li><b>heal-shield</b> — heal target ally + add S shield to them</li>
+    <li><b>heal-buff</b> — heal target ally + ally +B ATK this round</li>
+    <li><b>heal-all-buff</b> — heal all allies + all allies +B ATK this round</li>
     <li><b>shield</b> — +N shield on target ally</li>
     <li><b>shield-all</b> — +N shield on every ally</li>
-    <li><b>buff-atk</b> — target ally +N ATK this round</li>
-    <li><b>buff-atk-all</b> — every ally +N ATK this round</li>
     <li><b>charge</b> — target ally +N move this turn</li>
   </ul>
+  <p style="font-size:11px;color:var(--dim);margin:6px 0;"><b>Vulnerable</b> is a counter on the target enemy. The next attack against them adds the vuln value to its damage, then clears the counter. Vuln also clears at round start.</p>
 
   <h3>Deck — 30 cards (3 hero suites × 10)</h3>
   <div id="cdxCards"></div>
@@ -409,7 +417,7 @@ const R=4,C=5;
 const CLASSES={
   knight:     {name:"Knight",     sym:"⚔️", hp:10, atk:1, move:1, range:1, speed:2,  hero:true},
   ranger:     {name:"Ranger",     sym:"🏹", hp:8,  atk:1, move:1, range:2, speed:7,  hero:true},
-  mage:       {name:"Mage",       sym:"🔮", hp:6,  atk:1, move:1, range:2, speed:5,  hero:true, heal:true},
+  mage:       {name:"Mage",       sym:"🔮", hp:6,  atk:1, move:1, range:2, speed:5,  hero:true},
   berserker:  {name:"Berserker",  sym:"🪓", hp:8,  atk:2, move:1, range:1, speed:6,  hero:true},
   paladin:    {name:"Paladin",    sym:"🛡️", hp:10, atk:1, move:1, range:1, speed:1,  hero:true, heal:true},
   assassin:   {name:"Assassin",   sym:"🗡️", hp:6,  atk:2, move:2, range:1, speed:9,  hero:true, flank:true},
@@ -592,116 +600,117 @@ function returnToMissions(){
   document.getElementById("victory").classList.remove("open");
   openMissions();
 }
-// v0.16 — heal/shield reduced from ~30% of pool to ~14%. Cards skew offensive (dmg / dmg-adj / buff-atk / charge).
-// Each card consumes the active unit's turn; no resource cost.
+// v0.17 — no pure buff/debuff cards. Every card makes something happen this turn; some carry a
+// secondary lasting effect (e.g. attack-that-also-marks-target, heal-that-also-shields).
+// `vuln` is a per-target counter consumed (and added to damage) by the next attack on that target.
 const CARDS={
-  // Knight — captain / morale tank. Big single shield + 1 group buff; everything else is offense or rally.
-  kn_weapon:     {hero:"knight", cat:"Weapon",   kind:"dmg",          dmg:4,           sym:"⚔", name:"Greatsword"},
-  kn_armor:      {hero:"knight", cat:"Armor",    kind:"shield",       amount:5,        sym:"⛨", name:"Plate Mail"},
-  kn_helm:       {hero:"knight", cat:"Helmet",   kind:"buff-atk",     amount:3,        sym:"⛑", name:"Iron Helm"},
-  kn_boots:      {hero:"knight", cat:"Boots",    kind:"charge",       amount:3,        sym:"⫯", name:"Steel Greaves"},
-  kn_artifact:   {hero:"knight", cat:"Artifact", kind:"buff-atk-all", amount:2,        sym:"⚑", name:"War Banner"},
-  kn_act_cleave: {hero:"knight", cat:"Action",   kind:"dmg-adj",      dmg:3, splash:1, sym:"⚒", name:"Cleave"},
-  kn_act_bulwark:{hero:"knight", cat:"Action",   kind:"dmg-adj",      dmg:4, splash:1, sym:"⚒", name:"Shield Bash"},
-  kn_act_rally:  {hero:"knight", cat:"Action",   kind:"heal-all",     amount:2,        sym:"✚", name:"Rally"},
-  kn_act_wall:   {hero:"knight", cat:"Action",   kind:"shield-all",   amount:3,        sym:"⛨", name:"Shield Wall"},
-  kn_spell_cry:  {hero:"knight", cat:"Action",   kind:"buff-atk-all", amount:3,        sym:"☄", name:"Battle Cry", spell:true},
+  // Knight — captain. Heavy single shield + group heal + compound rally cards.
+  kn_weapon:     {hero:"knight", cat:"Weapon",   kind:"dmg",            dmg:4,                sym:"⚔", name:"Greatsword"},
+  kn_armor:      {hero:"knight", cat:"Armor",    kind:"shield",         amount:5,             sym:"⛨", name:"Plate Mail"},
+  kn_helm:       {hero:"knight", cat:"Helmet",   kind:"dmg",            dmg:4,                sym:"⛑", name:"Iron Helm"},
+  kn_boots:      {hero:"knight", cat:"Boots",    kind:"charge",         amount:3,             sym:"⫯", name:"Steel Greaves"},
+  kn_artifact:   {hero:"knight", cat:"Artifact", kind:"heal-all-buff",  amount:2, buff:1,     sym:"⚑", name:"War Banner"},
+  kn_act_cleave: {hero:"knight", cat:"Action",   kind:"dmg-adj",        dmg:3, splash:1,      sym:"⚒", name:"Cleave"},
+  kn_act_bulwark:{hero:"knight", cat:"Action",   kind:"dmg-vuln",       dmg:4, vuln:2,        sym:"⚒", name:"Shield Bash"},
+  kn_act_rally:  {hero:"knight", cat:"Action",   kind:"heal-all",       amount:2,             sym:"✚", name:"Rally"},
+  kn_act_wall:   {hero:"knight", cat:"Action",   kind:"shield-all",     amount:3,             sym:"⛨", name:"Shield Wall"},
+  kn_spell_cry:  {hero:"knight", cat:"Action",   kind:"dmg-team-buff",  dmg:3, buff:2,        sym:"☄", name:"Battle Cry", spell:true},
 
-  // Ranger — pure offense / mobility. No heals or shields.
-  rn_weapon:     {hero:"ranger", cat:"Weapon",   kind:"dmg",          dmg:4,           sym:"➶", name:"Longbow"},
-  rn_armor:      {hero:"ranger", cat:"Armor",    kind:"dmg-adj",      dmg:3, splash:1, sym:"⛨", name:"Quiver of Sharps"},
-  rn_helm:       {hero:"ranger", cat:"Helmet",   kind:"charge",       amount:2,        sym:"⛑", name:"Hawk Hood"},
-  rn_boots:      {hero:"ranger", cat:"Boots",    kind:"charge",       amount:4,        sym:"⫯", name:"Swift Boots"},
-  rn_artifact:   {hero:"ranger", cat:"Artifact", kind:"buff-atk",     amount:3,        sym:"⚑", name:"Hunter's Mark"},
-  rn_act_quick:  {hero:"ranger", cat:"Action",   kind:"dmg",          dmg:3,           sym:"›", name:"Quick Shot"},
-  rn_act_volley: {hero:"ranger", cat:"Action",   kind:"dmg-adj",      dmg:2, splash:1, sym:"⋮", name:"Volley"},
-  rn_act_rep:    {hero:"ranger", cat:"Action",   kind:"charge",       amount:3,        sym:"»", name:"Reposition"},
-  rn_spell_pierce:{hero:"ranger",cat:"Action",   kind:"dmg",          dmg:5,           sym:"✸", name:"Piercing Arrow", spell:true},
-  rn_spell_eye:  {hero:"ranger", cat:"Action",   kind:"buff-atk-all", amount:2,        sym:"◉", name:"Eagle's Eye", spell:true},
+  // Ranger — sniper. Pure offense / mobility, marks targets for vulnerability.
+  rn_weapon:     {hero:"ranger", cat:"Weapon",   kind:"dmg",            dmg:4,                sym:"➶", name:"Longbow"},
+  rn_armor:      {hero:"ranger", cat:"Armor",    kind:"dmg-adj",        dmg:3, splash:1,      sym:"⛨", name:"Quiver of Sharps"},
+  rn_helm:       {hero:"ranger", cat:"Helmet",   kind:"charge",         amount:2,             sym:"⛑", name:"Hawk Hood"},
+  rn_boots:      {hero:"ranger", cat:"Boots",    kind:"charge",         amount:4,             sym:"⫯", name:"Swift Boots"},
+  rn_artifact:   {hero:"ranger", cat:"Artifact", kind:"dmg-vuln",       dmg:3, vuln:3,        sym:"⚑", name:"Hunter's Mark"},
+  rn_act_quick:  {hero:"ranger", cat:"Action",   kind:"dmg",            dmg:3,                sym:"›", name:"Quick Shot"},
+  rn_act_volley: {hero:"ranger", cat:"Action",   kind:"dmg-adj",        dmg:2, splash:1,      sym:"⋮", name:"Volley"},
+  rn_act_rep:    {hero:"ranger", cat:"Action",   kind:"charge",         amount:3,             sym:"»", name:"Reposition"},
+  rn_spell_pierce:{hero:"ranger",cat:"Action",   kind:"dmg",            dmg:5,                sym:"✸", name:"Piercing Arrow", spell:true},
+  rn_spell_eye:  {hero:"ranger", cat:"Action",   kind:"dmg-team-buff",  dmg:2, buff:1,        sym:"◉", name:"Eagle's Eye", spell:true},
 
-  // Mage — healer / caster identity preserved but reduced from 4 to 3 healing cards.
-  mg_weapon:     {hero:"mage",   cat:"Weapon",   kind:"dmg",          dmg:3,           sym:"⚔", name:"Staff"},
-  mg_armor:      {hero:"mage",   cat:"Armor",    kind:"dmg",          dmg:3,           sym:"⛨", name:"Robe of Sparks"},
-  mg_helm:       {hero:"mage",   cat:"Helmet",   kind:"shield",       amount:4,        sym:"⛑", name:"Crown of Light"},
-  mg_boots:      {hero:"mage",   cat:"Boots",    kind:"charge",       amount:2,        sym:"⫯", name:"Cleric Sandals"},
-  mg_artifact:   {hero:"mage",   cat:"Artifact", kind:"heal",         amount:8,        sym:"⚱", name:"Sacred Chalice"},
-  mg_spell_mend: {hero:"mage",   cat:"Action",   kind:"heal",         amount:5,        sym:"✚", name:"Mend", spell:true},
-  mg_spell_heal: {hero:"mage",   cat:"Action",   kind:"heal-all",     amount:3,        sym:"✚", name:"Heal", spell:true},
-  mg_spell_aegis:{hero:"mage",   cat:"Action",   kind:"dmg-adj",      dmg:3, splash:1, sym:"☼", name:"Holy Burst", spell:true},
-  mg_spell_bless:{hero:"mage",   cat:"Action",   kind:"buff-atk",     amount:3,        sym:"☼", name:"Bless", spell:true},
-  mg_spell_smite:{hero:"mage",   cat:"Action",   kind:"dmg",          dmg:4,           sym:"ϟ", name:"Smite", spell:true},
+  // Mage — pyromancer / arcane damage caster. No more heals; big AoEs and elemental spells.
+  mg_weapon:        {hero:"mage",   cat:"Weapon",   kind:"dmg",       dmg:3,                sym:"⚔", name:"Staff"},
+  mg_armor:         {hero:"mage",   cat:"Armor",    kind:"dmg-adj",   dmg:2, splash:1,      sym:"⛨", name:"Robe of Sparks"},
+  mg_helm:          {hero:"mage",   cat:"Helmet",   kind:"dmg",       dmg:4,                sym:"⛑", name:"Crown of Light"},
+  mg_boots:         {hero:"mage",   cat:"Boots",    kind:"charge",    amount:2,             sym:"⫯", name:"Ember Sandals"},
+  mg_artifact:      {hero:"mage",   cat:"Artifact", kind:"dmg-adj",   dmg:4, splash:2,      sym:"🔥", name:"Sunflame Orb"},
+  mg_spell_fire:    {hero:"mage",   cat:"Action",   kind:"dmg-adj",   dmg:3, splash:2,      sym:"🔥", name:"Fireball",        spell:true},
+  mg_spell_frost:   {hero:"mage",   cat:"Action",   kind:"dmg-vuln",  dmg:4, vuln:2,        sym:"❄", name:"Frostbolt",       spell:true},
+  mg_spell_lightning:{hero:"mage",  cat:"Action",   kind:"dmg",       dmg:5,                sym:"ϟ", name:"Lightning Strike",spell:true},
+  mg_spell_arcane:  {hero:"mage",   cat:"Action",   kind:"dmg-vuln",  dmg:3, vuln:3,        sym:"✦", name:"Arcane Blast",    spell:true},
+  mg_spell_meteor:  {hero:"mage",   cat:"Action",   kind:"dmg",       dmg:6,                sym:"☄", name:"Meteor",          spell:true},
 
-  // Paladin — holy fighter. Keeps Plate / Symbol / Lay on Hands; rest is offense + team buff.
-  pl_weapon:     {hero:"paladin",cat:"Weapon",   kind:"dmg",          dmg:4,           sym:"⚒", name:"Warhammer"},
-  pl_armor:      {hero:"paladin",cat:"Armor",    kind:"shield",       amount:6,        sym:"⛨", name:"Holy Plate"},
-  pl_helm:       {hero:"paladin",cat:"Helmet",   kind:"buff-atk-all", amount:2,        sym:"⛑", name:"Helm of Faith"},
-  pl_boots:      {hero:"paladin",cat:"Boots",    kind:"charge",       amount:2,        sym:"⫯", name:"Sabatons"},
-  pl_artifact:   {hero:"paladin",cat:"Artifact", kind:"heal-all",     amount:3,        sym:"⚑", name:"Holy Symbol"},
-  pl_act_loh:    {hero:"paladin",cat:"Action",   kind:"heal",         amount:7,        sym:"+", name:"Lay on Hands"},
-  pl_act_smite:  {hero:"paladin",cat:"Action",   kind:"dmg",          dmg:4,           sym:"✸", name:"Smite Evil"},
-  pl_spell_div:  {hero:"paladin",cat:"Action",   kind:"dmg-adj",      dmg:4, splash:1, sym:"☼", name:"Divine Wrath", spell:true},
-  pl_spell_con:  {hero:"paladin",cat:"Action",   kind:"dmg-adj",      dmg:3, splash:1, sym:"☄", name:"Consecration", spell:true},
-  pl_spell_sanct:{hero:"paladin",cat:"Action",   kind:"dmg",          dmg:5,           sym:"✚", name:"Sanctuary",    spell:true},
+  // Paladin — holy fighter. Big shield + compound heals + AoE smiting.
+  pl_weapon:     {hero:"paladin",cat:"Weapon",   kind:"dmg",            dmg:4,                sym:"⚒", name:"Warhammer"},
+  pl_armor:      {hero:"paladin",cat:"Armor",    kind:"shield",         amount:6,             sym:"⛨", name:"Holy Plate"},
+  pl_helm:       {hero:"paladin",cat:"Helmet",   kind:"heal-all-buff",  amount:1, buff:1,     sym:"⛑", name:"Helm of Faith"},
+  pl_boots:      {hero:"paladin",cat:"Boots",    kind:"charge",         amount:2,             sym:"⫯", name:"Sabatons"},
+  pl_artifact:   {hero:"paladin",cat:"Artifact", kind:"heal-all",       amount:3,             sym:"⚑", name:"Holy Symbol"},
+  pl_act_loh:    {hero:"paladin",cat:"Action",   kind:"heal-shield",    amount:5, shield:3,   sym:"+", name:"Lay on Hands"},
+  pl_act_smite:  {hero:"paladin",cat:"Action",   kind:"dmg",            dmg:4,                sym:"✸", name:"Smite Evil"},
+  pl_spell_div:  {hero:"paladin",cat:"Action",   kind:"dmg-adj",        dmg:4, splash:1,      sym:"☼", name:"Divine Wrath",  spell:true},
+  pl_spell_con:  {hero:"paladin",cat:"Action",   kind:"dmg-adj",        dmg:3, splash:1,      sym:"☄", name:"Consecration",  spell:true},
+  pl_spell_sanct:{hero:"paladin",cat:"Action",   kind:"dmg",            dmg:5,                sym:"✚", name:"Sanctuary",     spell:true},
 
-  // Warlock — almost entirely offense. Keeps Drain Soul as life-drain flavor.
-  wl_weapon:     {hero:"warlock",cat:"Weapon",   kind:"dmg",          dmg:3,           sym:"⚔", name:"Athame"},
-  wl_armor:      {hero:"warlock",cat:"Armor",    kind:"dmg-adj",      dmg:2, splash:1, sym:"⛨", name:"Shadow Veil"},
-  wl_helm:       {hero:"warlock",cat:"Helmet",   kind:"charge",       amount:2,        sym:"⛑", name:"Hood of Shadows"},
-  wl_boots:      {hero:"warlock",cat:"Boots",    kind:"charge",       amount:3,        sym:"⫯", name:"Boots of Misdirection"},
-  wl_artifact:   {hero:"warlock",cat:"Artifact", kind:"buff-atk",     amount:3,        sym:"⚑", name:"Cursed Skull"},
-  wl_act_hex:    {hero:"warlock",cat:"Action",   kind:"dmg",          dmg:4,           sym:"✸", name:"Hex"},
-  wl_spell_blast:{hero:"warlock",cat:"Action",   kind:"dmg",          dmg:5,           sym:"☠", name:"Eldritch Blast",   spell:true},
-  wl_spell_pulse:{hero:"warlock",cat:"Action",   kind:"dmg-adj",      dmg:3, splash:1, sym:"❦", name:"Pulse of Decay",    spell:true},
-  wl_spell_drain:{hero:"warlock",cat:"Action",   kind:"heal",         amount:4,        sym:"🩸", name:"Drain Soul",        spell:true},
-  wl_spell_curse:{hero:"warlock",cat:"Action",   kind:"buff-atk-all", amount:2,        sym:"✤", name:"Curse of Weakness", spell:true},
+  // Warlock — dark caster. Vulnerability marks + lifesteal + AoE.
+  wl_weapon:     {hero:"warlock",cat:"Weapon",   kind:"dmg",            dmg:3,                sym:"⚔", name:"Athame"},
+  wl_armor:      {hero:"warlock",cat:"Armor",    kind:"dmg-adj",        dmg:2, splash:1,      sym:"⛨", name:"Shadow Veil"},
+  wl_helm:       {hero:"warlock",cat:"Helmet",   kind:"charge",         amount:2,             sym:"⛑", name:"Hood of Shadows"},
+  wl_boots:      {hero:"warlock",cat:"Boots",    kind:"charge",         amount:3,             sym:"⫯", name:"Boots of Misdirection"},
+  wl_artifact:   {hero:"warlock",cat:"Artifact", kind:"dmg-vuln",       dmg:3, vuln:3,        sym:"⚑", name:"Cursed Skull"},
+  wl_act_hex:    {hero:"warlock",cat:"Action",   kind:"dmg",            dmg:4,                sym:"✸", name:"Hex"},
+  wl_spell_blast:{hero:"warlock",cat:"Action",   kind:"dmg",            dmg:5,                sym:"☠", name:"Eldritch Blast",   spell:true},
+  wl_spell_pulse:{hero:"warlock",cat:"Action",   kind:"dmg-adj",        dmg:3, splash:1,      sym:"❦", name:"Pulse of Decay",    spell:true},
+  wl_spell_drain:{hero:"warlock",cat:"Action",   kind:"dmg-self-heal",  dmg:3, heal:3,        sym:"🩸", name:"Drain Soul",        spell:true},
+  wl_spell_curse:{hero:"warlock",cat:"Action",   kind:"dmg-adj",        dmg:2, splash:2,      sym:"✤", name:"Curse of Weakness", spell:true},
 
-  // Druid — nature healer/AoE. Keeps Living Wood + Regrowth as healing identity.
-  dr_weapon:     {hero:"druid",  cat:"Weapon",   kind:"dmg-adj",      dmg:2, splash:1, sym:"⚔", name:"Sickle"},
-  dr_armor:      {hero:"druid",  cat:"Armor",    kind:"buff-atk",     amount:3,        sym:"⛨", name:"Bark Skin"},
-  dr_helm:       {hero:"druid",  cat:"Helmet",   kind:"buff-atk-all", amount:2,        sym:"⛑", name:"Antlered Crown"},
-  dr_boots:      {hero:"druid",  cat:"Boots",    kind:"charge",       amount:3,        sym:"⫯", name:"Mossy Wraps"},
-  dr_artifact:   {hero:"druid",  cat:"Artifact", kind:"heal-all",     amount:4,        sym:"⚑", name:"Living Wood"},
-  dr_act_thorns: {hero:"druid",  cat:"Action",   kind:"dmg",          dmg:4,           sym:"❦", name:"Thorns"},
-  dr_spell_regro:{hero:"druid",  cat:"Action",   kind:"heal",         amount:5,        sym:"✚", name:"Regrowth",      spell:true},
-  dr_spell_tang: {hero:"druid",  cat:"Action",   kind:"dmg-adj",      dmg:3, splash:1, sym:"⋮", name:"Entangle",      spell:true},
-  dr_spell_light:{hero:"druid",  cat:"Action",   kind:"dmg",          dmg:5,           sym:"ϟ", name:"Lightning Bolt",spell:true},
-  dr_spell_sun:  {hero:"druid",  cat:"Action",   kind:"buff-atk-all", amount:3,        sym:"☼", name:"Sunbeam",       spell:true},
+  // Druid — nature support. Compound heal+shield, heal+buff; AoE damage.
+  dr_weapon:     {hero:"druid",  cat:"Weapon",   kind:"dmg-adj",        dmg:2, splash:1,      sym:"⚔", name:"Sickle"},
+  dr_armor:      {hero:"druid",  cat:"Armor",    kind:"heal-shield",    amount:2, shield:2,   sym:"⛨", name:"Bark Skin"},
+  dr_helm:       {hero:"druid",  cat:"Helmet",   kind:"dmg-team-buff",  dmg:2, buff:1,        sym:"⛑", name:"Antlered Crown"},
+  dr_boots:      {hero:"druid",  cat:"Boots",    kind:"charge",         amount:3,             sym:"⫯", name:"Mossy Wraps"},
+  dr_artifact:   {hero:"druid",  cat:"Artifact", kind:"heal-all",       amount:4,             sym:"⚑", name:"Living Wood"},
+  dr_act_thorns: {hero:"druid",  cat:"Action",   kind:"dmg",            dmg:4,                sym:"❦", name:"Thorns"},
+  dr_spell_regro:{hero:"druid",  cat:"Action",   kind:"heal-buff",      amount:4, buff:2,     sym:"✚", name:"Regrowth",       spell:true},
+  dr_spell_tang: {hero:"druid",  cat:"Action",   kind:"dmg-adj",        dmg:3, splash:1,      sym:"⋮", name:"Entangle",       spell:true},
+  dr_spell_light:{hero:"druid",  cat:"Action",   kind:"dmg",            dmg:5,                sym:"ϟ", name:"Lightning Bolt", spell:true},
+  dr_spell_sun:  {hero:"druid",  cat:"Action",   kind:"dmg-adj",        dmg:3, splash:1,      sym:"☼", name:"Sunbeam",        spell:true},
 
-  // Berserker — rage / overwhelming damage. Zero defense.
-  br_weapon:     {hero:"berserker",cat:"Weapon",   kind:"dmg",          dmg:5,           sym:"⚔", name:"Battle Axe"},
-  br_armor:      {hero:"berserker",cat:"Armor",    kind:"dmg",          dmg:4,           sym:"⛨", name:"Spiked Pauldrons"},
-  br_helm:       {hero:"berserker",cat:"Helmet",   kind:"buff-atk",     amount:3,        sym:"⛑", name:"Horned Helm"},
-  br_boots:      {hero:"berserker",cat:"Boots",    kind:"charge",       amount:3,        sym:"⫯", name:"War Boots"},
-  br_artifact:   {hero:"berserker",cat:"Artifact", kind:"dmg",          dmg:6,           sym:"⚑", name:"Bloodthirster"},
-  br_act_frenzy: {hero:"berserker",cat:"Action",   kind:"buff-atk-all", amount:3,        sym:"☄", name:"Frenzy"},
-  br_act_charge: {hero:"berserker",cat:"Action",   kind:"charge",       amount:4,        sym:"»", name:"Reckless Charge"},
-  br_act_whirl:  {hero:"berserker",cat:"Action",   kind:"dmg-adj",      dmg:3, splash:1, sym:"⚒", name:"Whirlwind"},
-  br_act_rend:   {hero:"berserker",cat:"Action",   kind:"dmg-adj",      dmg:4, splash:1, sym:"✸", name:"Rend"},
-  br_spell_trance:{hero:"berserker",cat:"Action",  kind:"buff-atk",     amount:4,        sym:"⚠", name:"Battle Trance", spell:true},
+  // Berserker — rage. All offense; compound strikes that also pump the caster.
+  br_weapon:     {hero:"berserker",cat:"Weapon",   kind:"dmg",            dmg:5,                sym:"⚔", name:"Battle Axe"},
+  br_armor:      {hero:"berserker",cat:"Armor",    kind:"dmg",            dmg:4,                sym:"⛨", name:"Spiked Pauldrons"},
+  br_helm:       {hero:"berserker",cat:"Helmet",   kind:"dmg-self-buff",  dmg:3, buff:2,        sym:"⛑", name:"Horned Helm"},
+  br_boots:      {hero:"berserker",cat:"Boots",    kind:"charge",         amount:3,             sym:"⫯", name:"War Boots"},
+  br_artifact:   {hero:"berserker",cat:"Artifact", kind:"dmg",            dmg:6,                sym:"⚑", name:"Bloodthirster"},
+  br_act_frenzy: {hero:"berserker",cat:"Action",   kind:"dmg-team-buff",  dmg:3, buff:2,        sym:"☄", name:"Frenzy"},
+  br_act_charge: {hero:"berserker",cat:"Action",   kind:"dmg-self-charge",dmg:3, charge:3,      sym:"»", name:"Reckless Charge"},
+  br_act_whirl:  {hero:"berserker",cat:"Action",   kind:"dmg-adj",        dmg:3, splash:1,      sym:"⚒", name:"Whirlwind"},
+  br_act_rend:   {hero:"berserker",cat:"Action",   kind:"dmg-adj",        dmg:4, splash:1,      sym:"✸", name:"Rend"},
+  br_spell_trance:{hero:"berserker",cat:"Action",  kind:"dmg-self-buff",  dmg:4, buff:3,        sym:"⚠", name:"Battle Trance", spell:true},
 
-  // Scout — mobility / hit-and-run. Zero defense.
-  sc_weapon:     {hero:"scout",  cat:"Weapon",   kind:"dmg",          dmg:3,           sym:"⚔", name:"Shortbow"},
-  sc_armor:      {hero:"scout",  cat:"Armor",    kind:"dmg",          dmg:4,           sym:"⛨", name:"Studded Cloak"},
-  sc_helm:       {hero:"scout",  cat:"Helmet",   kind:"buff-atk",     amount:3,        sym:"⛑", name:"Spyglass"},
-  sc_boots:      {hero:"scout",  cat:"Boots",    kind:"charge",       amount:3,        sym:"⫯", name:"Cat's Boots"},
-  sc_artifact:   {hero:"scout",  cat:"Artifact", kind:"dmg-adj",      dmg:3, splash:1, sym:"⚑", name:"Trap"},
-  sc_act_snipe:  {hero:"scout",  cat:"Action",   kind:"dmg",          dmg:5,           sym:"✸", name:"Snipe"},
-  sc_act_dash:   {hero:"scout",  cat:"Action",   kind:"charge",       amount:5,        sym:"»", name:"Dash"},
-  sc_act_vanish: {hero:"scout",  cat:"Action",   kind:"buff-atk",     amount:4,        sym:"≈", name:"Vanish"},
-  sc_act_mark:   {hero:"scout",  cat:"Action",   kind:"buff-atk-all", amount:2,        sym:"◉", name:"Mark Target"},
-  sc_spell_step: {hero:"scout",  cat:"Action",   kind:"charge",       amount:4,        sym:"≋", name:"Shadow Step", spell:true},
+  // Scout — hit-and-run. Mobility + vuln-marks + strike-and-dash cards.
+  sc_weapon:     {hero:"scout",  cat:"Weapon",   kind:"dmg",            dmg:3,                sym:"⚔", name:"Shortbow"},
+  sc_armor:      {hero:"scout",  cat:"Armor",    kind:"dmg",            dmg:4,                sym:"⛨", name:"Studded Cloak"},
+  sc_helm:       {hero:"scout",  cat:"Helmet",   kind:"dmg-vuln",       dmg:3, vuln:2,        sym:"⛑", name:"Spyglass"},
+  sc_boots:      {hero:"scout",  cat:"Boots",    kind:"charge",         amount:3,             sym:"⫯", name:"Cat's Boots"},
+  sc_artifact:   {hero:"scout",  cat:"Artifact", kind:"dmg-adj",        dmg:3, splash:1,      sym:"⚑", name:"Trap"},
+  sc_act_snipe:  {hero:"scout",  cat:"Action",   kind:"dmg",            dmg:5,                sym:"✸", name:"Snipe"},
+  sc_act_dash:   {hero:"scout",  cat:"Action",   kind:"charge",         amount:5,             sym:"»", name:"Dash"},
+  sc_act_vanish: {hero:"scout",  cat:"Action",   kind:"dmg-self-charge",dmg:3, charge:3,      sym:"≈", name:"Vanish"},
+  sc_act_mark:   {hero:"scout",  cat:"Action",   kind:"dmg-team-buff",  dmg:2, buff:1,        sym:"◉", name:"Mark Target"},
+  sc_spell_step: {hero:"scout",  cat:"Action",   kind:"charge",         amount:4,             sym:"≋", name:"Shadow Step", spell:true},
 
-  // Assassin — lethal precision. Zero defense.
-  as_weapon:     {hero:"assassin",cat:"Weapon",   kind:"dmg",          dmg:4,           sym:"⚔", name:"Dagger"},
-  as_armor:      {hero:"assassin",cat:"Armor",    kind:"dmg",          dmg:3,           sym:"⛨", name:"Razor Leathers"},
-  as_helm:       {hero:"assassin",cat:"Helmet",   kind:"buff-atk",     amount:3,        sym:"⛑", name:"Mask"},
-  as_boots:      {hero:"assassin",cat:"Boots",    kind:"charge",       amount:4,        sym:"⫯", name:"Shadow Boots"},
-  as_artifact:   {hero:"assassin",cat:"Artifact", kind:"buff-atk",     amount:5,        sym:"⚑", name:"Death Mark"},
-  as_act_back:   {hero:"assassin",cat:"Action",   kind:"dmg",          dmg:5,           sym:"✸", name:"Backstab"},
-  as_act_gar:    {hero:"assassin",cat:"Action",   kind:"dmg-adj",      dmg:2, splash:2, sym:"⚒", name:"Garrote"},
-  as_act_smoke:  {hero:"assassin",cat:"Action",   kind:"buff-atk-all", amount:2,        sym:"❦", name:"Smoke Bomb"},
-  as_spell_strike:{hero:"assassin",cat:"Action",  kind:"dmg",          dmg:7,           sym:"☠", name:"Shadow Strike", spell:true},
-  as_spell_veil: {hero:"assassin",cat:"Action",   kind:"charge",       amount:5,        sym:"≋", name:"Veil", spell:true}
+  // Assassin — spike damage. Vuln stacking + strike-and-vanish.
+  as_weapon:     {hero:"assassin",cat:"Weapon",   kind:"dmg",            dmg:4,                sym:"⚔", name:"Dagger"},
+  as_armor:      {hero:"assassin",cat:"Armor",    kind:"dmg",            dmg:3,                sym:"⛨", name:"Razor Leathers"},
+  as_helm:       {hero:"assassin",cat:"Helmet",   kind:"dmg-vuln",       dmg:4, vuln:2,        sym:"⛑", name:"Mask"},
+  as_boots:      {hero:"assassin",cat:"Boots",    kind:"charge",         amount:4,             sym:"⫯", name:"Shadow Boots"},
+  as_artifact:   {hero:"assassin",cat:"Artifact", kind:"dmg-vuln",       dmg:3, vuln:5,        sym:"⚑", name:"Death Mark"},
+  as_act_back:   {hero:"assassin",cat:"Action",   kind:"dmg",            dmg:5,                sym:"✸", name:"Backstab"},
+  as_act_gar:    {hero:"assassin",cat:"Action",   kind:"dmg-adj",        dmg:2, splash:2,      sym:"⚒", name:"Garrote"},
+  as_act_smoke:  {hero:"assassin",cat:"Action",   kind:"dmg-team-buff",  dmg:2, buff:1,        sym:"❦", name:"Smoke Bomb"},
+  as_spell_strike:{hero:"assassin",cat:"Action",  kind:"dmg",            dmg:7,                sym:"☠", name:"Shadow Strike", spell:true},
+  as_spell_veil: {hero:"assassin",cat:"Action",   kind:"dmg-self-charge",dmg:3, charge:5,      sym:"≋", name:"Veil",          spell:true}
 };
 // Per-player deck built at finishDeploy from drafted heroes' suites (3 × 10 = 30 cards).
 function buildDeckFor(player){
@@ -727,7 +736,7 @@ function newUnit(owner,cls,r,c,facing){
   const u={id:++uid,owner,cls,r,c,facing,hp:d.hp,maxHp:d.hp,atk:d.atk,move:d.move,range:d.range,speed:d.speed,
     flank:!!d.flank,heal:!!d.heal,hero:!!d.hero,sym:d.sym,name:d.name,
     hasMoved:false,hasActed:false,
-    shield:0,bonusAtkRound:0,bonusMoveTurn:0};
+    shield:0,bonusAtkRound:0,bonusMoveTurn:0,vuln:0};
   units.push(u);
   return u;
 }
@@ -956,7 +965,7 @@ function finishDeploy(){
 function flipToken(){ liveToken = liveToken==="A" ? "B" : "A"; }
 function startRound(){
   roundNum++;
-  for(const u of units){ u.hasMoved=false; u.hasActed=false; u.bonusAtkRound=0; u.bonusMoveTurn=0; }
+  for(const u of units){ u.hasMoved=false; u.hasActed=false; u.bonusAtkRound=0; u.bonusMoveTurn=0; u.vuln=0; }
   acted=new Set();
   liveToken=initiativeToken;
   prevBracketSpeed=null;
@@ -1098,12 +1107,15 @@ function attack(attacker,defender){
   let mult=arc==="front"?1:arc==="side"?1.5:2;
   if(attacker.flank){ if(arc==="side")mult=2; if(arc==="rear")mult=2.5; }
   const high=board[attacker.r][attacker.c].terrain==="high"?1:0;
-  const raw=Math.round((effAtk(attacker)+high)*mult);
+  let raw=Math.round((effAtk(attacker)+high)*mult);
+  const vulnBonus = defender.vuln || 0;
+  if(vulnBonus){ raw += vulnBonus; defender.vuln = 0; }
   attacker.facing=dirFromTo(attacker,defender);
   const {taken}=applyDamage(defender,raw);
   attacker.hasActed=true;
   const shielded=raw-taken;
-  say(`${attacker.name} hit ${defender.name} <b>(${arc.toUpperCase()} ×${mult})</b> for ${taken}${shielded?` <i>(${shielded} absorbed)</i>`:""}.`);
+  const vulnTag = vulnBonus ? ` <i>+${vulnBonus} vuln</i>` : "";
+  say(`${attacker.name} hit ${defender.name} <b>(${arc.toUpperCase()} ×${mult})</b>${vulnTag} for ${taken}${shielded?` <i>(${shielded} absorbed)</i>`:""}.`);
   killCheck(defender);
 }
 function healAct(mage,ally){
@@ -1160,6 +1172,56 @@ function playCard(owner,handIdx,target){
       if(u.owner===owner){ const before=u.hp; u.hp=Math.min(u.maxHp,u.hp+card.amount); total+=u.hp-before; }
     });
     say(`${who} cast ${card.name} — all allies +${card.amount} HP (${total} restored).`);
+  } else if(card.kind==="dmg-vuln"){
+    const u=board[target.r][target.c].unit;
+    const {taken}=applyDamage(u,card.dmg);
+    if(u.hp>0) u.vuln=(u.vuln||0)+card.vuln;
+    say(`${card.name}: ${u.name} takes ${taken}, +${card.vuln} vulnerable.`);
+    killCheck(u);
+  } else if(card.kind==="dmg-self-buff"){
+    const u=board[target.r][target.c].unit;
+    const caster=activeUnit();
+    const {taken}=applyDamage(u,card.dmg);
+    if(caster) caster.bonusAtkRound+=card.buff;
+    say(`${card.name}: ${u.name} takes ${taken}; ${caster?caster.name:"caster"} +${card.buff} ATK this round.`);
+    killCheck(u);
+  } else if(card.kind==="dmg-self-charge"){
+    const u=board[target.r][target.c].unit;
+    const caster=activeUnit();
+    const {taken}=applyDamage(u,card.dmg);
+    if(caster) caster.bonusMoveTurn+=card.charge;
+    say(`${card.name}: ${u.name} takes ${taken}; ${caster?caster.name:"caster"} +${card.charge} move this turn.`);
+    killCheck(u);
+  } else if(card.kind==="dmg-self-heal"){
+    const u=board[target.r][target.c].unit;
+    const caster=activeUnit();
+    const {taken}=applyDamage(u,card.dmg);
+    let restored=0;
+    if(caster){ const before=caster.hp; caster.hp=Math.min(caster.maxHp,caster.hp+card.heal); restored=caster.hp-before; }
+    say(`${card.name}: ${u.name} takes ${taken}; ${caster?caster.name:"caster"} drains ${restored} HP.`);
+    killCheck(u);
+  } else if(card.kind==="dmg-team-buff"){
+    const u=board[target.r][target.c].unit;
+    const {taken}=applyDamage(u,card.dmg);
+    eachUnit(au=>{ if(au.owner===owner) au.bonusAtkRound+=card.buff; });
+    say(`${card.name}: ${u.name} takes ${taken}; all allies +${card.buff} ATK this round.`);
+    killCheck(u);
+  } else if(card.kind==="heal-shield"){
+    const u=board[target.r][target.c].unit;
+    const before=u.hp; u.hp=Math.min(u.maxHp,u.hp+card.amount); const restored=u.hp-before;
+    u.shield+=card.shield;
+    say(`${card.name}: ${u.name} +${restored} HP, +${card.shield} shield.`);
+  } else if(card.kind==="heal-buff"){
+    const u=board[target.r][target.c].unit;
+    const before=u.hp; u.hp=Math.min(u.maxHp,u.hp+card.amount); const restored=u.hp-before;
+    u.bonusAtkRound+=card.buff;
+    say(`${card.name}: ${u.name} +${restored} HP, +${card.buff} ATK this round.`);
+  } else if(card.kind==="heal-all-buff"){
+    let total=0;
+    eachUnit(u=>{
+      if(u.owner===owner){ const before=u.hp; u.hp=Math.min(u.maxHp,u.hp+card.amount); total+=u.hp-before; u.bonusAtkRound+=card.buff; }
+    });
+    say(`${who} cast ${card.name} — all allies +${card.amount} HP (${total} restored), +${card.buff} ATK this round.`);
   }
 }
 function canPlayCardNow(){
@@ -1210,9 +1272,10 @@ function onCard(i){
   if(busy||over) return;
   if(!canPlayCardNow()){ say("Cards may only be played at the start of one of your units' turns."); render(); return; }
   const key=players.A.hand[i]; const card=CARDS[key];
-  if((card.kind==="heal"||card.kind==="heal-all") && !anyDamagedAlly("A")){ say("No wounded ally to heal."); return; }
-  if((card.kind==="dmg"||card.kind==="dmg-adj") && !anyEnemy("A")){ say("No enemy in play."); return; }
-  if((card.kind==="shield"||card.kind==="shield-all"||card.kind==="buff-atk"||card.kind==="buff-atk-all"||card.kind==="charge") && !anyAlly("A")){ say("No ally to target."); return; }
+  const k=card.kind;
+  if((k==="heal"||k==="heal-all") && !anyDamagedAlly("A")){ say("No wounded ally to heal."); return; }
+  if((k==="dmg"||k==="dmg-adj"||k==="dmg-vuln"||k==="dmg-self-buff"||k==="dmg-self-charge"||k==="dmg-self-heal"||k==="dmg-team-buff") && !anyEnemy("A")){ say("No enemy in play."); return; }
+  if((k==="shield"||k==="shield-all"||k==="charge"||k==="heal-shield"||k==="heal-buff"||k==="heal-all-buff") && !anyAlly("A")){ say("No ally to target."); return; }
   sel=(sel&&sel.t==="card"&&sel.i===i)?null:{t:"card",i}; render();
 }
 function anyDamagedAlly(o){ let any=false; eachUnit(u=>{if(u.owner===o&&u.hp<u.maxHp)any=true;}); return any; }
@@ -1300,6 +1363,27 @@ function aiPickCardForUnit(u){
       if(wounded<=0) return; score=wounded;
       let any=null; eachUnit(au=>{ if(au.owner==="B" && !any) any=au; });
       if(!any) return; target={r:any.r,c:any.c};
+    } else if(card.kind==="dmg-vuln"||card.kind==="dmg-self-buff"||card.kind==="dmg-self-charge"||card.kind==="dmg-self-heal"||card.kind==="dmg-team-buff"){
+      const t=aiDmgTarget("B",card.dmg); if(!t) return;
+      let bonus=0;
+      if(card.kind==="dmg-vuln") bonus=card.vuln*0.6;
+      if(card.kind==="dmg-self-buff") bonus=card.buff;
+      if(card.kind==="dmg-self-charge") bonus=card.charge*0.5;
+      if(card.kind==="dmg-self-heal") bonus=card.heal*0.8;
+      if(card.kind==="dmg-team-buff") bonus=card.buff*1.5;
+      score=card.dmg*1.5+bonus+(t.hp<=card.dmg?6:0)+(t.hero?3:0); target={r:t.r,c:t.c};
+    } else if(card.kind==="heal-shield"||card.kind==="heal-buff"){
+      let bestT=null,bs=-1;
+      eachUnit(au=>{ if(au.owner==="B"){ const heal=Math.min(card.amount, au.maxHp-au.hp); let s=heal+(au.hero?3:0); if(s>bs){bs=s;bestT=au;} } });
+      if(!bestT) return;
+      const extra = card.kind==="heal-shield" ? card.shield : card.buff;
+      score=bs+extra; target={r:bestT.r,c:bestT.c};
+    } else if(card.kind==="heal-all-buff"){
+      let wounded=0; const allies=[];
+      eachUnit(au=>{ if(au.owner==="B"){ wounded+=Math.min(card.amount, au.maxHp-au.hp); allies.push(au); } });
+      if(!allies.length) return;
+      score=wounded + allies.length*card.buff;
+      target={r:allies[0].r,c:allies[0].c};
     }
     if(!best || score>best.score){ best={handIdx:i,target,score}; }
   });
@@ -1328,15 +1412,23 @@ function bestStep(u,goal){ const tiles=reachable(u); if(!tiles.length) return nu
 
 /* ---------- codex ---------- */
 function cardEffText(c){
-  if(c.kind==="dmg") return `${c.dmg} dmg to enemy`;
-  if(c.kind==="dmg-adj") return `${c.dmg} dmg to enemy, +${c.splash} to adjacent enemies`;
-  if(c.kind==="heal") return `heal ally +${c.amount}`;
-  if(c.kind==="heal-all") return `heal all allies +${c.amount}`;
-  if(c.kind==="shield") return `+${c.amount} shield to ally`;
-  if(c.kind==="shield-all") return `+${c.amount} shield to all allies`;
-  if(c.kind==="buff-atk") return `ally +${c.amount} ATK this round`;
-  if(c.kind==="buff-atk-all") return `all allies +${c.amount} ATK this round`;
-  if(c.kind==="charge") return `ally +${c.amount} move this turn`;
+  switch(c.kind){
+    case "dmg": return `${c.dmg} dmg to enemy`;
+    case "dmg-adj": return `${c.dmg} dmg to enemy + ${c.splash} splash to adjacent enemies`;
+    case "dmg-vuln": return `${c.dmg} dmg to enemy + mark vulnerable (+${c.vuln} on next hit)`;
+    case "dmg-self-buff": return `${c.dmg} dmg to enemy + caster +${c.buff} ATK this round`;
+    case "dmg-self-charge": return `${c.dmg} dmg to enemy + caster +${c.charge} move this turn`;
+    case "dmg-self-heal": return `${c.dmg} dmg to enemy + caster heals ${c.heal} HP`;
+    case "dmg-team-buff": return `${c.dmg} dmg to enemy + all allies +${c.buff} ATK this round`;
+    case "heal": return `heal ally +${c.amount}`;
+    case "heal-all": return `heal all allies +${c.amount}`;
+    case "heal-shield": return `heal ally +${c.amount} + ${c.shield} shield`;
+    case "heal-buff": return `heal ally +${c.amount} + ally +${c.buff} ATK this round`;
+    case "heal-all-buff": return `heal all allies +${c.amount} + all allies +${c.buff} ATK this round`;
+    case "shield": return `+${c.amount} shield to ally`;
+    case "shield-all": return `+${c.amount} shield to all allies`;
+    case "charge": return `ally +${c.amount} move this turn`;
+  }
   return c.kind;
 }
 function buildCodex(){
@@ -1410,13 +1502,14 @@ function computeHl(){
   const u=activeUnit(); if(!u||u.owner!=="A") return;
   if(sel&&sel.t==="card"){
     const key=players.A.hand[sel.i]; const card=CARDS[key];
-    if(card.kind==="heal"){
+    const k=card.kind;
+    if(k==="heal"){
       eachUnit(au=>{ if(au.owner==="A"&&au.hp<au.maxHp) board[au.r][au.c]._hl="heal"; });
-    } else if(card.kind==="dmg"||card.kind==="dmg-adj"){
+    } else if(k==="dmg"||k==="dmg-adj"||k==="dmg-vuln"||k==="dmg-self-buff"||k==="dmg-self-charge"||k==="dmg-self-heal"||k==="dmg-team-buff"){
       eachUnit(au=>{ if(au.owner!=="A") board[au.r][au.c]._hl="spell"; });
-    } else if(card.kind==="shield"||card.kind==="buff-atk"||card.kind==="charge"){
+    } else if(k==="shield"||k==="charge"||k==="heal-shield"||k==="heal-buff"){
       eachUnit(au=>{ if(au.owner==="A") board[au.r][au.c]._hl="heal"; });
-    } else if(card.kind==="shield-all"||card.kind==="buff-atk-all"||card.kind==="heal-all"){
+    } else if(k==="shield-all"||k==="heal-all"||k==="heal-all-buff"){
       eachUnit(au=>{ if(au.owner==="A") board[au.r][au.c]._hl="heal"; });
     }
     return;
@@ -1472,7 +1565,7 @@ function render(){
         t.innerHTML=`<div class="unit ${u.owner} facedown"><span class="sym">?</span></div>`;
       } else {
         const arrow={N:"↑",S:"↓",E:"→",W:"←"}[u.facing]; const done=acted.has(u.id);
-        const buffs=(u.shield?`⛨${u.shield}`:"")+(u.bonusAtkRound?` +${u.bonusAtkRound}A`:"");
+        const buffs=(u.shield?`⛨${u.shield}`:"")+(u.bonusAtkRound?` +${u.bonusAtkRound}A`:"")+(u.vuln?` ☠${u.vuln}`:"");
         t.innerHTML=`<div class="unit ${u.owner}${u.hero?" hero":""}${done?" done":""}">
           <span class="face">${arrow}</span><span class="sym">${u.sym}</span><span class="hp">${u.hp}</span>${buffs?`<span class="buffs">${buffs}</span>`:""}</div>`;
       }
@@ -1522,14 +1615,22 @@ function render(){
   if(!over && u && u.owner==="A" && sel && sel.t==="card"){
     const card=CARDS[players.A.hand[sel.i]];
     let hint="";
-    if(card.kind==="heal") hint="tap a wounded ally";
-    else if(card.kind==="heal-all") hint="tap any ally — heals every ally";
-    else if(card.kind==="dmg") hint="tap an enemy";
-    else if(card.kind==="dmg-adj") hint="tap an enemy — splash hits neighbors";
-    else if(card.kind==="shield") hint="tap an ally to shield";
-    else if(card.kind==="buff-atk") hint="tap an ally to buff";
-    else if(card.kind==="charge") hint="tap an ally to give them extra move";
-    else if(card.kind==="shield-all"||card.kind==="buff-atk-all") hint="tap any ally — effect applies to all";
+    const k=card.kind;
+    if(k==="heal") hint="tap a wounded ally";
+    else if(k==="heal-all") hint="tap any ally — heals every ally";
+    else if(k==="heal-all-buff") hint="tap any ally — heals + buffs whole team";
+    else if(k==="dmg") hint="tap an enemy";
+    else if(k==="dmg-adj") hint="tap an enemy — splash hits neighbors";
+    else if(k==="dmg-vuln") hint="tap an enemy — marks them for extra damage on next hit";
+    else if(k==="dmg-self-buff") hint="tap an enemy — caster gains ATK this round";
+    else if(k==="dmg-self-charge") hint="tap an enemy — caster gains extra move this turn";
+    else if(k==="dmg-self-heal") hint="tap an enemy — caster heals from the strike";
+    else if(k==="dmg-team-buff") hint="tap an enemy — team gains ATK this round";
+    else if(k==="shield") hint="tap an ally to shield";
+    else if(k==="charge") hint="tap an ally to give them extra move";
+    else if(k==="heal-shield") hint="tap an ally — heals + shields them";
+    else if(k==="heal-buff") hint="tap an ally — heals + buffs their ATK";
+    else if(k==="shield-all") hint="tap any ally — effect applies to all";
     const tag=card.spell?"Spell · "+card.cat:card.cat;
     document.getElementById("cdGlyph").textContent=card.sym;
     document.getElementById("cdName").textContent=`${card.name} — ${tag}`;
