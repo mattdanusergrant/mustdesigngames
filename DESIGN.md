@@ -2,7 +2,7 @@
 
 Mobile-web tactical card-battler. Two sides, three heroes each, on a small grid. Play proceeds in **rounds**; within a round, every living unit gets one turn in **Speed order**. Cards add sidekicks, spells, and battlefield effects. Win by eliminating all three enemy heroes.
 
-Current build: **v0.15** (`index.html`).
+Current build: **v0.16** (`index.html`).
 
 ## Modes
 
@@ -200,82 +200,98 @@ Every card is a **one-shot consumable** with no resource cost — playing it con
 
 Shield persists across rounds until consumed. ATK buffs clear at round start. Move buffs clear at end of the buffed unit's turn.
 
+### Pool-wide ratios (v0.16)
+
+After the rebalance pass, defensive cards (heal / heal-all / shield / shield-all) are **14% of the 90-card pool** (down from ~33%). The rest is offense (`dmg`, `dmg-adj`) or utility (`buff-atk`, `buff-atk-all`, `charge`).
+
+| Kind | Count | Notes |
+|---|---|---|
+| `dmg` | 25 | Single-target damage |
+| `dmg-adj` | 15 | Target + splash to orthogonal adjacents |
+| `charge` | 16 | Mobility |
+| `buff-atk` | 11 | Single-target ATK buff |
+| `buff-atk-all` | 10 | Group ATK buff |
+| `heal` | 5 | Mage / Paladin / Druid / Warlock-drain identity |
+| `heal-all` | 4 | Group sustain |
+| `shield` | 3 | Only Knight / Mage / Paladin |
+| `shield-all` | 1 | Knight's Shield Wall — the only group-shield card in the pool |
+
 ### Knight suite (10) — 5 equip, 5 actions (1 spell)
 
-Tank / team-shield identity. Big single hit, layered defense, group heals.
+Captain / morale tank. Single big shield + group heal-all + 2 group buff-atks; everything else is offense.
 
 | # | Slot/Type | Name | Kind | Effect |
 |---|---|---|---|---|
 | 1 | Weapon | Greatsword | dmg 4 | 4 dmg to enemy |
 | 2 | Armor | Plate Mail | shield 5 | +5 shield to ally |
-| 3 | Helmet | Iron Helm | shield 3 | +3 shield to ally |
+| 3 | Helmet | Iron Helm | buff-atk 3 | Ally +3 ATK this round |
 | 4 | Boots | Steel Greaves | charge 3 | Ally +3 move this turn |
-| 5 | Artifact | War Banner | shield-all 2 | +2 shield to all allies |
-| 6 | Action | Cleave | dmg-adj 3 (+1) | 3 dmg to enemy + 1 splash to adjacent enemies |
-| 7 | Action | Bulwark | heal 4 | Heal ally +4 |
+| 5 | Artifact | War Banner | buff-atk-all 2 | All allies +2 ATK this round |
+| 6 | Action | Cleave | dmg-adj 3 (+1) | 3 dmg + 1 splash to adjacent enemies |
+| 7 | Action | Shield Bash | dmg-adj 4 (+1) | 4 dmg + 1 splash to adjacent enemies |
 | 8 | Action | Rally | heal-all 2 | Heal all allies +2 |
-| 9 | Action | Shield Wall | shield-all 3 | +3 shield to all allies |
+| 9 | Action | Shield Wall | shield-all 3 | +3 shield to all allies (only group shield in the pool) |
 | 10 | Action · Spell | Battle Cry | buff-atk-all 3 | All allies +3 ATK this round |
 
 ### Ranger suite (10) — 5 equip, 5 actions (2 spells)
 
-Mobile sniper / combat tricks. Strong single-target damage, lots of movement.
+Pure offense / mobility — no heals or shields.
 
 | # | Slot/Type | Name | Kind | Effect |
 |---|---|---|---|---|
 | 1 | Weapon | Longbow | dmg 4 | 4 dmg to enemy |
-| 2 | Armor | Leather Cloak | shield 3 | +3 shield to ally |
+| 2 | Armor | Quiver of Sharps | dmg-adj 3 (+1) | 3 dmg + 1 splash to adjacent enemies |
 | 3 | Helmet | Hawk Hood | charge 2 | Ally +2 move this turn |
 | 4 | Boots | Swift Boots | charge 4 | Ally +4 move this turn |
 | 5 | Artifact | Hunter's Mark | buff-atk 3 | Ally +3 ATK this round |
 | 6 | Action | Quick Shot | dmg 3 | 3 dmg to enemy |
-| 7 | Action | Volley | dmg-adj 2 (+1) | 2 dmg to enemy + 1 splash to adjacent enemies |
+| 7 | Action | Volley | dmg-adj 2 (+1) | 2 dmg + 1 splash to adjacent enemies |
 | 8 | Action | Reposition | charge 3 | Ally +3 move this turn |
-| 9 | Action · Spell | Piercing Arrow | dmg 5 | 5 dmg to enemy (biggest single hit in the deck) |
+| 9 | Action · Spell | Piercing Arrow | dmg 5 | 5 dmg to enemy |
 | 10 | Action · Spell | Eagle's Eye | buff-atk-all 2 | All allies +2 ATK this round |
 
 ### Mage suite (10) — 5 equip, 5 actions (all spells)
 
-Caster / healer. Wide selection of heals, plus team shield/buff.
+Healer / caster. 3 heal cards (down from 4) + 1 group heal; otherwise offense/utility.
 
 | # | Slot/Type | Name | Kind | Effect |
 |---|---|---|---|---|
 | 1 | Weapon | Staff | dmg 3 | 3 dmg to enemy |
-| 2 | Armor | Robe of Mending | heal 3 | Heal ally +3 |
+| 2 | Armor | Robe of Sparks | dmg 3 | 3 dmg to enemy |
 | 3 | Helmet | Crown of Light | shield 4 | +4 shield to ally |
 | 4 | Boots | Cleric Sandals | charge 2 | Ally +2 move this turn |
-| 5 | Artifact | Sacred Chalice | heal 8 | Heal ally +8 (caps at maxHp — effectively top-up for any hero) |
+| 5 | Artifact | Sacred Chalice | heal 8 | Heal ally +8 (caps at maxHp) |
 | 6 | Action · Spell | Mend | heal 5 | Heal ally +5 |
 | 7 | Action · Spell | Heal | heal-all 3 | Heal all allies +3 |
-| 8 | Action · Spell | Aegis | shield-all 2 | +2 shield to all allies |
+| 8 | Action · Spell | Holy Burst | dmg-adj 3 (+1) | 3 dmg + 1 splash to adjacent enemies |
 | 9 | Action · Spell | Bless | buff-atk 3 | Ally +3 ATK this round |
 | 10 | Action · Spell | Smite | dmg 4 | 4 dmg to enemy |
 
 ### Paladin suite (10) — 5 equip, 5 actions (3 spells)
 
-Holy tank / heavy heals + heavy shields.
+Holy fighter. Big single shield + big single heal + group heal; rest is offense and team buff.
 
 | # | Slot/Type | Name | Kind | Effect |
 |---|---|---|---|---|
 | 1 | Weapon | Warhammer | dmg 4 | 4 dmg to enemy |
 | 2 | Armor | Holy Plate | shield 6 | +6 shield to ally (biggest single shield in pool) |
-| 3 | Helmet | Helm of Faith | shield-all 2 | +2 shield to all allies |
+| 3 | Helmet | Helm of Faith | buff-atk-all 2 | All allies +2 ATK this round |
 | 4 | Boots | Sabatons | charge 2 | Ally +2 move this turn |
 | 5 | Artifact | Holy Symbol | heal-all 3 | Heal all allies +3 |
 | 6 | Action | Lay on Hands | heal 7 | Heal ally +7 |
 | 7 | Action | Smite Evil | dmg 4 | 4 dmg to enemy |
-| 8 | Action · Spell | Divine Shield | shield-all 3 | +3 shield to all allies |
+| 8 | Action · Spell | Divine Wrath | dmg-adj 4 (+1) | 4 dmg + 1 splash to adjacent enemies |
 | 9 | Action · Spell | Consecration | dmg-adj 3 (+1) | 3 dmg + 1 splash to adjacent enemies |
-| 10 | Action · Spell | Sanctuary | buff-atk-all 2 | All allies +2 ATK this round |
+| 10 | Action · Spell | Sanctuary | dmg 5 | 5 dmg to enemy |
 
 ### Warlock suite (10) — 5 equip, 5 actions (4 spells)
 
-Dark caster — heavy single-target damage, AoE curses, life drain.
+Dark caster. Nearly all offense; Drain Soul preserves the life-drain flavor.
 
 | # | Slot/Type | Name | Kind | Effect |
 |---|---|---|---|---|
 | 1 | Weapon | Athame | dmg 3 | 3 dmg to enemy |
-| 2 | Armor | Shadow Cloak | shield 3 | +3 shield to ally |
+| 2 | Armor | Shadow Veil | dmg-adj 2 (+1) | 2 dmg + 1 splash to adjacent enemies |
 | 3 | Helmet | Hood of Shadows | charge 2 | Ally +2 move this turn |
 | 4 | Boots | Boots of Misdirection | charge 3 | Ally +3 move this turn |
 | 5 | Artifact | Cursed Skull | buff-atk 3 | Ally +3 ATK this round |
@@ -287,12 +303,12 @@ Dark caster — heavy single-target damage, AoE curses, life drain.
 
 ### Druid suite (10) — 5 equip, 5 actions (4 spells)
 
-Nature magic — effects that spread (heal-all + dmg-adj heavy).
+Nature healer / AoE. 1 single heal + 1 group heal; rest is offense and buffs.
 
 | # | Slot/Type | Name | Kind | Effect |
 |---|---|---|---|---|
 | 1 | Weapon | Sickle | dmg-adj 2 (+1) | 2 dmg + 1 splash to adjacent enemies |
-| 2 | Armor | Bark Skin | shield 4 | +4 shield to ally |
+| 2 | Armor | Bark Skin | buff-atk 3 | Ally +3 ATK this round |
 | 3 | Helmet | Antlered Crown | buff-atk-all 2 | All allies +2 ATK this round |
 | 4 | Boots | Mossy Wraps | charge 3 | Ally +3 move this turn |
 | 5 | Artifact | Living Wood | heal-all 4 | Heal all allies +4 (biggest group heal) |
@@ -300,19 +316,19 @@ Nature magic — effects that spread (heal-all + dmg-adj heavy).
 | 7 | Action · Spell | Regrowth | heal 5 | Heal ally +5 |
 | 8 | Action · Spell | Entangle | dmg-adj 3 (+1) | 3 dmg + 1 splash to adjacent enemies |
 | 9 | Action · Spell | Lightning Bolt | dmg 5 | 5 dmg to enemy |
-| 10 | Action · Spell | Sunbeam | heal-all 3 | Heal all allies +3 |
+| 10 | Action · Spell | Sunbeam | buff-atk-all 3 | All allies +3 ATK this round |
 
 ### Berserker suite (10) — 5 equip, 5 actions (1 spell)
 
-Rage — overwhelming damage, weak defense.
+Rage — overwhelming damage, no defense.
 
 | # | Slot/Type | Name | Kind | Effect |
 |---|---|---|---|---|
 | 1 | Weapon | Battle Axe | dmg 5 | 5 dmg to enemy |
-| 2 | Armor | Leather Wraps | shield 2 | +2 shield to ally (weakest armor in pool) |
+| 2 | Armor | Spiked Pauldrons | dmg 4 | 4 dmg to enemy |
 | 3 | Helmet | Horned Helm | buff-atk 3 | Ally +3 ATK this round |
 | 4 | Boots | War Boots | charge 3 | Ally +3 move this turn |
-| 5 | Artifact | Bloodthirster | dmg 6 | 6 dmg to enemy (largest dmg from equipment) |
+| 5 | Artifact | Bloodthirster | dmg 6 | 6 dmg to enemy |
 | 6 | Action | Frenzy | buff-atk-all 3 | All allies +3 ATK this round |
 | 7 | Action | Reckless Charge | charge 4 | Ally +4 move this turn |
 | 8 | Action | Whirlwind | dmg-adj 3 (+1) | 3 dmg + 1 splash to adjacent enemies |
@@ -321,35 +337,35 @@ Rage — overwhelming damage, weak defense.
 
 ### Scout suite (10) — 5 equip, 5 actions (1 spell)
 
-Mobility — hit-and-run, evasion, recon.
+Mobility / hit-and-run. No defense.
 
 | # | Slot/Type | Name | Kind | Effect |
 |---|---|---|---|---|
 | 1 | Weapon | Shortbow | dmg 3 | 3 dmg to enemy |
-| 2 | Armor | Camo Cloak | shield 3 | +3 shield to ally |
+| 2 | Armor | Studded Cloak | dmg 4 | 4 dmg to enemy |
 | 3 | Helmet | Spyglass | buff-atk 3 | Ally +3 ATK this round |
 | 4 | Boots | Cat's Boots | charge 3 | Ally +3 move this turn |
 | 5 | Artifact | Trap | dmg-adj 3 (+1) | 3 dmg + 1 splash to adjacent enemies |
-| 6 | Action | Snipe | dmg 4 | 4 dmg to enemy |
-| 7 | Action | Dash | charge 5 | Ally +5 move this turn (biggest movement card) |
-| 8 | Action | Vanish | shield 4 | +4 shield to ally |
+| 6 | Action | Snipe | dmg 5 | 5 dmg to enemy |
+| 7 | Action | Dash | charge 5 | Ally +5 move this turn |
+| 8 | Action | Vanish | buff-atk 4 | Ally +4 ATK this round |
 | 9 | Action | Mark Target | buff-atk-all 2 | All allies +2 ATK this round |
 | 10 | Action · Spell | Shadow Step | charge 4 | Ally +4 move this turn |
 
 ### Assassin suite (10) — 5 equip, 5 actions (2 spells)
 
-Lethal precision — spike damage, single-target kills.
+Lethal precision — spike damage, single-target kills. No defense.
 
 | # | Slot/Type | Name | Kind | Effect |
 |---|---|---|---|---|
 | 1 | Weapon | Dagger | dmg 4 | 4 dmg to enemy |
-| 2 | Armor | Black Leathers | shield 2 | +2 shield to ally |
+| 2 | Armor | Razor Leathers | dmg 3 | 3 dmg to enemy |
 | 3 | Helmet | Mask | buff-atk 3 | Ally +3 ATK this round |
 | 4 | Boots | Shadow Boots | charge 4 | Ally +4 move this turn |
-| 5 | Artifact | Death Mark | dmg 5 | 5 dmg to enemy |
+| 5 | Artifact | Death Mark | buff-atk 5 | Ally +5 ATK this round (biggest single buff in the pool) |
 | 6 | Action | Backstab | dmg 5 | 5 dmg to enemy |
 | 7 | Action | Garrote | dmg-adj 2 (+2) | 2 dmg + 2 splash to adjacent enemies |
-| 8 | Action | Smoke Bomb | shield-all 2 | +2 shield to all allies |
+| 8 | Action | Smoke Bomb | buff-atk-all 2 | All allies +2 ATK this round |
 | 9 | Action · Spell | Shadow Strike | dmg 7 | 7 dmg to enemy (biggest single hit in the pool) |
 | 10 | Action · Spell | Veil | charge 5 | Ally +5 move this turn |
 

@@ -264,14 +264,14 @@
   <div class="legend">9-hero roster · 90-card pool · your deck = your 3 drafted heroes' 30 cards &nbsp;|&nbsp; SIDE ×1.5 / REAR ×2 · ⛨ shield · +A atk-buff</div>
   <button class="title" id="titleBtn" onclick="openCodex()">
     <h1>SIGIL TACTICS</h1>
-    <div class="sub">v0.15 · campaign mode · 6 hero unlocks · tap for rules</div>
+    <div class="sub">v0.16 · offense-focused cards · campaign · tap for rules</div>
   </button>
 </div>
 
 <div id="codex"><div class="cbox">
   <button class="x" onclick="closeCodex()">×</button>
   <h2>SIGIL TACTICS</h2>
-  <div class="cdx-sub">v0.15 — campaign mode · 9-hero roster · 90-card pool · deck = drafted heroes' suites</div>
+  <div class="cdx-sub">v0.16 — offense-focused 90-card pool (14% defensive) · campaign + skirmish</div>
 
   <h3>Modes</h3>
   <ul>
@@ -592,25 +592,24 @@ function returnToMissions(){
   document.getElementById("victory").classList.remove("open");
   openMissions();
 }
-// v0.14 — 9 suites × 10 cards = 90-card pool. Your match deck = 30 cards built from your 3 drafted heroes.
-// No resource cost; each card consumes the active unit's turn. Values tuned so every card clears the
-// "worth a turn" bar (≥3 single-target dmg, ≥4 single-heal, ≥6 total expected for AoE/all-ally).
+// v0.16 — heal/shield reduced from ~30% of pool to ~14%. Cards skew offensive (dmg / dmg-adj / buff-atk / charge).
+// Each card consumes the active unit's turn; no resource cost.
 const CARDS={
-  // Knight — tank / team shield
+  // Knight — captain / morale tank. Big single shield + 1 group buff; everything else is offense or rally.
   kn_weapon:     {hero:"knight", cat:"Weapon",   kind:"dmg",          dmg:4,           sym:"⚔", name:"Greatsword"},
   kn_armor:      {hero:"knight", cat:"Armor",    kind:"shield",       amount:5,        sym:"⛨", name:"Plate Mail"},
-  kn_helm:       {hero:"knight", cat:"Helmet",   kind:"shield",       amount:3,        sym:"⛑", name:"Iron Helm"},
+  kn_helm:       {hero:"knight", cat:"Helmet",   kind:"buff-atk",     amount:3,        sym:"⛑", name:"Iron Helm"},
   kn_boots:      {hero:"knight", cat:"Boots",    kind:"charge",       amount:3,        sym:"⫯", name:"Steel Greaves"},
-  kn_artifact:   {hero:"knight", cat:"Artifact", kind:"shield-all",   amount:2,        sym:"⚑", name:"War Banner"},
+  kn_artifact:   {hero:"knight", cat:"Artifact", kind:"buff-atk-all", amount:2,        sym:"⚑", name:"War Banner"},
   kn_act_cleave: {hero:"knight", cat:"Action",   kind:"dmg-adj",      dmg:3, splash:1, sym:"⚒", name:"Cleave"},
-  kn_act_bulwark:{hero:"knight", cat:"Action",   kind:"heal",         amount:4,        sym:"+", name:"Bulwark"},
+  kn_act_bulwark:{hero:"knight", cat:"Action",   kind:"dmg-adj",      dmg:4, splash:1, sym:"⚒", name:"Shield Bash"},
   kn_act_rally:  {hero:"knight", cat:"Action",   kind:"heal-all",     amount:2,        sym:"✚", name:"Rally"},
   kn_act_wall:   {hero:"knight", cat:"Action",   kind:"shield-all",   amount:3,        sym:"⛨", name:"Shield Wall"},
   kn_spell_cry:  {hero:"knight", cat:"Action",   kind:"buff-atk-all", amount:3,        sym:"☄", name:"Battle Cry", spell:true},
 
-  // Ranger — mobile sniper / combat tricks
+  // Ranger — pure offense / mobility. No heals or shields.
   rn_weapon:     {hero:"ranger", cat:"Weapon",   kind:"dmg",          dmg:4,           sym:"➶", name:"Longbow"},
-  rn_armor:      {hero:"ranger", cat:"Armor",    kind:"shield",       amount:3,        sym:"⛨", name:"Leather Cloak"},
+  rn_armor:      {hero:"ranger", cat:"Armor",    kind:"dmg-adj",      dmg:3, splash:1, sym:"⛨", name:"Quiver of Sharps"},
   rn_helm:       {hero:"ranger", cat:"Helmet",   kind:"charge",       amount:2,        sym:"⛑", name:"Hawk Hood"},
   rn_boots:      {hero:"ranger", cat:"Boots",    kind:"charge",       amount:4,        sym:"⫯", name:"Swift Boots"},
   rn_artifact:   {hero:"ranger", cat:"Artifact", kind:"buff-atk",     amount:3,        sym:"⚑", name:"Hunter's Mark"},
@@ -620,33 +619,33 @@ const CARDS={
   rn_spell_pierce:{hero:"ranger",cat:"Action",   kind:"dmg",          dmg:5,           sym:"✸", name:"Piercing Arrow", spell:true},
   rn_spell_eye:  {hero:"ranger", cat:"Action",   kind:"buff-atk-all", amount:2,        sym:"◉", name:"Eagle's Eye", spell:true},
 
-  // Mage — caster / healer
+  // Mage — healer / caster identity preserved but reduced from 4 to 3 healing cards.
   mg_weapon:     {hero:"mage",   cat:"Weapon",   kind:"dmg",          dmg:3,           sym:"⚔", name:"Staff"},
-  mg_armor:      {hero:"mage",   cat:"Armor",    kind:"heal",         amount:3,        sym:"⛨", name:"Robe of Mending"},
+  mg_armor:      {hero:"mage",   cat:"Armor",    kind:"dmg",          dmg:3,           sym:"⛨", name:"Robe of Sparks"},
   mg_helm:       {hero:"mage",   cat:"Helmet",   kind:"shield",       amount:4,        sym:"⛑", name:"Crown of Light"},
   mg_boots:      {hero:"mage",   cat:"Boots",    kind:"charge",       amount:2,        sym:"⫯", name:"Cleric Sandals"},
   mg_artifact:   {hero:"mage",   cat:"Artifact", kind:"heal",         amount:8,        sym:"⚱", name:"Sacred Chalice"},
   mg_spell_mend: {hero:"mage",   cat:"Action",   kind:"heal",         amount:5,        sym:"✚", name:"Mend", spell:true},
   mg_spell_heal: {hero:"mage",   cat:"Action",   kind:"heal-all",     amount:3,        sym:"✚", name:"Heal", spell:true},
-  mg_spell_aegis:{hero:"mage",   cat:"Action",   kind:"shield-all",   amount:2,        sym:"⛨", name:"Aegis", spell:true},
+  mg_spell_aegis:{hero:"mage",   cat:"Action",   kind:"dmg-adj",      dmg:3, splash:1, sym:"☼", name:"Holy Burst", spell:true},
   mg_spell_bless:{hero:"mage",   cat:"Action",   kind:"buff-atk",     amount:3,        sym:"☼", name:"Bless", spell:true},
   mg_spell_smite:{hero:"mage",   cat:"Action",   kind:"dmg",          dmg:4,           sym:"ϟ", name:"Smite", spell:true},
 
-  // Paladin — holy tank / heavy heals + heavy shields
+  // Paladin — holy fighter. Keeps Plate / Symbol / Lay on Hands; rest is offense + team buff.
   pl_weapon:     {hero:"paladin",cat:"Weapon",   kind:"dmg",          dmg:4,           sym:"⚒", name:"Warhammer"},
   pl_armor:      {hero:"paladin",cat:"Armor",    kind:"shield",       amount:6,        sym:"⛨", name:"Holy Plate"},
-  pl_helm:       {hero:"paladin",cat:"Helmet",   kind:"shield-all",   amount:2,        sym:"⛑", name:"Helm of Faith"},
+  pl_helm:       {hero:"paladin",cat:"Helmet",   kind:"buff-atk-all", amount:2,        sym:"⛑", name:"Helm of Faith"},
   pl_boots:      {hero:"paladin",cat:"Boots",    kind:"charge",       amount:2,        sym:"⫯", name:"Sabatons"},
   pl_artifact:   {hero:"paladin",cat:"Artifact", kind:"heal-all",     amount:3,        sym:"⚑", name:"Holy Symbol"},
   pl_act_loh:    {hero:"paladin",cat:"Action",   kind:"heal",         amount:7,        sym:"+", name:"Lay on Hands"},
   pl_act_smite:  {hero:"paladin",cat:"Action",   kind:"dmg",          dmg:4,           sym:"✸", name:"Smite Evil"},
-  pl_spell_div:  {hero:"paladin",cat:"Action",   kind:"shield-all",   amount:3,        sym:"☼", name:"Divine Shield", spell:true},
-  pl_spell_con:  {hero:"paladin",cat:"Action",   kind:"dmg-adj",      dmg:3, splash:1, sym:"☄", name:"Consecration",  spell:true},
-  pl_spell_sanct:{hero:"paladin",cat:"Action",   kind:"buff-atk-all", amount:2,        sym:"✚", name:"Sanctuary",     spell:true},
+  pl_spell_div:  {hero:"paladin",cat:"Action",   kind:"dmg-adj",      dmg:4, splash:1, sym:"☼", name:"Divine Wrath", spell:true},
+  pl_spell_con:  {hero:"paladin",cat:"Action",   kind:"dmg-adj",      dmg:3, splash:1, sym:"☄", name:"Consecration", spell:true},
+  pl_spell_sanct:{hero:"paladin",cat:"Action",   kind:"dmg",          dmg:5,           sym:"✚", name:"Sanctuary",    spell:true},
 
-  // Warlock — dark caster / AoE & life-drain
+  // Warlock — almost entirely offense. Keeps Drain Soul as life-drain flavor.
   wl_weapon:     {hero:"warlock",cat:"Weapon",   kind:"dmg",          dmg:3,           sym:"⚔", name:"Athame"},
-  wl_armor:      {hero:"warlock",cat:"Armor",    kind:"shield",       amount:3,        sym:"⛨", name:"Shadow Cloak"},
+  wl_armor:      {hero:"warlock",cat:"Armor",    kind:"dmg-adj",      dmg:2, splash:1, sym:"⛨", name:"Shadow Veil"},
   wl_helm:       {hero:"warlock",cat:"Helmet",   kind:"charge",       amount:2,        sym:"⛑", name:"Hood of Shadows"},
   wl_boots:      {hero:"warlock",cat:"Boots",    kind:"charge",       amount:3,        sym:"⫯", name:"Boots of Misdirection"},
   wl_artifact:   {hero:"warlock",cat:"Artifact", kind:"buff-atk",     amount:3,        sym:"⚑", name:"Cursed Skull"},
@@ -656,9 +655,9 @@ const CARDS={
   wl_spell_drain:{hero:"warlock",cat:"Action",   kind:"heal",         amount:4,        sym:"🩸", name:"Drain Soul",        spell:true},
   wl_spell_curse:{hero:"warlock",cat:"Action",   kind:"buff-atk-all", amount:2,        sym:"✤", name:"Curse of Weakness", spell:true},
 
-  // Druid — nature: spread effects (heal-all + dmg-adj)
+  // Druid — nature healer/AoE. Keeps Living Wood + Regrowth as healing identity.
   dr_weapon:     {hero:"druid",  cat:"Weapon",   kind:"dmg-adj",      dmg:2, splash:1, sym:"⚔", name:"Sickle"},
-  dr_armor:      {hero:"druid",  cat:"Armor",    kind:"shield",       amount:4,        sym:"⛨", name:"Bark Skin"},
+  dr_armor:      {hero:"druid",  cat:"Armor",    kind:"buff-atk",     amount:3,        sym:"⛨", name:"Bark Skin"},
   dr_helm:       {hero:"druid",  cat:"Helmet",   kind:"buff-atk-all", amount:2,        sym:"⛑", name:"Antlered Crown"},
   dr_boots:      {hero:"druid",  cat:"Boots",    kind:"charge",       amount:3,        sym:"⫯", name:"Mossy Wraps"},
   dr_artifact:   {hero:"druid",  cat:"Artifact", kind:"heal-all",     amount:4,        sym:"⚑", name:"Living Wood"},
@@ -666,11 +665,11 @@ const CARDS={
   dr_spell_regro:{hero:"druid",  cat:"Action",   kind:"heal",         amount:5,        sym:"✚", name:"Regrowth",      spell:true},
   dr_spell_tang: {hero:"druid",  cat:"Action",   kind:"dmg-adj",      dmg:3, splash:1, sym:"⋮", name:"Entangle",      spell:true},
   dr_spell_light:{hero:"druid",  cat:"Action",   kind:"dmg",          dmg:5,           sym:"ϟ", name:"Lightning Bolt",spell:true},
-  dr_spell_sun:  {hero:"druid",  cat:"Action",   kind:"heal-all",     amount:3,        sym:"☼", name:"Sunbeam",       spell:true},
+  dr_spell_sun:  {hero:"druid",  cat:"Action",   kind:"buff-atk-all", amount:3,        sym:"☼", name:"Sunbeam",       spell:true},
 
-  // Berserker — rage / overwhelming damage
+  // Berserker — rage / overwhelming damage. Zero defense.
   br_weapon:     {hero:"berserker",cat:"Weapon",   kind:"dmg",          dmg:5,           sym:"⚔", name:"Battle Axe"},
-  br_armor:      {hero:"berserker",cat:"Armor",    kind:"shield",       amount:2,        sym:"⛨", name:"Leather Wraps"},
+  br_armor:      {hero:"berserker",cat:"Armor",    kind:"dmg",          dmg:4,           sym:"⛨", name:"Spiked Pauldrons"},
   br_helm:       {hero:"berserker",cat:"Helmet",   kind:"buff-atk",     amount:3,        sym:"⛑", name:"Horned Helm"},
   br_boots:      {hero:"berserker",cat:"Boots",    kind:"charge",       amount:3,        sym:"⫯", name:"War Boots"},
   br_artifact:   {hero:"berserker",cat:"Artifact", kind:"dmg",          dmg:6,           sym:"⚑", name:"Bloodthirster"},
@@ -680,27 +679,27 @@ const CARDS={
   br_act_rend:   {hero:"berserker",cat:"Action",   kind:"dmg-adj",      dmg:4, splash:1, sym:"✸", name:"Rend"},
   br_spell_trance:{hero:"berserker",cat:"Action",  kind:"buff-atk",     amount:4,        sym:"⚠", name:"Battle Trance", spell:true},
 
-  // Scout — mobility / hit-and-run
+  // Scout — mobility / hit-and-run. Zero defense.
   sc_weapon:     {hero:"scout",  cat:"Weapon",   kind:"dmg",          dmg:3,           sym:"⚔", name:"Shortbow"},
-  sc_armor:      {hero:"scout",  cat:"Armor",    kind:"shield",       amount:3,        sym:"⛨", name:"Camo Cloak"},
+  sc_armor:      {hero:"scout",  cat:"Armor",    kind:"dmg",          dmg:4,           sym:"⛨", name:"Studded Cloak"},
   sc_helm:       {hero:"scout",  cat:"Helmet",   kind:"buff-atk",     amount:3,        sym:"⛑", name:"Spyglass"},
   sc_boots:      {hero:"scout",  cat:"Boots",    kind:"charge",       amount:3,        sym:"⫯", name:"Cat's Boots"},
   sc_artifact:   {hero:"scout",  cat:"Artifact", kind:"dmg-adj",      dmg:3, splash:1, sym:"⚑", name:"Trap"},
-  sc_act_snipe:  {hero:"scout",  cat:"Action",   kind:"dmg",          dmg:4,           sym:"✸", name:"Snipe"},
+  sc_act_snipe:  {hero:"scout",  cat:"Action",   kind:"dmg",          dmg:5,           sym:"✸", name:"Snipe"},
   sc_act_dash:   {hero:"scout",  cat:"Action",   kind:"charge",       amount:5,        sym:"»", name:"Dash"},
-  sc_act_vanish: {hero:"scout",  cat:"Action",   kind:"shield",       amount:4,        sym:"⛨", name:"Vanish"},
+  sc_act_vanish: {hero:"scout",  cat:"Action",   kind:"buff-atk",     amount:4,        sym:"≈", name:"Vanish"},
   sc_act_mark:   {hero:"scout",  cat:"Action",   kind:"buff-atk-all", amount:2,        sym:"◉", name:"Mark Target"},
   sc_spell_step: {hero:"scout",  cat:"Action",   kind:"charge",       amount:4,        sym:"≋", name:"Shadow Step", spell:true},
 
-  // Assassin — lethal precision / spike damage
+  // Assassin — lethal precision. Zero defense.
   as_weapon:     {hero:"assassin",cat:"Weapon",   kind:"dmg",          dmg:4,           sym:"⚔", name:"Dagger"},
-  as_armor:      {hero:"assassin",cat:"Armor",    kind:"shield",       amount:2,        sym:"⛨", name:"Black Leathers"},
+  as_armor:      {hero:"assassin",cat:"Armor",    kind:"dmg",          dmg:3,           sym:"⛨", name:"Razor Leathers"},
   as_helm:       {hero:"assassin",cat:"Helmet",   kind:"buff-atk",     amount:3,        sym:"⛑", name:"Mask"},
   as_boots:      {hero:"assassin",cat:"Boots",    kind:"charge",       amount:4,        sym:"⫯", name:"Shadow Boots"},
-  as_artifact:   {hero:"assassin",cat:"Artifact", kind:"dmg",          dmg:5,           sym:"⚑", name:"Death Mark"},
+  as_artifact:   {hero:"assassin",cat:"Artifact", kind:"buff-atk",     amount:5,        sym:"⚑", name:"Death Mark"},
   as_act_back:   {hero:"assassin",cat:"Action",   kind:"dmg",          dmg:5,           sym:"✸", name:"Backstab"},
   as_act_gar:    {hero:"assassin",cat:"Action",   kind:"dmg-adj",      dmg:2, splash:2, sym:"⚒", name:"Garrote"},
-  as_act_smoke:  {hero:"assassin",cat:"Action",   kind:"shield-all",   amount:2,        sym:"❦", name:"Smoke Bomb"},
+  as_act_smoke:  {hero:"assassin",cat:"Action",   kind:"buff-atk-all", amount:2,        sym:"❦", name:"Smoke Bomb"},
   as_spell_strike:{hero:"assassin",cat:"Action",  kind:"dmg",          dmg:7,           sym:"☠", name:"Shadow Strike", spell:true},
   as_spell_veil: {hero:"assassin",cat:"Action",   kind:"charge",       amount:5,        sym:"≋", name:"Veil", spell:true}
 };
