@@ -163,6 +163,15 @@
   #missionIntro .i-text{font-size:12px; color:#d6d8de; line-height:1.55; text-align:left; margin:10px 0;}
   #missionIntro .i-team-row{font-size:11px; color:var(--dim); text-align:left; margin-bottom:4px;}
   #missionIntro .i-team-row span{color:#fff; font-size:14px;}
+  #missionIntro .i-pick-h{font-size:11px; color:var(--dim); text-align:left; margin-top:12px; margin-bottom:6px;}
+  #missionIntro .i-pick{display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:6px;}
+  #missionIntro .ipick{background:#1a1c22; border:1px solid var(--line); border-radius:8px; padding:8px 4px; cursor:pointer; color:#fff; display:flex; flex-direction:column; align-items:center; gap:2px;}
+  #missionIntro .ipick:hover{background:#23262e;}
+  #missionIntro .ipick.sel{border-color:var(--gold); background:rgba(212,165,116,.18);}
+  #missionIntro .ipgly{font-size:22px; line-height:1;}
+  #missionIntro .ipname{font-size:10px;}
+  #missionIntro .i-pick-count{font-size:10px; color:var(--dim); text-align:right; margin-bottom:10px;}
+  #missionIntro .tbtn:disabled{opacity:.4; cursor:not-allowed;}
   #victory .v-text{font-size:12px; color:#d6d8de; margin:8px 0 14px; line-height:1.5;}
   #victory .v-unlock{background:rgba(212,165,116,.10); border:1px solid var(--gold); border-radius:8px; padding:14px; margin-bottom:14px;}
   #victory .v-glyph{font-size:48px; line-height:1; margin-bottom:6px;}
@@ -254,7 +263,8 @@
 
   <h3>Match flow</h3>
   <ul>
-    <li><b>Draft (1-2-2-1 snake):</b> P1 picks 1, P2 picks 2, P1 picks 2, P2 picks 1. Each side ends with 3 heroes. In campaign mode, the player picks only from unlocked heroes and the AI picks from a mission-specific priority list (boss + themed allies).</li>
+    <li><b>Draft (skirmish only):</b> 1-2-2-1 snake — P1 picks 1, P2 picks 2, P1 picks 2, P2 picks 1. Each side ends with 3 heroes from the 9-hero active roster.</li>
+    <li><b>Team select (campaign only):</b> in the mission intro, tap to pick 3 heroes from your unlocked pool. AI's team is the boss plus themed allies from a mission-specific priority list. No draft phase.</li>
     <li><b>Deploy:</b> alternating face-down placement in reverse-of-draft order (P2 places first to offset P1's first-pick advantage). You see <i>where</i> the opponent placed but not <i>which</i> hero is in each tile — units flip face-up when play begins.</li>
     <li><b>Play:</b> standard initiative-order combat.</li>
   </ul>
@@ -356,8 +366,10 @@
   <div class="i-boss" id="intBoss"></div>
   <p class="i-text" id="intText"></p>
   <div class="i-team-row">Enemy team: <span id="intTeam"></span></div>
-  <div class="i-team-row">Your pool: <span id="intYourPool"></span></div>
-  <button class="tbtn" onclick="beginMission()">BEGIN</button>
+  <div class="i-pick-h">Choose 3 heroes for your party:</div>
+  <div class="i-pick" id="intPick"></div>
+  <div class="i-pick-count" id="intCount">0/3 selected</div>
+  <button class="tbtn" id="beginBtn" onclick="beginMission()" disabled>BEGIN</button>
 </div></div>
 
 <div id="victory"><div class="vbox">
@@ -420,7 +432,8 @@ let mode="title"; // "title" | "campaign-menu" | "skirmish" | "campaign-play"
 let campaign={
   unlocked:new Set(STARTERS),
   completed:new Set(),
-  currentMission:null
+  currentMission:null,
+  teamSelection:[]
 };
 function saveProgress(){
   try{ localStorage.setItem("sigil-progress", JSON.stringify({
@@ -490,19 +503,62 @@ function renderMissions(){
   const u=campaign.unlocked.size, c=campaign.completed.size;
   document.getElementById("missionProg").textContent=`Roster ${u}/9 · Missions ${c}/6`;
 }
+function computeMissionAITeam(m, playerPicks){
+  const team=[]; const taken=new Set(playerPicks);
+  // boss always first
+  team.push(m.boss); taken.add(m.boss);
+  // then themed allies from aiPool in order
+  for(const cls of m.aiPool){
+    if(team.length>=3) break;
+    if(taken.has(cls)) continue;
+    team.push(cls); taken.add(cls);
+  }
+  // fallback to any active hero
+  for(const cls of ROSTER){
+    if(team.length>=3) break;
+    if(taken.has(cls)) continue;
+    team.push(cls); taken.add(cls);
+  }
+  return team;
+}
 function openMissionIntro(m){
   campaign.currentMission=m;
+  campaign.teamSelection=[];
   document.getElementById("missions").classList.remove("open");
   document.getElementById("missionIntro").classList.add("open");
   const c=CLASSES[m.boss];
   document.getElementById("intTitle").textContent=`${m.id}. ${m.title}`;
   document.getElementById("intBoss").textContent=c.sym;
   document.getElementById("intText").textContent=m.intro;
-  // enemy team preview: boss + likely allies (first 3 of aiPool)
-  const enemyPreview=m.aiPool.slice(0,3).map(cls=>CLASSES[cls].sym).join(" ");
-  document.getElementById("intTeam").textContent=enemyPreview+" (boss + likely allies)";
-  const yourPool=[...campaign.unlocked].map(cls=>CLASSES[cls].sym).join(" ");
-  document.getElementById("intYourPool").textContent=yourPool;
+  const aiTeam=computeMissionAITeam(m, []);
+  document.getElementById("intTeam").textContent=aiTeam.map(cls=>CLASSES[cls].sym+" "+CLASSES[cls].name).join(" · ");
+  renderTeamPicker();
+}
+function renderTeamPicker(){
+  const root=document.getElementById("intPick"); root.innerHTML="";
+  const unlocked=[...campaign.unlocked];
+  for(const cls of unlocked){
+    const c=CLASSES[cls];
+    const sel=campaign.teamSelection.includes(cls);
+    const btn=document.createElement("button");
+    btn.className="ipick"+(sel?" sel":"");
+    btn.innerHTML=`<span class="ipgly">${c.sym}</span><span class="ipname">${c.name}</span>`;
+    btn.onclick=()=>toggleTeamPick(cls);
+    root.appendChild(btn);
+  }
+  // Auto-fill if exactly 3 unlocked and nothing picked yet
+  if(unlocked.length===3 && campaign.teamSelection.length===0){
+    campaign.teamSelection=unlocked.slice();
+    return renderTeamPicker();
+  }
+  document.getElementById("intCount").textContent=`${campaign.teamSelection.length}/3 selected`;
+  document.getElementById("beginBtn").disabled = campaign.teamSelection.length!==3;
+}
+function toggleTeamPick(cls){
+  const i=campaign.teamSelection.indexOf(cls);
+  if(i>=0) campaign.teamSelection.splice(i,1);
+  else if(campaign.teamSelection.length<3) campaign.teamSelection.push(cls);
+  renderTeamPicker();
 }
 function cancelMission(){
   campaign.currentMission=null;
@@ -672,10 +728,18 @@ function newGame(missionId){
   };
   document.getElementById("over").style.display="none";
   draft={A:[],B:[]}; pickIdx=0; placeSeq=null; placeIdx=0; unplaced=null; selectedDeployUnit=null;
-  phase="draft";
-  openDraftUI();
-  render();
-  advanceDraft();
+  if(campaign.currentMission){
+    // Campaign mode: skip draft entirely. Teams come from the intro picker and the mission's AI pool.
+    draft.A=campaign.teamSelection.slice();
+    draft.B=computeMissionAITeam(campaign.currentMission, draft.A);
+    pickIdx=DRAFT_SEQUENCE.length;
+    finishDraft();
+  } else {
+    phase="draft";
+    openDraftUI();
+    render();
+    advanceDraft();
+  }
 }
 
 /* ---------- draft phase ---------- */
