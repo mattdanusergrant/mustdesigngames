@@ -1311,6 +1311,9 @@ function anyEnemy(o){ let any=false; eachUnit(u=>{if(u.owner!==o)any=true;}); re
 
 /* ---------- AI (single-unit activation) ---------- */
 function aiAct(u){
+  // 0) cycle dead-source cards if 2+ are taking up the AI's hand
+  const cycle=aiPickCycleForUnit(u);
+  if(cycle) aiCycleExecute("B",u,cycle.picks);
   // 1) consider playing a card with this turn
   const cardPlay=aiPickCardForUnit(u);
   const normalScore=aiNormalActionScore(u);
@@ -1330,6 +1333,24 @@ function aiAct(u){
     if(tgt) attack(u,tgt);
     else if(!u.hasMoved){ const goal=nearestHeroOrUnit(u); if(goal){ const step=bestStep(u,goal); if(step) moveUnit(u,step.r,step.c); } }
   } else if(!u.hasMoved){ const goal=nearestHeroOrUnit(u); if(goal){ const step=bestStep(u,goal); if(step) moveUnit(u,step.r,step.c); } }
+}
+function aiPickCycleForUnit(u){
+  // Cycle costs the move; only worth it when ≥2 dead-source cards are sitting in hand.
+  if(u.hasMoved || u.hasActed) return null;
+  const B=players.B; if(B.hand.length<2) return null;
+  const aliveB = cls => heroes.B.some(h=>h.cls===cls && h.hp>0);
+  const dead=[];
+  B.hand.forEach((key,i)=>{ if(!aliveB(CARDS[key].hero)) dead.push(i); });
+  if(dead.length<2) return null;
+  return { picks:[dead[0], dead[1]] };
+}
+function aiCycleExecute(owner,u,picks){
+  const p=players[owner];
+  const idxs=picks.slice().sort((a,b)=>b-a);
+  for(const i of idxs) p.hand.splice(i,1);
+  if(p.deck.length) p.hand.push(p.deck.pop());
+  u.hasMoved=true;
+  say(`${u.name} cycled — discarded 2 dead cards, drew 1.`);
 }
 function aiNormalActionScore(u){
   // rough value of the unit's own move/attack this turn
