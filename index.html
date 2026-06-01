@@ -1335,13 +1335,24 @@ function aiAct(u){
   } else if(!u.hasMoved){ const goal=nearestHeroOrUnit(u); if(goal){ const step=bestStep(u,goal); if(step) moveUnit(u,step.r,step.c); } }
 }
 function aiPickCycleForUnit(u){
-  // Cycle costs the move; only worth it when ≥2 dead-source cards are sitting in hand.
+  // Cycle costs the move; only worth it when ≥2 dead-source cards are sitting in hand AND
+  // the AI wouldn't have used its movement productively this turn.
   if(u.hasMoved || u.hasActed) return null;
   const B=players.B; if(B.hand.length<2) return null;
   const aliveB = cls => heroes.B.some(h=>h.cls===cls && h.hp>0);
   const dead=[];
   B.hand.forEach((key,i)=>{ if(!aliveB(CARDS[key].hero)) dead.push(i); });
   if(dead.length<2) return null;
+  // Movement is "wanted" if a goal exists AND there's a reachable step toward it AND no enemy is
+  // already in attack range (otherwise the unit attacks from current position).
+  const alreadyInRange = enemiesInRange(u).length > 0;
+  if(!alreadyInRange){
+    const goal=nearestHeroOrUnit(u);
+    if(goal){
+      const step=bestStep(u,goal);
+      if(step) return null; // movement would close distance — preserve it
+    }
+  }
   return { picks:[dead[0], dead[1]] };
 }
 function aiCycleExecute(owner,u,picks){
