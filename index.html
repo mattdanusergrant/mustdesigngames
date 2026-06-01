@@ -84,6 +84,15 @@
 
   .barrow{display:flex; gap:8px; align-items:center;}
   .deck-info{font-size:11px; color:var(--dim); font-weight:600;}
+  #cardDetail{display:none; background:#1a1c22; border:1px solid var(--gold); border-radius:8px; padding:8px 10px; margin:4px 0; gap:10px; align-items:center;}
+  #cardDetail.show{display:flex;}
+  #cardDetail .cd-glyph{font-size:24px; line-height:1;}
+  #cardDetail .cd-info{flex:1; min-width:0;}
+  #cardDetail .cd-name{font-size:12px; font-weight:800; color:var(--gold); letter-spacing:.5px;}
+  #cardDetail .cd-eff{font-size:11px; color:#e6e7eb; margin-top:1px;}
+  #cardDetail .cd-hint{font-size:10px; color:var(--dim); margin-top:2px; font-style:italic;}
+  #cardDetail .cd-cancel{background:transparent; border:1px solid var(--line); color:var(--dim); border-radius:6px; padding:5px 10px; font-size:10px; font-weight:700; letter-spacing:1px; cursor:pointer;}
+  #cardDetail .cd-cancel:hover{color:#fff; border-color:#fff;}
   .btn{flex:1; background:var(--gold); color:#1a1407; border:none; border-radius:10px; padding:11px;
     font-size:14px; font-weight:800; letter-spacing:.3px;}
   .btn:active{filter:brightness(.9);}
@@ -232,6 +241,15 @@
   <div class="herorow" id="heroesB"></div>
   <div id="board"></div>
   <div class="herorow" id="heroesA"></div>
+  <div id="cardDetail">
+    <span class="cd-glyph" id="cdGlyph">—</span>
+    <div class="cd-info">
+      <div class="cd-name" id="cdName">—</div>
+      <div class="cd-eff" id="cdEff">—</div>
+      <div class="cd-hint" id="cdHint">—</div>
+    </div>
+    <button class="cd-cancel" onclick="cancelCard()">CANCEL</button>
+  </div>
   <div id="hand"></div>
 
   <div id="init"></div>
@@ -1455,6 +1473,7 @@ function render(){
   }
   const playing=(phase==="play");
   document.getElementById("hand").style.display=playing?"":"none";
+  if(!playing) document.getElementById("cardDetail").classList.remove("show");
   document.getElementById("init").style.display=playing?"":"none";
   document.getElementById("heroesA").style.display=playing?"":"none";
   document.getElementById("heroesB").style.display=playing?"":"none";
@@ -1490,18 +1509,30 @@ function render(){
   const ebtn=document.getElementById("endBtn"); const u=activeUnit();
   ebtn.disabled = over || busy || !u || u.owner!=="A";
   ebtn.textContent = (u && u.owner==="A") ? "END TURN" : "ENEMY…";
+  const cd=document.getElementById("cardDetail");
   if(!over && u && u.owner==="A" && sel && sel.t==="card"){
     const card=CARDS[players.A.hand[sel.i]];
     let hint="";
-    if(card.kind==="heal") hint="tap a wounded ally.";
-    else if(card.kind==="dmg") hint="tap an enemy.";
-    else if(card.kind==="shield") hint="tap an ally to shield.";
-    else if(card.kind==="buff-atk") hint="tap an ally to buff.";
-    else if(card.kind==="charge") hint="tap an ally to charge.";
-    else if(card.kind==="shield-all"||card.kind==="buff-atk-all") hint="tap any ally to cast on all.";
-    say(`Play <b>${card.name}</b> — ${hint}`);
+    if(card.kind==="heal") hint="tap a wounded ally";
+    else if(card.kind==="heal-all") hint="tap any ally — heals every ally";
+    else if(card.kind==="dmg") hint="tap an enemy";
+    else if(card.kind==="dmg-adj") hint="tap an enemy — splash hits neighbors";
+    else if(card.kind==="shield") hint="tap an ally to shield";
+    else if(card.kind==="buff-atk") hint="tap an ally to buff";
+    else if(card.kind==="charge") hint="tap an ally to give them extra move";
+    else if(card.kind==="shield-all"||card.kind==="buff-atk-all") hint="tap any ally — effect applies to all";
+    const tag=card.spell?"Spell · "+card.cat:card.cat;
+    document.getElementById("cdGlyph").textContent=card.sym;
+    document.getElementById("cdName").textContent=`${card.name} — ${tag}`;
+    document.getElementById("cdEff").textContent=cardEffText(card);
+    document.getElementById("cdHint").textContent=hint?`Playing this consumes the active unit's turn. ${hint}.`:"";
+    cd.classList.add("show");
+    say(`Play <b>${card.name}</b> — ${hint}.`);
+  } else {
+    cd.classList.remove("show");
   }
 }
+function cancelCard(){ if(sel && sel.t==="card"){ sel=null; render(); } }
 
 document.getElementById("endBtn").onclick=()=>{ if(over||busy) return; const u=activeUnit(); if(u&&u.owner==="A") endActiveTurn(); };
 document.getElementById("newBtn").onclick=()=>{
