@@ -1285,11 +1285,13 @@ function playCard(owner,handIdx,target){
     });
     say(`${who} cast ${card.name} — all allies +${card.amount} HP (${total} restored), +${card.buff} ATK this round.`);
   }
-  // SIGILS consume both move and attack for the active unit, and are removed from game on use
-  // (there is no discard pile — sigils never re-enter the deck or hand).
-  if(card.hero === "sigil"){
-    const caster=activeUnit();
-    if(caster && caster.owner===owner){ caster.hasMoved=true; caster.hasActed=true; }
+  // Every card consumes the active unit's action for the turn. SIGILS additionally consume the
+  // move (full-turn cost) and are removed from game on use (no discard pile; they never re-enter
+  // the deck or hand).
+  const caster=activeUnit();
+  if(caster && caster.owner===owner){
+    caster.hasActed=true;
+    if(card.hero === "sigil") caster.hasMoved=true;
   }
 }
 function canPlayCardNow(){
