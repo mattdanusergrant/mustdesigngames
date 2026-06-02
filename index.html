@@ -268,6 +268,7 @@
   <div class="barrow">
     <span class="deck-info" id="deckInfo">—</span>
     <button class="btn" id="endBtn">END TURN</button>
+    <button class="btn ghost" id="undoBtn">UNDO MOVE</button>
     <button class="btn ghost" id="cycleBtn">CYCLE</button>
   </div>
 
@@ -734,6 +735,9 @@ const VEC={N:[-1,0],S:[1,0],E:[0,1],W:[0,-1]};
 const OPP={N:"S",S:"N",E:"W",W:"E"};
 
 let board, players, sel, busy, uid, heroes, units, roundNum, acted, activeId, over;
+// Tracks the player's most recent move for the active unit, undoable until they act or end the turn.
+// Shape: {unitId, prevR, prevC, prevFacing} or null.
+let lastMove=null;
 let initiativeToken;
 let phase, draft, pickIdx, placeSeq, placeIdx, unplaced, selectedDeployUnit;
 
@@ -1040,7 +1044,7 @@ function endActiveTurn(){
   }
   // alternate sides for the next draw
   initSide = initSide==="A" ? "B" : "A";
-  activeId=null; sel=null;
+  activeId=null; sel=null; lastMove=null;
   if(over) return;
   advance(); render(); promptOrAi();
 }
@@ -1335,15 +1339,18 @@ function onTile(r,c){
   const u=activeUnit(); if(!u||u.owner!=="A") return;
   const cell=board[r][c];
   if(sel&&sel.t==="card"){
-    if(cell._hl){ playCard("A",sel.i,{r,c}); sel=null; render(); maybeAutoEnd(u); }
+    if(cell._hl){ lastMove=null; playCard("A",sel.i,{r,c}); sel=null; render(); maybeAutoEnd(u); }
     else { sel=null; render(); }
     return;
   }
   // unit-turn actions: move and/or act on the active unit only
   const tgt=cell.unit;
-  if(cell._hl==="move"){ moveUnit(u,r,c); render(); return; }
-  if(cell._hl==="atk"){ attack(u,tgt); render(); if(over) return; maybeAutoEnd(u); return; }
-  if(cell._hl==="heal"){ healAct(u,tgt); render(); maybeAutoEnd(u); return; }
+  if(cell._hl==="move"){
+    lastMove={unitId:u.id, prevR:u.r, prevC:u.c, prevFacing:u.facing};
+    moveUnit(u,r,c); render(); return;
+  }
+  if(cell._hl==="atk"){ lastMove=null; attack(u,tgt); render(); if(over) return; maybeAutoEnd(u); return; }
+  if(cell._hl==="heal"){ lastMove=null; healAct(u,tgt); render(); maybeAutoEnd(u); return; }
 }
 function anyAlly(o){ let any=false; eachUnit(u=>{if(u.owner===o)any=true;}); return any; }
 function onCard(i){
@@ -1755,6 +1762,8 @@ function render(){
   const ebtn=document.getElementById("endBtn"); const u=activeUnit();
   ebtn.disabled = over || busy || !u || u.owner!=="A";
   ebtn.textContent = (u && u.owner==="A") ? "END TURN" : "ENEMY…";
+  const ubtn=document.getElementById("undoBtn");
+  ubtn.disabled = over || busy || !canUndoMove();
   const cbtn=document.getElementById("cycleBtn");
   const cycleActive = !!(sel && sel.t==="cycle");
   cbtn.disabled = !canCycle() && !cycleActive;
@@ -1833,6 +1842,24 @@ function executeCycle(){
 
 document.getElementById("endBtn").onclick=()=>{ if(over||busy) return; const u=activeUnit(); if(u&&u.owner==="A") endActiveTurn(); };
 document.getElementById("cycleBtn").onclick=()=>toggleCycle();
+document.getElementById("undoBtn").onclick=()=>undoMove();
+function canUndoMove(){
+  if(!lastMove) return false;
+  const u=activeUnit();
+  // Undo is only allowed while the same unit is active and hasn't taken an action since moving.
+  return !!(u && u.owner==="A" && u.id===lastMove.unitId && !u.hasActed);
+}
+function undoMove(){
+  if(!canUndoMove()) return;
+  const u=activeUnit();
+  board[u.r][u.c].unit=null;
+  u.r=lastMove.prevR; u.c=lastMove.prevC; u.facing=lastMove.prevFacing;
+  board[u.r][u.c].unit=u;
+  u.hasMoved=false;
+  lastMove=null; sel=null;
+  render();
+  say(`<b>${u.name}</b> stepped back — turn restarted.`);
+}
 loadProgress();
 showTitle();
 </script>
