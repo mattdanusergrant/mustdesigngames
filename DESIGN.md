@@ -49,17 +49,17 @@ Each side fields **3 heroes** drafted from a **9-hero active roster**. Three add
 
 | Glyph | Hero | HP | ATK | Move | Range | Speed | Passive |
 |---|---|---|---|---|---|---|---|
-| 🏰 | Sentinel  | 12 | 1 | 1 | 1 | 1 | **Anchor** — Sentinel and orthogonally adjacent allies cannot be pushed or pulled |
-| 🛡️ | Paladin   | 10 | 1 | 1 | 1 | 1 | **Guardian** — after you play a heal card, Paladin restores +1 HP on your most-wounded ally |
-| ⚔️ | Knight    | 10 | 1 | 1 | 1 | 2 | **Steadfast** — cannot be pushed or pulled by any effect |
-| 🩸 | Warlock   | 6  | 1 | 1 | 3 | 2 | **Soul Drain** — heals 2 HP whenever any enemy dies anywhere on the board |
-| 🌿 | Druid     | 8  | 1 | 1 | 2 | 2 | **Symbiosis** — after you play a heal card, Druid heals 1 HP |
-| 🔮 | Mage      | 6  | 1 | 1 | 2 | 2 | **Resonance** — your AoE cards (`dmg-adj`, `push-adj`) gain +1 splash / +1 kb |
-| 🪓 | Berserker | 8  | 2 | 1 | 1 | 2 | **Bloodthirst** — heals 1 HP whenever he damages an enemy (attack, damage card, or assist strike) |
-| 💀 | Necromancer | 6 | 1 | 1 | 2 | 2 | **Death Touch** — enemies orthogonally adjacent take +1 damage from all sources |
-| 🏹 | Ranger    | 8  | 1 | 1 | 2 | 3 | **Spotter** — your damage / push / pull cards have +1 range while Ranger is alive |
-| 👁️ | Scout     | 4  | 1 | 2 | 2 | 3 | **Pathfinder** — your dash cards have +1 range while Scout is alive |
-| 🗡️ | Assassin  | 6  | 2 | 2 | 1 | 3 | **Shadow Step** — any time Assassin moves, her next attack counts as rear-arc (×3) regardless of facing |
+| 🏰 | Sentinel  | 12 | 1 | 1 | 1 | 2 | **Anchor** — Sentinel and orthogonally adjacent allies cannot be pushed or pulled |
+| 🛡️ | Paladin   | 10 | 1 | 1 | 1 | 2 | **Guardian** — after you play a heal card, Paladin restores +1 HP on your most-wounded ally |
+| ⚔️ | Knight    | 10 | 1 | 1 | 1 | 3 | **Steadfast** — cannot be pushed or pulled by any effect |
+| 🩸 | Warlock   | 6  | 1 | 1 | 3 | 3 | **Soul Drain** — heals 2 HP whenever any enemy dies anywhere on the board |
+| 🌿 | Druid     | 8  | 1 | 1 | 2 | 3 | **Symbiosis** — after you play a heal card, Druid heals 1 HP |
+| 🔮 | Mage      | 6  | 1 | 1 | 2 | 3 | **Resonance** — your AoE cards (`dmg-adj`, `push-adj`) gain +1 splash / +1 kb |
+| 🪓 | Berserker | 8  | 2 | 1 | 1 | 3 | **Bloodthirst** — heals 1 HP whenever he damages an enemy (attack, damage card, or assist strike) |
+| 💀 | Necromancer | 6 | 1 | 1 | 2 | 3 | **Death Touch** — enemies orthogonally adjacent take +1 damage from all sources |
+| 🏹 | Ranger    | 8  | 1 | 1 | 2 | 4 | **Spotter** — your damage / push / pull cards have +1 range while Ranger is alive |
+| 👁️ | Scout     | 4  | 1 | 2 | 2 | 4 | **Pathfinder** — your dash cards have +1 range while Scout is alive |
+| 🗡️ | Assassin  | 6  | 2 | 2 | 1 | 4 | **Shadow Step** — any time Assassin moves, her next attack counts as rear-arc (×3) regardless of facing |
 
 Active-roster speeds form a contiguous `{1, 2, 3, 4, 5, 6, 7, 8, 9}` — all unique. Combined with the snake draft (no class duplicates within a match), initiative ties between heroes never occur. Hidden-roster speeds (Sentinel 1, Necromancer 4, Crusader 8) currently collide with active speeds; if any of those are un-hidden later, the active roster will need to be re-numbered accordingly.
 
@@ -162,7 +162,7 @@ Each hero suite contributes **6 cards** — 3 Standard, 2 Epic, 1 Legendary — 
 
 ### Card economy
 
-- **Starting hand:** 3 cards.
+- **Starting hand:** 0 cards. Both players draw their first card at the end of the first activation.
 - **Max hand size:** none.
 - **Draw timing:** at the end of every turn — yours or the AI's — the active unit's owner draws 1 card from their deck.
 - **No aether / no costs.** Cards have no resource gate. A card's price is paid in **opportunity cost**: a card takes the active unit's *action slot* for the turn — the unit may still move before playing it, but cannot also attack or heal that turn.

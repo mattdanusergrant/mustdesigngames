@@ -293,7 +293,7 @@
     <li><b>Initiative deck:</b> each round, each side builds their own deck — every living unit contributes <i>Init</i> copies of itself (slow units: 1, normal: 2, fast: 3). Decks are shuffled. Sides alternate drawing one token at a time; whoever draws acts. Round ends when both decks are empty.</li>
     <li><b>Facing:</b> attacks from the SIDE deal ×1.5, REAR ×2 (Assassin: ×2 / ×2.5).</li>
     <li><b>Terrain:</b> ▲ high ground gives +1 ATK while standing on it.</li>
-    <li><b>Cards:</b> start with 3 in hand, no max. <b>Draw 1 at the end of every turn</b> (yours or the AI's). Each card is one-shot.</li>
+    <li><b>Cards:</b> start with 0 in hand, no max. <b>Draw 1 at the end of every turn</b> (yours or the AI's). Each card is one-shot.</li>
     <li><b>Cycle:</b> once per turn, a unit may <i>forfeit its move</i> and discard 2 cards to draw 1 — useful for digging past dead-source cards.</li>
     <li><b>Instant only:</b> no buffs, no counters, no lingering effects. Every card resolves entirely this turn — damage, healing, pushes, pulls, dashes, or swaps.</li>
     <li><b>Assist casting:</b> <i>any</i> of your units may cast <i>any</i> card. The card's owner (the hero from whose suite the card came) provides an instant <i>assist</i> — typically a free step, heal, or strike. The owner must be alive and on the board for the assist to fire.</li>
@@ -307,17 +307,17 @@
 
   <h3>Hero roster (11)</h3>
   <table class="cdx-tbl"><tr><th>Hero</th><th>HP</th><th>ATK</th><th>Mv</th><th>Rng</th><th>Init</th><th>Passive</th></tr>
-    <tr><td>🏰 Sentinel</td><td>12</td><td>1</td><td>1</td><td>1</td><td>1</td><td>Anchor — Sentinel & adjacent allies are push/pull immune</td></tr>
-    <tr><td>🛡️ Paladin</td><td>10</td><td>1</td><td>1</td><td>1</td><td>1</td><td>Guardian — heal cards restore +1 HP on most-wounded ally</td></tr>
-    <tr><td>⚔️ Knight</td><td>10</td><td>1</td><td>1</td><td>1</td><td>2</td><td>Steadfast — cannot be pushed or pulled</td></tr>
-    <tr><td>🩸 Warlock</td><td>6</td><td>1</td><td>1</td><td>3</td><td>2</td><td>Soul Drain — heal 2 HP whenever any enemy dies</td></tr>
-    <tr><td>🌿 Druid</td><td>8</td><td>1</td><td>1</td><td>2</td><td>2</td><td>Symbiosis — heal cards also heal Druid 1 HP</td></tr>
-    <tr><td>🔮 Mage</td><td>6</td><td>1</td><td>1</td><td>2</td><td>2</td><td>Resonance — your AoE cards do +1 splash / +1 kb</td></tr>
-    <tr><td>🪓 Berserker</td><td>8</td><td>2</td><td>1</td><td>1</td><td>2</td><td>Bloodthirst — heals 1 HP whenever he damages an enemy</td></tr>
-    <tr><td>💀 Necromancer</td><td>6</td><td>1</td><td>1</td><td>2</td><td>2</td><td>Death Touch — enemies adjacent take +1 dmg</td></tr>
-    <tr><td>🏹 Ranger</td><td>8</td><td>1</td><td>1</td><td>2</td><td>3</td><td>Spotter — your dmg/push/pull cards gain +1 range</td></tr>
-    <tr><td>👁️ Scout</td><td>4</td><td>1</td><td>2</td><td>2</td><td>3</td><td>Pathfinder — your dash cards gain +1 range</td></tr>
-    <tr><td>🗡️ Assassin</td><td>6</td><td>2</td><td>2</td><td>1</td><td>3</td><td>Shadow Step — after Assassin moves, her next attack is rear-arc</td></tr>
+    <tr><td>🏰 Sentinel</td><td>12</td><td>1</td><td>1</td><td>1</td><td>2</td><td>Anchor — Sentinel & adjacent allies are push/pull immune</td></tr>
+    <tr><td>🛡️ Paladin</td><td>10</td><td>1</td><td>1</td><td>1</td><td>2</td><td>Guardian — heal cards restore +1 HP on most-wounded ally</td></tr>
+    <tr><td>⚔️ Knight</td><td>10</td><td>1</td><td>1</td><td>1</td><td>3</td><td>Steadfast — cannot be pushed or pulled</td></tr>
+    <tr><td>🩸 Warlock</td><td>6</td><td>1</td><td>1</td><td>3</td><td>3</td><td>Soul Drain — heal 2 HP whenever any enemy dies</td></tr>
+    <tr><td>🌿 Druid</td><td>8</td><td>1</td><td>1</td><td>2</td><td>3</td><td>Symbiosis — heal cards also heal Druid 1 HP</td></tr>
+    <tr><td>🔮 Mage</td><td>6</td><td>1</td><td>1</td><td>2</td><td>3</td><td>Resonance — your AoE cards do +1 splash / +1 kb</td></tr>
+    <tr><td>🪓 Berserker</td><td>8</td><td>2</td><td>1</td><td>1</td><td>3</td><td>Bloodthirst — heals 1 HP whenever he damages an enemy</td></tr>
+    <tr><td>💀 Necromancer</td><td>6</td><td>1</td><td>1</td><td>2</td><td>3</td><td>Death Touch — enemies adjacent take +1 dmg</td></tr>
+    <tr><td>🏹 Ranger</td><td>8</td><td>1</td><td>1</td><td>2</td><td>4</td><td>Spotter — your dmg/push/pull cards gain +1 range</td></tr>
+    <tr><td>👁️ Scout</td><td>4</td><td>1</td><td>2</td><td>2</td><td>4</td><td>Pathfinder — your dash cards gain +1 range</td></tr>
+    <tr><td>🗡️ Assassin</td><td>6</td><td>2</td><td>2</td><td>1</td><td>4</td><td>Shadow Step — after Assassin moves, her next attack is rear-arc</td></tr>
   </table>
 
   <h3>Deck composition</h3>
@@ -416,19 +416,19 @@ const R=4,C=5;
 // Hero roster. HP must come from {4,6,8,10,12,20} (polyhedral dice).
 // `init` is how many cards this unit contributes to its side's per-round Initiative deck.
 const CLASSES={
-  knight:     {name:"Knight",     sym:"⚔️", hp:10, atk:1, move:1, range:1, init:2, hero:true,            passive:"Steadfast: cannot be pushed or pulled by any effect."},
-  ranger:     {name:"Ranger",     sym:"🏹", hp:8,  atk:1, move:1, range:2, init:3, hero:true,            passive:"Spotter: your damage / push / pull cards have +1 range while Ranger is alive."},
-  mage:       {name:"Mage",       sym:"🔮", hp:6,  atk:1, move:1, range:2, init:2, hero:true,            passive:"Resonance: your AoE cards (dmg-adj, push-adj) gain +1 splash / +1 kb while Mage is alive."},
-  berserker:  {name:"Berserker",  sym:"🪓", hp:8,  atk:2, move:1, range:1, init:2, hero:true,            passive:"Bloodthirst: Berserker heals 1 HP whenever he damages an enemy — basic attack, damage card, or assist strike."},
-  paladin:    {name:"Paladin",    sym:"🛡️", hp:10, atk:1, move:1, range:1, init:1, hero:true, heal:true, passive:"Guardian: after you cast a heal card, Paladin restores 1 extra HP to your most-wounded ally."},
-  assassin:   {name:"Assassin",   sym:"🗡️", hp:6,  atk:2, move:2, range:1, init:3, hero:true, flank:true, passive:"Shadow Step: any time Assassin moves, her next attack this match counts as rear-arc (×3) regardless of facing."},
-  warlock:    {name:"Warlock",    sym:"🩸", hp:6,  atk:1, move:1, range:3, init:2, hero:true,            passive:"Soul Drain: whenever any enemy dies anywhere on the board, Warlock heals 2 HP."},
-  druid:      {name:"Druid",      sym:"🌿", hp:8,  atk:1, move:1, range:2, init:2, hero:true, heal:true, passive:"Symbiosis: after you cast a heal card, Druid heals 1 HP."},
-  scout:      {name:"Scout",      sym:"👁️", hp:4,  atk:1, move:2, range:2, init:3, hero:true,            passive:"Pathfinder: your dash cards have +1 range while Scout is alive."},
-  sentinel:   {name:"Sentinel",   sym:"🏰", hp:12, atk:1, move:1, range:1, init:1, hero:true,            passive:"Anchor: Sentinel and orthogonally adjacent allies cannot be pushed or pulled."},
-  necromancer:{name:"Necromancer",sym:"💀", hp:6,  atk:1, move:1, range:2, init:2, hero:true,            passive:"Death Touch: enemies orthogonally adjacent to Necromancer take +1 damage from all sources."},
+  knight:     {name:"Knight",     sym:"⚔️", hp:10, atk:1, move:1, range:1, init:3, hero:true,            passive:"Steadfast: cannot be pushed or pulled by any effect."},
+  ranger:     {name:"Ranger",     sym:"🏹", hp:8,  atk:1, move:1, range:2, init:4, hero:true,            passive:"Spotter: your damage / push / pull cards have +1 range while Ranger is alive."},
+  mage:       {name:"Mage",       sym:"🔮", hp:6,  atk:1, move:1, range:2, init:3, hero:true,            passive:"Resonance: your AoE cards (dmg-adj, push-adj) gain +1 splash / +1 kb while Mage is alive."},
+  berserker:  {name:"Berserker",  sym:"🪓", hp:8,  atk:2, move:1, range:1, init:3, hero:true,            passive:"Bloodthirst: Berserker heals 1 HP whenever he damages an enemy — basic attack, damage card, or assist strike."},
+  paladin:    {name:"Paladin",    sym:"🛡️", hp:10, atk:1, move:1, range:1, init:2, hero:true, heal:true, passive:"Guardian: after you cast a heal card, Paladin restores 1 extra HP to your most-wounded ally."},
+  assassin:   {name:"Assassin",   sym:"🗡️", hp:6,  atk:2, move:2, range:1, init:4, hero:true, flank:true, passive:"Shadow Step: any time Assassin moves, her next attack this match counts as rear-arc (×3) regardless of facing."},
+  warlock:    {name:"Warlock",    sym:"🩸", hp:6,  atk:1, move:1, range:3, init:3, hero:true,            passive:"Soul Drain: whenever any enemy dies anywhere on the board, Warlock heals 2 HP."},
+  druid:      {name:"Druid",      sym:"🌿", hp:8,  atk:1, move:1, range:2, init:3, hero:true, heal:true, passive:"Symbiosis: after you cast a heal card, Druid heals 1 HP."},
+  scout:      {name:"Scout",      sym:"👁️", hp:4,  atk:1, move:2, range:2, init:4, hero:true,            passive:"Pathfinder: your dash cards have +1 range while Scout is alive."},
+  sentinel:   {name:"Sentinel",   sym:"🏰", hp:12, atk:1, move:1, range:1, init:2, hero:true,            passive:"Anchor: Sentinel and orthogonally adjacent allies cannot be pushed or pulled."},
+  necromancer:{name:"Necromancer",sym:"💀", hp:6,  atk:1, move:1, range:2, init:3, hero:true,            passive:"Death Touch: enemies orthogonally adjacent to Necromancer take +1 damage from all sources."},
   // hidden — kept in data, excluded from roster
-  crusader:   {name:"Crusader",   sym:"✝️", hp:10, atk:1, move:1, range:1, init:2, hero:true, hidden:true, passive:"—"}
+  crusader:   {name:"Crusader",   sym:"✝️", hp:10, atk:1, move:1, range:1, init:3, hero:true, hidden:true, passive:"—"}
 };
 const ROSTER=Object.keys(CLASSES).filter(k=>!CLASSES[k].hidden);
 const DRAFT_SEQUENCE=["A","B","B","A","A","B","B","A","A","B"]; // 5v5 snake (1-2-2-2-2-1)
@@ -958,7 +958,7 @@ function finishDeploy(){
   for(const o of ["A","B"]){
     players[o].deck=shuffle(buildDeckFor(o));
   }
-  for(let i=0;i<3;i++){players.A.hand.push(players.A.deck.pop()); players.B.hand.push(players.B.deck.pop());}
+  // Both players start with an empty hand — first card is drawn at the end of the first turn.
   // Pick a random side to draw first in the initiative deck for round 1.
   initiativeToken = Math.random()<0.5 ? "A" : "B";
   startRound();
