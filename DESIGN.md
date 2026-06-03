@@ -162,7 +162,7 @@ Each hero suite contributes **6 cards** — 3 Standard, 2 Epic, 1 Legendary — 
 
 ### Card economy
 
-- **Starting hand:** 5 cards.
+- **Starting hand:** 3 cards.
 - **Max hand size:** none.
 - **Draw timing:** at the end of every turn — yours or the AI's — the active unit's owner draws 1 card from their deck.
 - **No aether / no costs.** Cards have no resource gate. A card's price is paid in **opportunity cost**: a card takes the active unit's *action slot* for the turn — the unit may still move before playing it, but cannot also attack or heal that turn.
