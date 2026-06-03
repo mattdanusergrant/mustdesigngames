@@ -326,7 +326,7 @@
 
   <h3>Deck composition</h3>
   <ul class="kinds">
-    <li><b>Hero cards (6 per hero):</b> 3 Standard, 2 Epic, 1 Legendary. Owned by their hero but castable by any of your units (the owner assists from off-field — they must be alive).</li>
+    <li><b>Hero cards (6 per hero):</b> 3 Common, 2 Epic, 1 Legendary. Owned by their hero but castable by any of your units (the owner assists from off-field — they must be alive).</li>
     <li><b>Sigils (10):</b> generic action cards any unit can cast. Cost: your entire turn (move <i>and</i> attack). Removed from the game on use.</li>
     <li><b>Your deck:</b> 40 cards built at deploy time — 5 drafted heroes × 6 cards + 10 sigils. Shuffled before round 1.</li>
   </ul>
@@ -638,10 +638,10 @@ function returnToMissions(){
   document.getElementById("victory").classList.remove("open");
   openMissions();
 }
-// v0.21 — 8 cards per hero × 11 heroes = 88 cards. Tiers: 4 Standard / 3 Epic / 1 Legendary.
+// Tiers: 3 Common / 2 Epic / 1 Legendary per hero suite, plus a 10-card universal sigil pool.
 // Equipment/Spell split removed; cards just have a tier band for flavor and tuning guidelines.
 const CARDS={
-  /* === HERO CARDS — 6 per hero (3 Standard / 2 Epic / 1 Legendary) ============================
+  /* === HERO CARDS — 6 per hero (3 Common / 2 Epic / 1 Legendary) ==============================
      Every card may be cast by any of your units (active unit = caster). The card's owner provides
      the per-card "bonus" — fires after the main effect if the owner is alive on the board.
      No persistent buffs anywhere in the pool — heals, damage, displacement, and movement only.
@@ -1779,7 +1779,7 @@ function buildCodex(){
     g.cards.sort((a,b)=>("SEL".indexOf(a.tier))-("SEL".indexOf(b.tier))); // S, E, L order
     for(const c of g.cards){
       const css="cdx-card tier-"+c.tier;
-      const tag = c.tier==="L" ? "Legendary" : c.tier==="E" ? "Epic" : "Standard";
+      const tag = c.tier==="L" ? "Legendary" : c.tier==="E" ? "Epic" : "Common";
       html+=`<div class="${css}"><span class="cdx-cat">${tag}</span><span class="cdx-name">${c.name}</span><span>${c.sym}</span><span class="cdx-eff">${cardEffText(c)}</span></div>`;
     }
     html+=`</div>`;
@@ -1930,7 +1930,7 @@ function render(){
     // In cycle mode every card is clickable for discard, so don't dim with .cant.
     const cant = !inCycle && !playable;
     el.className="card tier-"+card.tier+(cant?" cant":"")+(sourceDead?" dead-src":"")+((sel&&sel.t==="card"&&sel.i===i)?" sel":"")+(discardPick?" discard-pick":"");
-    const tag = card.tier==="L" ? "LEG" : card.tier==="E" ? "EPIC" : card.tier==="G" ? "SIGIL" : "STD";
+    const tag = card.tier==="L" ? "LEG" : card.tier==="E" ? "EPIC" : card.tier==="G" ? "SIGIL" : "COM";
     const heroGlyph = card.hero==="sigil" ? "✦" : (CLASSES[card.hero]?CLASSES[card.hero].sym:"");
     el.innerHTML=`<span class="csym">${card.sym}</span>`+
       `<span class="ctext">`+

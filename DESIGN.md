@@ -158,7 +158,7 @@ Movement updates facing toward the destination; attacks update facing toward the
 
 ## Cards
 
-Each hero suite contributes **6 cards** — 3 Standard, 2 Epic, 1 Legendary — themed to their identity. On top of that, every deck includes the universal **10-card Sigil pool**: generic action cards that any unit can cast on its own turn. After the draft, each player's **match deck is 40 cards**: the union of their 5 drafted heroes' suites (5 × 6 = 30) plus the 10 sigils, shuffled. Both players draw from their own deck independently.
+Each hero suite contributes **6 cards** — 3 Common, 2 Epic, 1 Legendary — themed to their identity. On top of that, every deck includes the universal **10-card Sigil pool**: generic action cards that any unit can cast on its own turn. After the draft, each player's **match deck is 40 cards**: the union of their 5 drafted heroes' suites (5 × 6 = 30) plus the 10 sigils, shuffled. Both players draw from their own deck independently.
 
 ### Card economy
 
