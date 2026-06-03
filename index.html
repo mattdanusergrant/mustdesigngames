@@ -50,6 +50,7 @@
   .tile.hl-atk{outline:2px solid var(--atk); outline-offset:-2px; cursor:pointer;}
   .tile.hl-heal{outline:2px solid var(--heal); outline-offset:-2px; cursor:pointer;}
   .tile.hl-spell{outline:2px solid var(--spell); outline-offset:-2px; cursor:pointer;}
+  .tile.hl-step{outline:2px solid var(--gold); outline-offset:-2px; cursor:pointer; background:rgba(212,165,116,.15);}
   .tile.active{outline:3px solid var(--gold); outline-offset:-2px;}
 
   .unit{width:88%; height:88%; border-radius:8px; display:flex; flex-direction:column;
@@ -353,7 +354,7 @@
   <h3>Owner assists</h3>
   <p style="font-size:11px;color:var(--dim);margin:4px 0 6px;">Every hero card carries a bonus that fires after the main effect if the card's owner is alive on the board. Sigils have no owner and no assist.</p>
   <ul class="kinds">
-    <li><b>ownerStep</b> — the owner auto-steps N tiles toward the nearest enemy</li>
+    <li><b>ownerStep</b> — the owner takes N free steps; player picks each tile (AI auto-paths)</li>
     <li><b>ownerHeal</b> — the owner heals N HP</li>
     <li><b>ownerStrike</b> — the owner deals N damage to its weakest adjacent enemy</li>
     <li><b>ownerDrain</b> — the owner deals N to its weakest adjacent enemy AND heals N</li>
@@ -662,7 +663,7 @@ const CARDS={
        heal / heal-all    — restore N HP (instant)
 
      Bonus.kind:
-       ownerStep   — owner auto-steps N tiles toward nearest enemy (skips if no progress)
+       ownerStep   — owner takes N free steps (player picks each; AI auto-paths toward nearest enemy)
        ownerHeal   — owner heals N HP
        ownerStrike — owner deals N to its weakest orthogonally-adjacent enemy
        ownerDrain  — owner deals N to its weakest adjacent enemy AND heals N
@@ -784,6 +785,9 @@ let board, players, sel, busy, uid, heroes, units, roundNum, acted, activeId, ov
 // Tracks the player's most recent move for the active unit, undoable until they act or end the turn.
 // Shape: {unitId, prevR, prevC, prevFacing} or null.
 let lastMove=null;
+// Interactive owner-step assist for player A. When an A-side card with an ownerStep bonus
+// resolves, set this so the player can hand-pick each step. Shape: {ownerId, stepsLeft}.
+let pendingOwnerMove=null;
 let initiativeToken;
 let phase, draft, pickIdx, unplaced;
 
@@ -808,6 +812,7 @@ function newGame(missionId){
   campaign.currentMission = missionId ? MISSIONS.find(m=>m.id===missionId) : null;
   board=[]; for(let r=0;r<R;r++){board.push([]); for(let c=0;c<C;c++) board[r].push({unit:null,terrain:null});}
   uid=0; sel=null; busy=false; over=false; units=[]; acted=new Set(); activeId=null; roundNum=0;
+  lastMove=null; pendingOwnerMove=null;
   heroes={A:[],B:[]};
   players={
     A:{deck:[],hand:[],human:true},
@@ -1271,6 +1276,43 @@ function swapWithAlly(caster, ally){
 function ownerUnitFor(owner, heroClass){
   return heroes[owner].find(h => h.cls===heroClass && h.hp>0 && h.deployed) || null;
 }
+// Orthogonally-adjacent, in-bounds, empty tiles around `u` — the legal step targets.
+function ownerStepFreeTiles(u){
+  const out=[];
+  for(const k in VEC){
+    const [dr,dc]=VEC[k]; const nr=u.r+dr, nc=u.c+dc;
+    if(!inB(nr,nc)) continue;
+    if(board[nr][nc].unit) continue;
+    out.push({r:nr,c:nc});
+  }
+  return out;
+}
+function pendingOwnerUnit(){
+  return pendingOwnerMove ? units.find(x=>x.id===pendingOwnerMove.ownerId) || null : null;
+}
+function commitOwnerStep(r,c){
+  // Player tapped a highlighted tile during a pending owner-step assist.
+  if(!pendingOwnerMove) return;
+  const ou = pendingOwnerUnit();
+  if(!ou || ou.hp<=0){ endOwnerStep(); return; }
+  const valid = ownerStepFreeTiles(ou).some(t=>t.r===r&&t.c===c);
+  if(!valid) return;
+  moveUnit(ou, r, c);
+  ou.hasMoved=false; // out-of-turn — does not consume the owner's own move action
+  pendingOwnerMove.stepsLeft--;
+  if(pendingOwnerMove.stepsLeft<=0 || ownerStepFreeTiles(ou).length===0){
+    endOwnerStep();
+  } else {
+    say(`<b>${ou.name}</b> moves again — tap a green tile (or SKIP).`);
+    render();
+  }
+}
+function endOwnerStep(){
+  pendingOwnerMove = null;
+  render();
+  const u = activeUnit();
+  if(u && u.owner==="A") maybeAutoEnd(u);
+}
 // Paladin Guardian + Druid Symbiosis — extra heals after a heal-kind card resolves.
 function healAfterEffect(side){
   const pal = ownerUnitFor(side, "paladin");
@@ -1308,9 +1350,18 @@ function fireOwnerBonus(card, ownerSide){
   if(!ou) return; // owner is dead or off-field; no assist
   const b=card.bonus, ownerLabel=`${ou.sym} ${ou.name}`;
   if(b.kind==="ownerStep"){
+    const steps = b.amount||1;
+    if(ownerSide==="A"){
+      // Interactive: player picks each step on the board.
+      if(ownerStepFreeTiles(ou).length===0) return; // surrounded → silent skip
+      pendingOwnerMove = {ownerId: ou.id, stepsLeft: steps};
+      say(`${ownerLabel} moves ${steps} step${steps>1?"s":""} — tap a green tile (or SKIP).`);
+      return;
+    }
+    // AI side: auto-step toward nearest enemy.
     const enemy = nearestHeroOrUnit(ou);
     if(!enemy) return;
-    for(let i=0;i<(b.amount||1);i++){
+    for(let i=0;i<steps;i++){
       const step=bestStep(ou, enemy); if(!step) break;
       moveUnit(ou, step.r, step.c);
       ou.hasMoved=false; // out-of-turn step doesn't consume the owner's own move action
@@ -1463,9 +1514,11 @@ function playCard(owner,handIdx,target){
 }
 function canPlayCardNow(){
   // True if the active unit could play *some* card right now (their turn, hasn't acted, on the field).
+  if(pendingOwnerMove) return false;
   const u=activeUnit(); return u && u.owner==="A" && u.deployed && !u.hasActed;
 }
 function canPlayCard(card){
+  if(pendingOwnerMove) return false;
   const u=activeUnit();
   if(!u || u.owner!=="A" || !u.deployed || u.hasActed) return false;
   if(card.hero === "sigil") return true;
@@ -1486,6 +1539,7 @@ function maybeAutoEnd(u){
   // dead, or no reachable tiles. Otherwise leave the turn live (move tiles stay highlighted from
   // the prior render) so the player can reposition or hit END TURN.
   if(over) return;
+  if(pendingOwnerMove) return; // wait for player to resolve the owner-step assist
   if(!u || u.hp<=0 || u.hasMoved || !reachable(u).length){ endActiveTurn(); return; }
   const s=document.getElementById("status");
   s.innerHTML = s.innerHTML + ` &nbsp;<i>Still has move — tap a green tile or END TURN.</i>`;
@@ -1496,10 +1550,20 @@ function onTile(r,c){
   if(busy||over) return;
   if(sel && sel.t==="cycle") return; // board taps disabled during card-cycle selection
   if(phase!=="play") return;
+  // Pending owner-step assist takes precedence over normal turn actions.
+  if(pendingOwnerMove){
+    const cell=board[r][c];
+    if(cell._hl==="step") commitOwnerStep(r,c);
+    return;
+  }
   const u=activeUnit(); if(!u||u.owner!=="A") return;
   const cell=board[r][c];
   if(sel&&sel.t==="card"){
-    if(cell._hl){ lastMove=null; playCard("A",sel.i,{r,c}); sel=null; render(); maybeAutoEnd(u); }
+    if(cell._hl){
+      lastMove=null; playCard("A",sel.i,{r,c}); sel=null; render();
+      // If the card kicked off an interactive owner-step, defer end-of-turn until resolved.
+      if(!pendingOwnerMove) maybeAutoEnd(u);
+    }
     else { sel=null; render(); }
     return;
   }
@@ -1764,7 +1828,7 @@ function cardAssistInfo(c){
   if(!c.bonus || c.hero==="sigil") return null;
   const owner = CLASSES[c.hero]; if(!owner) return null;
   const b=c.bonus, amt=b.amount||1;
-  const action = b.kind==="ownerStep"   ? `steps ${amt} toward nearest enemy`
+  const action = b.kind==="ownerStep"   ? `moves ${amt} step${amt>1?"s":""}`
                : b.kind==="ownerHeal"   ? `heals ${amt} HP`
                : b.kind==="ownerStrike" ? `strikes adjacent enemy for ${amt}`
                : b.kind==="ownerDrain"  ? `drains ${amt} from adjacent enemy`
@@ -1854,6 +1918,12 @@ function computeHl(){
   clearHl();
   if(over) return;
   if(phase!=="play"||busy) return;
+  // Pending owner-step assist — light up the owner's free adjacent tiles.
+  if(pendingOwnerMove){
+    const ou = pendingOwnerUnit();
+    if(ou){ for(const t of ownerStepFreeTiles(ou)) board[t.r][t.c]._hl="step"; }
+    return;
+  }
   const u=activeUnit(); if(!u||u.owner!=="A") return;
   if(sel&&sel.t==="card"){
     const key=players.A.hand[sel.i]; const card=CARDS[key];
@@ -1905,6 +1975,7 @@ function render(){
     if(cell._hl==="atk")t.classList.add("hl-atk");
     if(cell._hl==="heal")t.classList.add("hl-heal");
     if(cell._hl==="spell")t.classList.add("hl-spell");
+    if(cell._hl==="step")t.classList.add("hl-step");
     const u=cell.unit;
     if(u&&u.id===activeId)t.classList.add("active");
     if(u){
@@ -1959,13 +2030,18 @@ function render(){
       `</span>`;
     el.onclick=()=>onCard(i); h.appendChild(el); });
   const ebtn=document.getElementById("endBtn"); const u=activeUnit();
-  ebtn.disabled = over || busy || !u || u.owner!=="A";
-  ebtn.textContent = (u && u.owner==="A") ? "END TURN" : "ENEMY…";
+  if(pendingOwnerMove){
+    ebtn.disabled = over || busy;
+    ebtn.textContent = "SKIP";
+  } else {
+    ebtn.disabled = over || busy || !u || u.owner!=="A";
+    ebtn.textContent = (u && u.owner==="A") ? "END TURN" : "ENEMY…";
+  }
   const ubtn=document.getElementById("undoBtn");
-  ubtn.disabled = over || busy || !canUndoMove();
+  ubtn.disabled = over || busy || !!pendingOwnerMove || !canUndoMove();
   const cbtn=document.getElementById("cycleBtn");
   const cycleActive = !!(sel && sel.t==="cycle");
-  cbtn.disabled = !canCycle() && !cycleActive;
+  cbtn.disabled = !!pendingOwnerMove || (!canCycle() && !cycleActive);
   cbtn.classList.toggle("active", cycleActive);
   cbtn.textContent = cycleActive ? `DISCARD ${sel.picks.length}/2` : "CYCLE";
   const cd=document.getElementById("cardDetail");
@@ -2004,6 +2080,7 @@ function cancelCard(){ if(sel && sel.t==="card"){ sel=null; render(); } }
 
 /* ---------- card cycle (forfeit move + discard 2 to draw 1) ---------- */
 function canCycle(){
+  if(pendingOwnerMove) return false;
   const u=activeUnit();
   return !!(u && u.owner==="A" && u.deployed && !u.hasMoved && players.A.hand.length>=2 && !busy && !over);
 }
@@ -2036,7 +2113,11 @@ function executeCycle(){
   maybeAutoEnd(u);
 }
 
-document.getElementById("endBtn").onclick=()=>{ if(over||busy) return; const u=activeUnit(); if(u&&u.owner==="A") endActiveTurn(); };
+document.getElementById("endBtn").onclick=()=>{
+  if(over||busy) return;
+  if(pendingOwnerMove){ endOwnerStep(); return; }
+  const u=activeUnit(); if(u&&u.owner==="A") endActiveTurn();
+};
 document.getElementById("cycleBtn").onclick=()=>toggleCycle();
 document.getElementById("undoBtn").onclick=()=>undoMove();
 function canUndoMove(){
