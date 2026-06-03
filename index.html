@@ -99,28 +99,33 @@
   .btn:disabled{opacity:.4;}
   .btn.ghost{background:transparent; color:var(--dim); border:1px solid var(--line); flex:0 0 auto; padding:11px 14px;}
 
-  #hand{display:flex; gap:6px; overflow-x:auto; padding:2px; min-height:74px;}
-  .card{flex:0 0 56px; height:68px; background:#262a33; border:1px solid var(--line); border-radius:9px;
-    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; position:relative; padding:4px;}
-  .card .cs{font-size:20px;} .card .cn{font-size:9px; color:var(--dim); text-align:center;}
-  .card .cc{position:absolute; top:2px; left:4px; font-size:11px; font-weight:800; color:#56c5ff;}
+  #hand{display:flex; flex-direction:column; gap:4px; padding:2px; max-height:300px; overflow-y:auto;}
+  .card{background:#262a33; border:1px solid var(--line); border-radius:8px;
+    display:grid; grid-template-columns:auto 1fr auto; gap:8px; align-items:center;
+    padding:6px 8px 6px 10px; position:relative; cursor:pointer; user-select:none;}
+  .card .csym{font-size:18px; line-height:1;}
+  .card .ctext{display:flex; flex-direction:column; gap:1px; min-width:0;}
+  .card .ctop{display:flex; gap:6px; align-items:baseline;}
+  .card .cname{font-size:12.5px; font-weight:700; color:#fff;}
+  .card .ctag{font-size:8.5px; color:var(--dim); letter-spacing:.5px; font-weight:700;}
+  .card .ceff{font-size:10.5px; color:#c8cad2; line-height:1.35;}
+  .card .cowner{font-size:14px; opacity:.7; line-height:1;}
   .card.sel{border-color:var(--hi); box-shadow:0 0 0 2px var(--hi);}
   .card.cant{opacity:.4;}
-  .card.dead-src{filter:grayscale(1) brightness(.55); position:relative;}
-  .card.dead-src::after{content:"✕"; position:absolute; top:6px; right:6px; color:#e8584d; font-weight:800; font-size:14px;}
+  .card.dead-src{filter:grayscale(1) brightness(.55);}
+  .card.dead-src::after{content:"✕"; position:absolute; top:6px; right:8px; color:#e8584d; font-weight:800; font-size:14px;}
   .card.discard-pick{outline:2px solid #c14a3a; outline-offset:-2px; background:rgba(193,74,58,.18); opacity:1;}
-  .card.discard-pick::before{content:"DISCARD"; position:absolute; top:3px; left:50%; transform:translateX(-50%); font-size:8px; font-weight:800; letter-spacing:1px; color:#e8584d; background:#0c0d11; padding:1px 4px; border-radius:3px; z-index:2;}
+  .card.discard-pick::before{content:"DISCARD"; position:absolute; top:3px; right:8px; font-size:8px; font-weight:800; letter-spacing:1px; color:#e8584d; background:#0c0d11; padding:1px 4px; border-radius:3px; z-index:2;}
   .btn.active{background:var(--gold); color:#0c0d11;}
-  .card .cat{position:absolute; top:2px; right:4px; font-size:8px; color:var(--dim); letter-spacing:.4px;}
-  .card .ho{position:absolute; bottom:2px; left:4px; font-size:8px; font-weight:800;}
-  .card.tier-S{box-shadow:inset 0 -3px 0 #6a6e78;}
-  .card.tier-E{box-shadow:inset 0 -3px 0 #b878ff;}
-  .card.tier-E .cs{color:#d6bcff;}
-  .card.tier-L{box-shadow:inset 0 -3px 0 var(--gold); background:linear-gradient(165deg,#2a241a 0%,#1c1f24 65%);}
-  .card.tier-L .cs{color:var(--gold);}
-  .card.tier-G{box-shadow:inset 0 -3px 0 #3fc7c2; background:linear-gradient(165deg,#1a2a2a 0%,#1c1f24 65%);}
-  .card.tier-G .cs{color:#7fe6e0;}
-  .card.tier-G .cat{color:#7fe6e0;}
+  .card.tier-S{border-left:3px solid #6a6e78;}
+  .card.tier-E{border-left:3px solid #b878ff;}
+  .card.tier-E .csym{color:#d6bcff;}
+  .card.tier-L{border-left:3px solid var(--gold); background:linear-gradient(165deg,#2a241a 0%,#1c1f24 65%);}
+  .card.tier-L .csym{color:var(--gold);}
+  .card.tier-L .cname{color:var(--gold);}
+  .card.tier-G{border-left:3px solid #3fc7c2; background:linear-gradient(165deg,#1a2a2a 0%,#1c1f24 65%);}
+  .card.tier-G .csym{color:#7fe6e0;}
+  .card.tier-G .ctag{color:#7fe6e0;}
 
   .legend{font-size:10px; color:var(--dim); text-align:center; line-height:1.5;}
   #codex{position:fixed; inset:0; background:rgba(8,9,12,.92); display:none; align-items:flex-start; justify-content:center; z-index:20; overflow-y:auto; padding:20px 12px;}
@@ -292,7 +297,7 @@
     <li><b>Initiative deck:</b> each round, each side builds their own deck — every living unit contributes <i>Init</i> copies of itself (slow units: 1, normal: 2, fast: 3). Decks are shuffled. Sides alternate drawing one token at a time; whoever draws acts. Round ends when both decks are empty.</li>
     <li><b>Facing:</b> attacks from the SIDE deal ×1.5, REAR ×2 (Assassin: ×2 / ×2.5).</li>
     <li><b>Terrain:</b> ▲ high ground gives +1 ATK while standing on it.</li>
-    <li><b>Cards:</b> start with 0 in hand, no max. <b>Draw 1 at the end of every turn</b> (yours or the AI's). Each card is one-shot.</li>
+    <li><b>Cards:</b> start with 3 in hand, no max. <b>Draw 1 at the end of every turn</b> (yours or the AI's). Each card is one-shot.</li>
     <li><b>Cycle:</b> once per turn, a unit may <i>forfeit its move</i> and discard 2 cards to draw 1 — useful for digging past dead-source cards.</li>
     <li><b>Instant only:</b> no buffs, no counters, no lingering effects. Every card resolves entirely this turn — damage, healing, pushes, pulls, dashes, or swaps.</li>
     <li><b>Assist casting:</b> <i>any</i> of your units may cast <i>any</i> card. The card's owner (the hero from whose suite the card came) provides an instant <i>assist</i> — typically a free step, heal, or strike. The owner must be alive and on the board for the assist to fire.</li>
@@ -967,7 +972,7 @@ function finishDeploy(){
   for(const o of ["A","B"]){
     players[o].deck=shuffle(buildDeckFor(o));
   }
-  // Both players start with an empty hand — first card is drawn at the end of the first turn.
+  for(let i=0;i<3;i++){players.A.hand.push(players.A.deck.pop()); players.B.hand.push(players.B.deck.pop());}
   // Pick a random side to draw first in the initiative deck for round 1.
   initiativeToken = Math.random()<0.5 ? "A" : "B";
   startRound();
@@ -1936,7 +1941,12 @@ function render(){
     el.className="card tier-"+card.tier+(cant?" cant":"")+(sourceDead?" dead-src":"")+((sel&&sel.t==="card"&&sel.i===i)?" sel":"")+(discardPick?" discard-pick":"");
     const tag = card.tier==="L" ? "LEG" : card.tier==="E" ? "EPIC" : card.tier==="G" ? "SIGIL" : "STD";
     const heroGlyph = card.hero==="sigil" ? "✦" : (CLASSES[card.hero]?CLASSES[card.hero].sym:"");
-    el.innerHTML=`<span class="cat">${tag}</span><span class="cs">${card.sym}</span><span class="cn">${card.name}</span><span class="ho">${heroGlyph}</span>`;
+    el.innerHTML=`<span class="csym">${card.sym}</span>`+
+      `<span class="ctext">`+
+        `<span class="ctop"><span class="cname">${card.name}</span><span class="ctag">${tag}</span></span>`+
+        `<span class="ceff">${cardEffText(card)}</span>`+
+      `</span>`+
+      `<span class="cowner">${heroGlyph}</span>`;
     el.onclick=()=>onCard(i); h.appendChild(el); });
   const ebtn=document.getElementById("endBtn"); const u=activeUnit();
   ebtn.disabled = over || busy || !u || u.owner!=="A";
