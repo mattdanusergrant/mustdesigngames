@@ -306,7 +306,7 @@
     <li><b>Cycle:</b> once per turn, a unit may <i>forfeit its move</i> and discard 2 cards to draw 1 — useful for digging past dead-source cards.</li>
     <li><b>Instant only:</b> no buffs, no counters, no lingering effects. Every card resolves entirely this turn — damage, healing, pushes, pulls, dashes, or swaps.</li>
     <li><b>Assist casting:</b> <i>any</i> of your units may cast <i>any</i> card. The card's owner (the hero from whose suite the card came) provides an instant <i>assist</i> — typically a free step, heal, or strike. The owner must be alive and on the board for the assist to fire.</li>
-    <li><b>Sigils:</b> 10 generic action cards (✦) shipped in every deck. Any unit may cast them. <b>A sigil consumes both your move and your attack this turn</b>, and is removed from the game on use. Sigils have no owner and no assist.</li>
+    <li><b>Sigils:</b> 10 generic action cards (✦) shipped in every deck. Any unit may cast them. <b>Sigils are FREE — they consume neither action nor movement</b>, so you can chain multiple sigils + a hero card + your move all in one turn. Effects are intentionally small; save them for big combo turns. Removed from the game on use; no owner, no assist.</li>
     <li><b>Push / pull:</b> direction is the straight line between caster and target. If the slide is blocked by an edge or another unit, the target takes <i>impact damage</i> equal to the card's kb value.</li>
     <li><b>Dash:</b> caster teleports to any empty tile within the card's range (ignores blockers along the way).</li>
     <li><b>Range:</b> damage / push / pull cards target enemies within the <i>casting unit's</i> attack range. Heal and swap cards reach any of your allies.</li>
@@ -332,7 +332,7 @@
   <h3>Deck composition</h3>
   <ul class="kinds">
     <li><b>Hero cards (6 per hero):</b> 3 Common, 2 Epic, 1 Legendary. Owned by their hero but castable by any of your units (the owner assists from off-field — they must be alive).</li>
-    <li><b>Sigils (10):</b> generic action cards any unit can cast. Cost: your entire turn (move <i>and</i> attack). Removed from the game on use.</li>
+    <li><b>Sigils (10):</b> generic action cards any unit can cast. <b>Free</b> — no action or movement cost. Small effects, chainable into combos. Removed from the game on use.</li>
     <li><b>Your deck:</b> 40 cards built at deploy time — 5 drafted heroes × 6 cards + 10 sigils. Shuffled before round 1.</li>
   </ul>
 
@@ -760,17 +760,19 @@ const CARDS={
   nc_gravepull: {hero:"necromancer",tier:"E", kind:"pull",    pull:2, kb:2,       bonus:{kind:"ownerDrain",amount:1}, sym:"⫯", name:"Grave Pull"},
   nc_reaper:    {hero:"necromancer",tier:"L", kind:"dmg-pull",dmg:4, pull:1, kb:1,bonus:{kind:"ownerDrain",amount:2}, sym:"☠", name:"Reaper's Scythe"},
 
-  /* === ✦ SIGILS (10) — generic, full-turn cost, removed from game on use, no owner bonus ===== */
-  sg_banish:    {hero:"sigil", tier:"G", kind:"push",      push:3, kb:2,         sym:"✦", name:"Sigil of Banishment"},
-  sg_magnet:    {hero:"sigil", tier:"G", kind:"pull",      pull:3, kb:2,         sym:"✦", name:"Sigil of Magnetism"},
-  sg_whirlwind: {hero:"sigil", tier:"G", kind:"push-adj",  push:1, kb:1,         sym:"✦", name:"Sigil of the Whirlwind"},
-  sg_recall:    {hero:"sigil", tier:"G", kind:"dash",      dash:4,               sym:"✦", name:"Sigil of Recall"},
-  sg_step:      {hero:"sigil", tier:"G", kind:"dash",      dash:3,               sym:"✦", name:"Sigil of the Step"},
-  sg_crashing:  {hero:"sigil", tier:"G", kind:"dmg-push",  dmg:3, push:1, kb:1,  sym:"✦", name:"Sigil of Crashing Tide"},
-  sg_riptide:   {hero:"sigil", tier:"G", kind:"dmg-pull",  dmg:2, pull:2, kb:1,  sym:"✦", name:"Sigil of Riptide"},
-  sg_sanctuary: {hero:"sigil", tier:"G", kind:"heal-all",  amount:1,             sym:"✦", name:"Sigil of Sanctuary"},
-  sg_smite:     {hero:"sigil", tier:"G", kind:"dmg",       dmg:5,                sym:"✦", name:"Sigil of Smite"},
-  sg_swap:      {hero:"sigil", tier:"G", kind:"swap",                            sym:"✦", name:"Sigil of Exchange"}
+  /* === ✦ SIGILS (10) — generic, FREE to cast (no action, no movement consumed), removed from
+     game on use, no owner bonus. Limited supply (10 per deck) and one-shot — save them for
+     big combo turns. Effects intentionally weak vs hero cards. ===================================== */
+  sg_banish:    {hero:"sigil", tier:"G", kind:"push",      push:1,                sym:"✦", name:"Sigil of Banishment"},
+  sg_magnet:    {hero:"sigil", tier:"G", kind:"pull",      pull:1,                sym:"✦", name:"Sigil of Magnetism"},
+  sg_whirlwind: {hero:"sigil", tier:"G", kind:"push-adj",  push:1,                sym:"✦", name:"Sigil of the Whirlwind"},
+  sg_recall:    {hero:"sigil", tier:"G", kind:"dash",      dash:2,                sym:"✦", name:"Sigil of Recall"},
+  sg_step:      {hero:"sigil", tier:"G", kind:"dash",      dash:1,                sym:"✦", name:"Sigil of the Step"},
+  sg_crashing:  {hero:"sigil", tier:"G", kind:"dmg-push",  dmg:1, push:1,         sym:"✦", name:"Sigil of Crashing Tide"},
+  sg_riptide:   {hero:"sigil", tier:"G", kind:"dmg-pull",  dmg:1, pull:1,         sym:"✦", name:"Sigil of Riptide"},
+  sg_sanctuary: {hero:"sigil", tier:"G", kind:"heal",      amount:2,              sym:"✦", name:"Sigil of Sanctuary"},
+  sg_smite:     {hero:"sigil", tier:"G", kind:"dmg",       dmg:2,                 sym:"✦", name:"Sigil of Smite"},
+  sg_swap:      {hero:"sigil", tier:"G", kind:"swap",                             sym:"✦", name:"Sigil of Exchange"}
 };
 const SIGIL_KEYS = Object.keys(CARDS).filter(k => CARDS[k].hero === "sigil");
 // Per-player deck built at finishDeploy: each drafted hero contributes 6 cards (3S/2E/1L),
@@ -1507,24 +1509,28 @@ function playCard(owner,handIdx,target){
   }
   // Owner-assist bonus (skip for sigils — they have no owner).
   fireOwnerBonus(card, owner);
-  // Every card consumes the active unit's action for the turn. SIGILS additionally consume the
-  // move (full-turn cost) and are removed from game on use (no discard pile; they never re-enter
-  // the deck or hand). Dash and swap are themselves movement — they also burn the move slot.
-  if(caster && caster.owner===owner){
+  // Cost economy: SIGILS are FREE — they consume neither the action nor the move slot, so
+  // they can chain into combo turns. Hero cards consume the unit's action. Hero cards with
+  // kind=dash/swap additionally consume the move (they ARE the unit's movement for the turn).
+  if(caster && caster.owner===owner && card.hero!=="sigil"){
     caster.hasActed=true;
-    if(card.hero==="sigil" || card.kind==="dash" || card.kind==="swap") caster.hasMoved=true;
+    if(card.kind==="dash" || card.kind==="swap") caster.hasMoved=true;
   }
 }
 function canPlayCardNow(){
-  // True if the active unit could play *some* card right now (their turn, hasn't acted, on the field).
+  // True if the active unit could play *some* card right now. Sigils don't require the
+  // action, so this is just "is it my turn and is the active unit on the field".
   if(pendingOwnerMove) return false;
-  const u=activeUnit(); return u && u.owner==="A" && u.deployed && !u.hasActed;
+  const u=activeUnit(); return !!(u && u.owner==="A" && u.deployed);
 }
 function canPlayCard(card){
   if(pendingOwnerMove) return false;
   const u=activeUnit();
-  if(!u || u.owner!=="A" || !u.deployed || u.hasActed) return false;
+  if(!u || u.owner!=="A" || !u.deployed) return false;
+  // Sigils are free — playable even after the unit has used its action.
   if(card.hero === "sigil") return true;
+  // Hero cards consume the action slot.
+  if(u.hasActed) return false;
   // Any unit may cast any hero card — the card's owner "assists" the caster.
   // The owner must still be alive to provide the assist.
   return heroes.A.some(h=>h.cls===card.hero && h.hp>0 && h.deployed);
@@ -1585,7 +1591,9 @@ function onCard(i){
   if(busy||over) return;
   const key=players.A.hand[i]; const card=CARDS[key];
   const u=activeUnit();
-  if(!u || u.owner!=="A" || u.hasActed){ say("Cards play as a unit's action — wait for one of your units' turns."); render(); return; }
+  if(!u || u.owner!=="A"){ say("Wait for one of your units' turns to play cards."); render(); return; }
+  // Hero cards need the action; sigils are free.
+  if(u.hasActed && card.hero!=="sigil"){ say(`${u.name} already used their action this turn — only sigils remain.`); render(); return; }
   if(card.hero !== "sigil"){
     const ownerAlive = heroes.A.some(h=>h.cls===card.hero && h.hp>0 && h.deployed);
     if(!ownerAlive){
@@ -1867,7 +1875,7 @@ function buildCodex(){
     html+=`</div>`;
   }
   if(sigilCards.length){
-    html+=`<div class="suite"><div class="suite-h">✦ Sigils — ${sigilCards.length} cards (in every deck; any unit may cast; consumes move + attack; removed from game on use)</div>`;
+    html+=`<div class="suite"><div class="suite-h">✦ Sigils — ${sigilCards.length} cards (in every deck; any unit may cast; FREE to play — chain for combos; removed from game on use)</div>`;
     for(const c of sigilCards){
       html+=`<div class="cdx-card tier-G"><span class="cdx-cat">Sigil</span><span class="cdx-name">${c.name}</span><span>${c.sym}</span><span class="cdx-eff">${cardEffText(c)}</span></div>`;
     }
@@ -2070,8 +2078,8 @@ function render(){
     document.getElementById("cdName").textContent=`${card.name} — ${tag}`;
     document.getElementById("cdEff").innerHTML=cardEffText(card);
     const castLine = card.hero==="sigil"
-      ? `Sigil — any of your units may cast it. Consumes this unit's move <i>and</i> attack; removed from game.`
-      : `Owned by ${src.sym} ${src.name} (must be alive to assist). Any of your units may cast — uses the caster's range.`;
+      ? `Sigil — free to cast (no action or movement consumed). Chain them for combos. Removed from game on use.`
+      : `Owned by ${src.sym} ${src.name} (must be alive to assist). Any of your units may cast — uses the caster's range. Consumes this unit's action.`;
     document.getElementById("cdHint").innerHTML = `${castLine} ${hint}.`;
     cd.classList.add("show");
     say(`Play <b>${card.name}</b> — ${hint}.`);
