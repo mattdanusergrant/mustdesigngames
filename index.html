@@ -37,7 +37,6 @@
   .ichip.A{color:#9ec1ff;} .ichip.B{color:#ff9c95;}
   .ichip.active{background:var(--gold); color:#1a1407; border-color:var(--gold);}
   .ichip.acted{opacity:.35;}
-  .ichip.reserve{opacity:.65; border-style:dashed;}
   .ichip .spd{font-size:9px; opacity:.7;}
 
   #board{display:grid; grid-template-columns:repeat(5,1fr); gap:4px; background:var(--panel);
@@ -46,7 +45,6 @@
     display:flex; align-items:center; justify-content:center; user-select:none; transition:background .1s;}
   .tile.terrain{background:#2c4a35; box-shadow:inset 0 0 0 1px #3a7d44;}
   .tile.terrain::after{content:"▲"; position:absolute; bottom:2px; right:4px; font-size:9px; color:#6fcf8a; opacity:.8;}
-  .tile.hl-deploy{outline:2px dashed var(--deploy); outline-offset:-2px; cursor:pointer; background:rgba(231,181,59,.10);}
   .tile.hl-move{outline:2px solid var(--move); outline-offset:-2px; cursor:pointer;}
   .tile.hl-move::before{content:""; position:absolute; width:30%; height:30%; border-radius:50%; background:var(--move); opacity:.45;}
   .tile.hl-atk{outline:2px solid var(--atk); outline-offset:-2px; cursor:pointer;}
@@ -283,7 +281,8 @@
   <ul>
     <li><b>Draft (skirmish only):</b> 1-2-2-2-2-1 snake — alternating snake draft, 10 picks total. Each side ends with 5 heroes from the 11-hero active roster.</li>
     <li><b>Team select (campaign only):</b> in the mission intro, tap to pick 5 heroes from your unlocked pool. AI's team is the boss plus themed allies from a mission-specific priority list. No draft phase.</li>
-    <li><b>Live deploy:</b> the board starts empty. Each hero deploys onto the field the first time their initiative token is drawn — tap a highlighted tile in your deploy zone (your back row + the front-row corners) to place them. Deploying ends that activation; their next init token is their first real turn. Fast heroes deploy AND get to act on later round-1 tokens; slow heroes may only deploy on round 1.</li>
+    <li><b>Team:</b> every party is exactly <b>3 melee + 2 ranged</b> (the picker enforces it).</li>
+    <li><b>Auto-deploy:</b> at the start of each match both teams snap into a fixed checkerboard formation — A in the bottom half, B in the top half. Your 3 melee shuffle across the 3 melee slots; your 2 ranged shuffle across the 2 ranged slots. Same comp, fresh layout each match. Reposition on turn 1; UNDO MOVE catches misclicks.</li>
     <li><b>Play:</b> standard initiative-order combat.</li>
   </ul>
 
@@ -393,7 +392,7 @@
   <div class="i-boss" id="intBoss"></div>
   <p class="i-text" id="intText"></p>
   <div class="i-team-row">Enemy team: <span id="intTeam"></span></div>
-  <div class="i-pick-h">Choose 5 heroes for your party:</div>
+  <div class="i-pick-h">Pick 3 melee + 2 ranged for your party:</div>
   <div class="i-pick" id="intPick"></div>
   <div class="i-pick-count" id="intCount">0/3 selected</div>
   <button class="tbtn" id="beginBtn" onclick="beginMission()" disabled>BEGIN</button>
@@ -433,8 +432,17 @@ const CLASSES={
 const ROSTER=Object.keys(CLASSES).filter(k=>!CLASSES[k].hidden);
 const DRAFT_SEQUENCE=["A","B","B","A","A","B","B","A","A","B"]; // 5v5 snake (1-2-2-2-2-1)
 const TEAM_SIZE=5;
+const TEAM_MELEE=3;
+const TEAM_RANGED=2;
 function isMeleeClass(cls){ return CLASSES[cls] && CLASSES[cls].range === 1; }
 function isRangedClass(cls){ return CLASSES[cls] && CLASSES[cls].range >= 2; }
+function teamRoleCounts(picks){
+  let m=0,r=0; for(const c of picks){ if(isMeleeClass(c)) m++; else if(isRangedClass(c)) r++; } return {m,r};
+}
+function teamIsValid(picks){
+  if(picks.length!==TEAM_SIZE) return false;
+  const {m,r}=teamRoleCounts(picks); return m===TEAM_MELEE && r===TEAM_RANGED;
+}
 
 /* ---------- PvE campaign ---------- */
 const STARTERS=["knight","ranger","mage","assassin","berserker"];
@@ -538,26 +546,25 @@ function renderMissions(){
 }
 function computeMissionAITeam(m, playerPicks){
   const team=[]; const taken=new Set(playerPicks);
-  // boss always first
-  team.push(m.boss); taken.add(m.boss);
-  // then themed allies from aiPool in order
-  for(const cls of m.aiPool){
-    if(team.length>=TEAM_SIZE) break;
-    if(taken.has(cls)) continue;
-    team.push(cls); taken.add(cls);
-  }
-  // fallback to any active hero
-  for(const cls of ROSTER){
-    if(team.length>=TEAM_SIZE) break;
-    if(taken.has(cls)) continue;
-    team.push(cls); taken.add(cls);
-  }
+  const counts=()=>teamRoleCounts(team);
+  const tryAdd=(cls)=>{
+    if(taken.has(cls)) return false;
+    const {m:mc,r:rc}=counts();
+    if(isMeleeClass(cls)  && mc>=TEAM_MELEE)  return false;
+    if(isRangedClass(cls) && rc>=TEAM_RANGED) return false;
+    team.push(cls); taken.add(cls); return true;
+  };
+  tryAdd(m.boss);
+  for(const cls of m.aiPool){ if(team.length>=TEAM_SIZE) break; tryAdd(cls); }
+  for(const cls of ROSTER){   if(team.length>=TEAM_SIZE) break; tryAdd(cls); }
   return team;
 }
 function openMissionIntro(m){
   campaign.currentMission=m;
   // Pre-fill from the player's saved team, dropping any heroes no longer unlocked.
-  campaign.teamSelection = campaign.savedTeam.filter(cls => campaign.unlocked.has(cls)).slice(0, TEAM_SIZE);
+  // Clear it entirely if the saved team isn't a valid 3 melee + 2 ranged comp.
+  const candidate = campaign.savedTeam.filter(cls => campaign.unlocked.has(cls));
+  campaign.teamSelection = teamIsValid(candidate) ? candidate.slice() : [];
   document.getElementById("missions").classList.remove("open");
   document.getElementById("missionIntro").classList.add("open");
   const c=CLASSES[m.boss];
@@ -571,27 +578,42 @@ function openMissionIntro(m){
 function renderTeamPicker(){
   const root=document.getElementById("intPick"); root.innerHTML="";
   const unlocked=[...campaign.unlocked];
-  for(const cls of unlocked){
-    const c=CLASSES[cls];
-    const sel=campaign.teamSelection.includes(cls);
-    const btn=document.createElement("button");
-    btn.className="ipick"+(sel?" sel":"");
-    btn.innerHTML=`<span class="ipgly">${c.sym}</span><span class="ipname">${c.name}</span>`;
-    btn.onclick=()=>toggleTeamPick(cls);
-    root.appendChild(btn);
-  }
-  // Auto-fill if exactly TEAM_SIZE unlocked and nothing picked yet (starter case).
-  if(unlocked.length===TEAM_SIZE && campaign.teamSelection.length===0){
+  // Auto-fill when the player's unlocked roster is exactly TEAM_SIZE and naturally satisfies
+  // the role split (true for the starting roster: 3 melee + 2 ranged).
+  if(unlocked.length===TEAM_SIZE && campaign.teamSelection.length===0 && teamIsValid(unlocked)){
     campaign.teamSelection=unlocked.slice();
-    return renderTeamPicker();
   }
-  document.getElementById("intCount").textContent = `${campaign.teamSelection.length}/${TEAM_SIZE} selected`;
-  document.getElementById("beginBtn").disabled = campaign.teamSelection.length!==TEAM_SIZE;
+  const {m,r}=teamRoleCounts(campaign.teamSelection);
+  const melees = unlocked.filter(isMeleeClass);
+  const ranged = unlocked.filter(isRangedClass);
+  const section = (label, list, roleFull) => {
+    const h=document.createElement("div"); h.className="ipick-h"; h.textContent=label; root.appendChild(h);
+    for(const cls of list){
+      const c=CLASSES[cls];
+      const picked=campaign.teamSelection.includes(cls);
+      const disabled = !picked && roleFull;
+      const btn=document.createElement("button");
+      btn.className="ipick"+(picked?" sel":"")+(disabled?" cant":"");
+      btn.innerHTML=`<span class="ipgly">${c.sym}</span><span class="ipname">${c.name}</span>`;
+      btn.disabled=disabled;
+      btn.onclick=()=>toggleTeamPick(cls);
+      root.appendChild(btn);
+    }
+  };
+  section(`Melee — ${m}/${TEAM_MELEE} (front line)`, melees, m>=TEAM_MELEE);
+  section(`Ranged — ${r}/${TEAM_RANGED} (back line)`, ranged, r>=TEAM_RANGED);
+  document.getElementById("intCount").textContent = `${campaign.teamSelection.length}/${TEAM_SIZE} (${m} melee · ${r} ranged)`;
+  document.getElementById("beginBtn").disabled = !teamIsValid(campaign.teamSelection);
 }
 function toggleTeamPick(cls){
   const i=campaign.teamSelection.indexOf(cls);
-  if(i>=0) campaign.teamSelection.splice(i,1);
-  else if(campaign.teamSelection.length<TEAM_SIZE) campaign.teamSelection.push(cls);
+  if(i>=0){ campaign.teamSelection.splice(i,1); }
+  else {
+    const {m,r}=teamRoleCounts(campaign.teamSelection);
+    if(isMeleeClass(cls)  && m>=TEAM_MELEE)  return;
+    if(isRangedClass(cls) && r>=TEAM_RANGED) return;
+    campaign.teamSelection.push(cls);
+  }
   renderTeamPicker();
 }
 function cancelMission(){
@@ -820,10 +842,14 @@ function renderDraft(){
   const taken=new Set(); for(const cls of draft.A) taken.add(cls+":A"); for(const cls of draft.B) taken.add(cls+":B");
   const takenAll=draftedSet();
   const inCampaign=!!campaign.currentMission;
+  const aCounts = teamRoleCounts(draft.A);
+  const aMeleeFull = aCounts.m>=TEAM_MELEE;
+  const aRangedFull = aCounts.r>=TEAM_RANGED;
   for(const el of document.querySelectorAll("#draftRoster .rcard")){
     const cls=el.dataset.cls;
     el.className="rcard";
     const lockedInCampaign = inCampaign && !campaign.unlocked.has(cls);
+    const roleFull = (isMeleeClass(cls) && aMeleeFull) || (isRangedClass(cls) && aRangedFull);
     if(takenAll.has(cls)){
       const by=draft.A.includes(cls)?"A":"B";
       el.classList.add("taken","by-"+by);
@@ -832,6 +858,8 @@ function renderDraft(){
       el.classList.add("cant"); el.dataset.by="🔒";
     } else if(phase!=="draft" || currentPicker()!=="A" || busy){
       el.classList.add("cant");
+    } else if(roleFull){
+      el.classList.add("cant"); el.dataset.by=isMeleeClass(cls)?"M✓":"R✓";
     }
   }
   // team slots
@@ -857,6 +885,9 @@ function onDraftPick(cls){
   if(currentPicker()!=="A") return;
   if(draftedSet().has(cls)) return;
   if(campaign.currentMission && !campaign.unlocked.has(cls)) return;
+  const {m,r}=teamRoleCounts(draft.A);
+  if(isMeleeClass(cls)  && m>=TEAM_MELEE)  return;
+  if(isRangedClass(cls) && r>=TEAM_RANGED) return;
   doPick("A",cls);
 }
 function doPick(player,cls){
@@ -874,83 +905,61 @@ function advanceDraft(){
 }
 function aiDraftPick(){
   const taken=draftedSet();
+  const {m,r}=teamRoleCounts(draft.B);
+  const valid = cls => !taken.has(cls)
+    && !(isMeleeClass(cls)  && m>=TEAM_MELEE)
+    && !(isRangedClass(cls) && r>=TEAM_RANGED);
   let cls=null;
   if(campaign.currentMission){
-    for(const c of campaign.currentMission.aiPool){ if(!taken.has(c)){ cls=c; break; } }
-    if(!cls){ const pool=ROSTER.filter(c=>!taken.has(c)); cls=pool[Math.floor(Math.random()*pool.length)]; }
+    for(const c of campaign.currentMission.aiPool){ if(valid(c)){ cls=c; break; } }
+    if(!cls){ const pool=ROSTER.filter(valid); cls=pool[Math.floor(Math.random()*pool.length)]; }
   } else {
-    const pool=ROSTER.filter(c=>!taken.has(c));
+    const pool=ROSTER.filter(valid);
     cls=pool[Math.floor(Math.random()*pool.length)];
   }
   doPick("B",cls);
 }
 function finishDraft(){
   closeDraftUI();
-  // Board starts empty. Each unit deploys onto a back-zone tile the first time their init
-  // token is drawn — that activation IS their deploy turn (ends after placement; their next
-  // activation is the first real turn).
-  for(const cls of draft.A) createReserveUnit("A", cls);
-  for(const cls of draft.B) createReserveUnit("B", cls);
+  // Fixed-slot auto-placement: each side's 3 melee shuffle across their melee slots and
+  // the 2 ranged shuffle across their ranged slots. No interactive deploy phase.
+  unplaced={A:draft.A.slice(), B:draft.B.slice()};
+  autoPlaceAllFor("A");
+  autoPlaceAllFor("B");
   finishDeploy();
 }
 
-/* ---------- deploy helpers (initiative-driven, undeployed reserves) ----------
-   A deploys bottom-left; B deploys top-right. Allowed deploy zone (5x4 board):
-     A:   row 3 (all 5 tiles)  +  row 2 col 0 and col 4   = 7 tiles
-     B:   row 0 (all 5 tiles)  +  row 1 col 0 and col 4   = 7 tiles
-   All A units face N (toward B); all B units face S (toward A).
+/* ---------- start-slot formation ---------------------------------------------------------
+   Diagonal checkerboard layout — A in the bottom half, B in the top half.
+
+       .  B  .  B  .     row 0  (B ranged slots: 0,1 · 0,3)
+       B  .  B  .  B     row 1  (B melee  slots: 1,0 · 1,2 · 1,4)
+       A  .  A  .  A     row 2  (A melee  slots: 2,0 · 2,2 · 2,4)
+       .  A  .  A  .     row 3  (A ranged slots: 3,1 · 3,3)
+
+   Melee shuffle within the 3 melee slots; ranged within the 2 ranged slots. All A units
+   face N (toward B); all B units face S (toward A).
 */
+const FORMATION = {
+  A: { melee: [{r:2,c:0},{r:2,c:2},{r:2,c:4}], ranged: [{r:3,c:1},{r:3,c:3}] },
+  B: { melee: [{r:1,c:0},{r:1,c:2},{r:1,c:4}], ranged: [{r:0,c:1},{r:0,c:3}] }
+};
 function deployFacing(o){ return o==="A"?"N":"S"; }
-function isDeployTile(side, r, c){
-  if(side==="A"){
-    if(r===3) return true;                              // A back row
-    if(r===2 && (c===0 || c===C-1)) return true;        // A front-row corners
-  } else {
-    if(r===0) return true;                              // B back row
-    if(r===1 && (c===0 || c===C-1)) return true;        // B front-row corners
+function placeDeployedUnit(owner,cls,r,c){
+  const u=newUnit(owner,cls,r,c,deployFacing(owner));
+  place(u); heroes[owner].push(u);
+  unplaced[owner]=unplaced[owner].filter(x=>x!==cls);
+}
+function autoPlaceAllFor(side){
+  const melees = shuffle(unplaced[side].filter(isMeleeClass));
+  const ranged = shuffle(unplaced[side].filter(isRangedClass));
+  const slots = FORMATION[side];
+  for(let i=0;i<slots.melee.length && i<melees.length;i++){
+    const t=slots.melee[i]; placeDeployedUnit(side, melees[i], t.r, t.c);
   }
-  return false;
-}
-function freeDeployTiles(side){
-  const out=[];
-  for(let r=0;r<R;r++)for(let c=0;c<C;c++){
-    if(isDeployTile(side,r,c) && !board[r][c].unit) out.push({r,c});
+  for(let i=0;i<slots.ranged.length && i<ranged.length;i++){
+    const t=slots.ranged[i]; placeDeployedUnit(side, ranged[i], t.r, t.c);
   }
-  return out;
-}
-function createReserveUnit(side, cls){
-  // Build the unit but leave it off-board. r/c are -1 sentinels; deployed=false skips it from
-  // rendering, targeting, and movement checks until it deploys.
-  const u = newUnit(side, cls, -1, -1, deployFacing(side));
-  u.deployed = false;
-  heroes[side].push(u);
-}
-function deployActiveUnit(u, r, c){
-  // Move a reserve unit onto the board at (r,c). Sets deployed=true; does NOT touch the
-  // unit's turn flags (the caller decides whether deploying consumes the turn).
-  u.r = r; u.c = c; u.deployed = true;
-  u.facing = deployFacing(u.owner);
-  board[r][c].unit = u;
-}
-function aiPickDeployTile(side, cls){
-  // Heuristic: ranged units head to the back row corners (col 0 for A, col 4 for B); melee
-  // squeeze into the back row toward the middle, then spill into the front-row corner tiles.
-  const tiles = freeDeployTiles(side);
-  if(!tiles.length) return null;
-  const ranged = isRangedClass(cls);
-  const backRow = side==="A"?3:0;
-  const homeCol = side==="A"?0:C-1;
-  tiles.sort((a,b)=>{
-    if(ranged){
-      // ranged prefer back row + the home-side corner first
-      return (Math.abs(backRow-a.r)-Math.abs(backRow-b.r))
-          || (Math.abs(homeCol-a.c)-Math.abs(homeCol-b.c));
-    }
-    // melee — back row first, then center column (advance toward enemy)
-    return (Math.abs(backRow-a.r)-Math.abs(backRow-b.r))
-        || (Math.abs((C-1)/2-a.c)-Math.abs((C-1)/2-b.c));
-  });
-  return tiles[0];
 }
 function finishDeploy(){
   phase="play";
@@ -1037,28 +1046,13 @@ function endActiveTurn(){
 function promptOrAi(){
   const u=activeUnit(); if(!u){ render(); return; }
   if(u.owner==="A"){
-    if(!u.deployed){
-      say(`<b>${u.name}</b> enters the field — tap a highlighted tile to deploy.`);
-    } else {
-      say(`<b>${u.name}</b>'s turn — move, attack, or play a card.`);
-    }
+    say(`<b>${u.name}</b>'s turn — move, attack, or play a card.`);
     render();
   } else {
     busy=true; render();
-    if(!u.deployed){
-      say(`Enemy <b>${u.name}</b> deploys…`);
-      setTimeout(()=>{ if(over) return; aiDeploy(u); busy=false; render(); endActiveTurn(); }, 400);
-    } else {
-      say(`Enemy <b>${u.name}</b> is acting…`);
-      setTimeout(()=>{ if(over) return; aiAct(u); busy=false; render(); endActiveTurn(); }, 500);
-    }
+    say(`Enemy <b>${u.name}</b> is acting…`);
+    setTimeout(()=>{ if(over) return; aiAct(u); busy=false; render(); endActiveTurn(); }, 500);
   }
-}
-function aiDeploy(u){
-  const t = aiPickDeployTile(u.owner, u.cls);
-  if(!t) return; // shouldn't happen — board only has 5 enemy units + 5 friendly = max 10 in 7 tiles
-  deployActiveUnit(u, t.r, t.c);
-  say(`<b>${u.name}</b> deploys at (${t.r+1},${t.c+1}).`);
 }
 
 /* ---------- combat / actions ---------- */
@@ -1076,8 +1070,6 @@ function adjacentTo(unit, classKey, ownerSide){
   return false;
 }
 function anyLivingAlly(owner, classKey){
-  // Passive effects (Spotter, Resonance, Pathfinder, etc.) only fire if the contributing hero
-  // is on the field. Undeployed reserves haven't entered the fight yet.
   for(const u of units){ if(u.owner===owner && u.cls===classKey && u.hp>0 && u.deployed) return true; }
   return false;
 }
@@ -1502,17 +1494,6 @@ function onTile(r,c){
   if(phase!=="play") return;
   const u=activeUnit(); if(!u||u.owner!=="A") return;
   const cell=board[r][c];
-  // Deploy turn — undeployed unit, tap a deploy-zone tile to place them. Ends the turn.
-  if(!u.deployed){
-    if(cell._hl==="deploy"){
-      lastMove = {unitId:u.id, prevR:-1, prevC:-1, prevFacing:u.facing, wasDeployed:false};
-      deployActiveUnit(u, r, c);
-      say(`<b>${u.name}</b> deploys at (${r+1},${c+1}).`);
-      render();
-      endActiveTurn();
-    }
-    return;
-  }
   if(sel&&sel.t==="card"){
     if(cell._hl){ lastMove=null; playCard("A",sel.i,{r,c}); sel=null; render(); maybeAutoEnd(u); }
     else { sel=null; render(); }
@@ -1859,10 +1840,6 @@ function computeHl(){
   if(over) return;
   if(phase!=="play"||busy) return;
   const u=activeUnit(); if(!u||u.owner!=="A") return;
-  if(!u.deployed){
-    for(const t of freeDeployTiles("A")) board[t.r][t.c]._hl="deploy";
-    return;
-  }
   if(sel&&sel.t==="card"){
     const key=players.A.hand[sel.i]; const card=CARDS[key];
     const k=card.kind;
@@ -1895,16 +1872,15 @@ function renderInit(){
   const counts={};
   for(const id of initDeckA) counts[id]=(counts[id]||0)+1;
   for(const id of initDeckB) counts[id]=(counts[id]||0)+1;
-  // Show alive units with remaining-init counter; active highlighted; undeployed dimmed.
+  // Show alive units with remaining-init counter; active highlighted
   const sorted = units.filter(u=>u.hp>0).slice().sort((a,b)=>a.owner.localeCompare(b.owner));
   for(const u of sorted){
     const rem = counts[u.id] || 0;
     const isActive = u.id===activeId;
     const done = rem===0 && !isActive;
     const c=document.createElement("span");
-    c.className="ichip "+u.owner+(isActive?" active":"")+(done?" acted":"")+(u.deployed?"":" reserve");
-    const label = isActive ? "now" : (u.deployed ? rem : "—");
-    c.innerHTML=`${u.sym}<span class="spd">${label}</span>`;
+    c.className="ichip "+u.owner+(isActive?" active":"")+(done?" acted":"");
+    c.innerHTML=`${u.sym}<span class="spd">${isActive?"now":rem}</span>`;
     el.appendChild(c);
   }
 }
@@ -1914,7 +1890,6 @@ function render(){
   for(let r=0;r<R;r++)for(let c=0;c<C;c++){
     const cell=board[r][c]; const t=document.createElement("div");
     t.className="tile"+(cell.terrain?" terrain":"");
-    if(cell._hl==="deploy")t.classList.add("hl-deploy");
     if(cell._hl==="move")t.classList.add("hl-move");
     if(cell._hl==="atk")t.classList.add("hl-atk");
     if(cell._hl==="heal")t.classList.add("hl-heal");
@@ -1964,9 +1939,8 @@ function render(){
     el.innerHTML=`<span class="cat">${tag}</span><span class="cs">${card.sym}</span><span class="cn">${card.name}</span><span class="ho">${heroGlyph}</span>`;
     el.onclick=()=>onCard(i); h.appendChild(el); });
   const ebtn=document.getElementById("endBtn"); const u=activeUnit();
-  // During a deploy turn the player must place the unit — they can't end the turn empty-handed.
-  ebtn.disabled = over || busy || !u || u.owner!=="A" || !u.deployed;
-  ebtn.textContent = !u || u.owner!=="A" ? "ENEMY…" : (u.deployed ? "END TURN" : "DEPLOY…");
+  ebtn.disabled = over || busy || !u || u.owner!=="A";
+  ebtn.textContent = (u && u.owner==="A") ? "END TURN" : "ENEMY…";
   const ubtn=document.getElementById("undoBtn");
   ubtn.disabled = over || busy || !canUndoMove();
   const cbtn=document.getElementById("cycleBtn");
@@ -2055,18 +2029,12 @@ function undoMove(){
   if(!canUndoMove()) return;
   const u=activeUnit();
   board[u.r][u.c].unit=null;
-  if(lastMove.wasDeployed===false){
-    // Undo a deploy: send the unit back to reserve so the player can pick a different tile.
-    u.r=-1; u.c=-1; u.deployed=false;
-  } else {
-    u.r=lastMove.prevR; u.c=lastMove.prevC;
-    board[u.r][u.c].unit=u;
-  }
-  u.facing=lastMove.prevFacing;
+  u.r=lastMove.prevR; u.c=lastMove.prevC; u.facing=lastMove.prevFacing;
+  board[u.r][u.c].unit=u;
   u.hasMoved=false;
   lastMove=null; sel=null;
   render();
-  say(`<b>${u.name}</b> stepped back — pick again.`);
+  say(`<b>${u.name}</b> stepped back — turn restarted.`);
 }
 loadProgress();
 showTitle();
