@@ -32,6 +32,7 @@
   #init{display:flex; gap:4px; overflow-x:auto; padding:4px 6px; background:var(--panel);
     border:1px solid var(--line); border-radius:9px; min-height:34px; align-items:center;}
   #init .lbl{font-size:10px; color:var(--dim); flex:0 0 auto; padding-right:2px; letter-spacing:.5px;}
+  #init .init-div{padding:0 2px 0 4px; border-left:1px solid var(--line); margin-left:2px;}
   .ichip{flex:0 0 auto; display:flex; align-items:center; gap:3px; padding:3px 7px; border-radius:6px;
     font-size:11px; font-weight:700; background:#262a33; border:1px solid var(--line); white-space:nowrap;}
   .ichip.A{color:#9ec1ff;} .ichip.B{color:#ff9c95;}
@@ -817,6 +818,7 @@ function newGame(missionId){
   board=[]; for(let r=0;r<R;r++){board.push([]); for(let c=0;c<C;c++) board[r].push({unit:null,terrain:null});}
   uid=0; sel=null; busy=false; over=false; units=[]; acted=new Set(); activeId=null; roundNum=0;
   lastMove=null; pendingOwnerMove=null;
+  upcoming=[]; initDeck={A:[],B:[]}; fillRound=0; fillSide="A"; lastStarter=null;
   heroes={A:[],B:[]};
   players={
     A:{deck:[],hand:[],human:true},
@@ -986,62 +988,93 @@ function finishDeploy(){
     players[o].deck=shuffle(buildDeckFor(o));
   }
   for(let i=0;i<3;i++){players.A.hand.push(players.A.deck.pop()); players.B.hand.push(players.B.deck.pop());}
-  // Pick a random side to draw first in the initiative deck for round 1.
+  // Pick a random side to add the first card to the initiative pool for round 1.
   initiativeToken = Math.random()<0.5 ? "A" : "B";
-  startRound();
+  initInitiative();
+  advance();
   render();
   promptOrAi();
 }
 
-/* ---------- round / initiative (pre-computed interleaved order, face-up) ----------
-   Both sides shuffle their init tokens at round start. Tokens are then interleaved into a
-   single deterministic sequence — initOrder — that we expose to the player so they can see
-   every upcoming activation. IRL the two decks would sit face-up beside each other; here
-   we just show the merged list.
+/* ---------- round / initiative (rolling "upcoming turns" pool) ----------
+   Each side has a face-down init deck (one token per unit per `init`, shuffled). Sides
+   alternate adding the top card of their deck into a shared pool — POOL_SIZE entries deep —
+   so the next 5 activations are always visible. As the active unit is consumed from the
+   front, the pool refills from the back, alternating sides. When both decks run dry the next
+   round's decks are built and filling continues, so the pool can span a round boundary and
+   stays full until the game's final turns.
 */
-let initOrder=[], initPos=0;
-function buildInitOrder(startingSide){
-  // Per-side shuffled decks (token = unit id, count = unit.init)
-  let deckA=[], deckB=[];
-  for(const u of units){
-    if(u.hp<=0) continue;
-    const deck = u.owner==="A" ? deckA : deckB;
-    const n = u.init || 2;
-    for(let i=0;i<n;i++) deck.push(u.id);
-  }
-  shuffle(deckA); shuffle(deckB);
-  // Interleave: alternate sides starting from startingSide; when one is exhausted, drain the other.
-  initOrder=[]; let side=startingSide;
-  while(deckA.length || deckB.length){
-    const cur = side==="A" ? deckA : deckB;
-    if(cur.length) initOrder.push(cur.shift());
-    side = side==="A" ? "B" : "A";
-  }
-  initPos = 0;
+const POOL_SIZE = 5;
+let upcoming = [];              // [{id, round}] — visible queue, front = next to act
+let initDeck = {A:[], B:[]};   // face-down decks for the round currently being drawn from
+let fillRound = 0;             // round number whose deck is in initDeck
+let fillSide = "A";           // side that adds the next card to the pool
+let lastStarter = null;       // side that started the most-recently-built round
+const otherSide = s => s==="A" ? "B" : "A";
+
+function initInitiative(){
+  upcoming = [];
+  initDeck = {A:[], B:[]};
+  fillRound = 0;        // first refill will build round 1
+  lastStarter = null;
+  roundNum = 0;
+  acted = new Set();
 }
-function startRound(){
-  roundNum++;
+function buildRoundDeck(round){
+  fillRound = round;
+  initDeck = {A:[], B:[]};
+  for(const u of units){
+    if(u.hp<=0 || !u.deployed) continue;
+    const d = initDeck[u.owner];
+    const n = u.init || 2;
+    for(let i=0;i<n;i++) d.push(u.id);
+  }
+  shuffle(initDeck.A); shuffle(initDeck.B);
+  // Round 1 starts with the random initiativeToken; each later round flips.
+  const starter = (round===1 || lastStarter===null) ? initiativeToken : otherSide(lastStarter);
+  lastStarter = starter;
+  fillSide = starter;
+}
+function refillPool(){
+  let guard=0;
+  while(upcoming.length < POOL_SIZE){
+    if(++guard > 500) return; // paranoia — never spin forever
+    if(initDeck.A.length===0 && initDeck.B.length===0){
+      buildRoundDeck(fillRound + 1);
+      if(initDeck.A.length===0 && initDeck.B.length===0) return; // no living units — game ending
+    }
+    let side = fillSide;
+    if(initDeck[side].length===0) side = otherSide(side); // current side empty → take the other
+    if(initDeck[side].length===0) continue;               // both empty → loop builds next round
+    const id = initDeck[side].pop();                      // top of the face-down deck
+    const u = units.find(x=>x.id===id);
+    if(!u || u.hp<=0) continue;                           // dead unit's token — discard, don't add or flip
+    upcoming.push({id, round: fillRound});
+    fillSide = otherSide(side);
+  }
+}
+function purgeDeadUpcoming(){
+  upcoming = upcoming.filter(e=>{ const u=units.find(x=>x.id===e.id); return u && u.hp>0; });
+}
+function applyRoundStart(r){
+  roundNum = r;
+  acted = new Set();
   for(const u of units){ u.hasMoved=false; u.hasActed=false; u.bonusAtkRound=0; u.bonusMoveTurn=0; u.vuln=0; }
-  acted=new Set();
-  const startingSide = initiativeToken;       // who draws first this round
-  initiativeToken = startingSide==="A" ? "B" : "A"; // and flip for next round
-  buildInitOrder(startingSide);
-  advance();
 }
 function advance(){
-  // Pop the next live token. Dead-unit tokens are silently skipped.
-  while(initPos < initOrder.length){
-    const id = initOrder[initPos++];
-    const u = units.find(x=>x.id===id);
-    if(!u || u.hp<=0) continue;
-    activeId = u.id;
-    u.hasMoved=false; u.hasActed=false; u.bonusMoveTurn=0;
-    sel=null;
-    return;
-  }
-  // Sequence exhausted → next round
-  activeId=null;
-  if(!over) startRound();
+  purgeDeadUpcoming();
+  refillPool();
+  if(upcoming.length===0){ activeId=null; return; } // pool empty + no decks → game over imminent
+  const entry = upcoming.shift();
+  const u = units.find(x=>x.id===entry.id);
+  if(!u || u.hp<=0){ return advance(); } // safety — entry died; take the next
+  if(entry.round !== roundNum) applyRoundStart(entry.round);
+  activeId = u.id;
+  u.hasMoved=false; u.hasActed=false; u.bonusMoveTurn=0;
+  sel=null;
+  // Top the pool back up so the next 5 stay visible.
+  purgeDeadUpcoming();
+  refillPool();
 }
 function endActiveTurn(){
   const u=activeUnit();
@@ -1051,7 +1084,7 @@ function endActiveTurn(){
     const p=players[u.owner];
     if(p.deck.length) p.hand.push(p.deck.pop());
   }
-  // initOrder dictates the full round order — no per-turn side flip needed.
+  // The rolling pool dictates order; advance() refills it after consuming this turn.
   activeId=null; sel=null; lastMove=null;
   if(over) return;
   advance(); render(); promptOrAi();
@@ -1129,6 +1162,8 @@ function isDisplacementImmune(unit){
 function killCheck(defender){
   if(defender.hp<=0){
     if(board[defender.r][defender.c].unit===defender) board[defender.r][defender.c].unit=null;
+    // Drop the dead unit's pending turns from the visible pool and top it back up.
+    if(phase==="play"){ purgeDeadUpcoming(); if(!over) refillPool(); }
     // Warlock — Soul Drain: any Warlock on the opposing side heals 2 HP when an enemy dies.
     const enemySide = defender.owner==="A"?"B":"A";
     for(const u of units){
@@ -1959,19 +1994,29 @@ function computeHl(){
     if(u.heal) for(const a of healablyAdjacent(u)) board[a.r][a.c]._hl="heal"; }
 }
 function renderInit(){
-  // Public, face-up round order: every upcoming activation is shown in sequence. Past
-  // activations (including dead-unit skips) dim out; the current one highlights.
+  // Rolling pool: the active unit (NOW) followed by the next POOL_SIZE upcoming turns.
+  // A round divider marks where the pool crosses into the next round.
   const el=document.getElementById("init"); el.innerHTML="";
   const lbl=document.createElement("span"); lbl.className="lbl"; lbl.textContent="R"+roundNum; el.appendChild(lbl);
-  for(let i=0;i<initOrder.length;i++){
-    const u = units.find(x=>x.id===initOrder[i]);
-    if(!u) continue;
-    const isActive = (i === initPos-1) && (u.id===activeId);
-    const isPast = i < initPos && !isActive;
-    const isDead = u.hp<=0;
+  const au = activeUnit();
+  if(au){
     const c=document.createElement("span");
-    c.className="ichip "+u.owner+(isActive?" active":"")+(isPast||isDead?" acted":"");
-    c.innerHTML = `${u.sym}` + (isActive ? `<span class="spd">now</span>` : "");
+    c.className="ichip "+au.owner+" active";
+    c.innerHTML=`${au.sym}<span class="spd">now</span>`;
+    el.appendChild(c);
+  }
+  let shownRound = roundNum;
+  for(const entry of upcoming){
+    const u = units.find(x=>x.id===entry.id);
+    if(!u) continue;
+    if(entry.round !== shownRound){
+      shownRound = entry.round;
+      const div=document.createElement("span"); div.className="lbl init-div"; div.textContent="R"+shownRound;
+      el.appendChild(div);
+    }
+    const c=document.createElement("span");
+    c.className="ichip "+u.owner;
+    c.innerHTML=`${u.sym}`;
     el.appendChild(c);
   }
 }
