@@ -80,6 +80,15 @@
   .unit .face.face-E{right:-6px; top:50%; transform:translateY(-50%);}
   .unit .face.face-W{left:-6px; top:50%; transform:translateY(-50%);}
 
+  #turnbar{display:none; background:var(--panel); border:1px solid var(--line); border-radius:10px;
+    padding:8px 12px; align-items:center; justify-content:space-between; gap:10px; font-size:13px;}
+  #turnbar.show{display:flex;}
+  #turnbar .tb-name b{color:var(--gold);}
+  #turnbar.B .tb-name b{color:var(--pb);}
+  #turnbar .tb-ctrs{display:flex; gap:8px; flex:0 0 auto;}
+  #turnbar .tb-ctr{font-size:11px; color:var(--dim); background:#262a33; border:1px solid var(--line);
+    border-radius:6px; padding:2px 7px; white-space:nowrap;}
+  #turnbar .tb-ctr b{color:var(--ink); font-weight:700;}
   #status{background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:7px 10px;
     font-size:12.5px; min-height:34px; display:flex; align-items:center;}
   #status b{color:var(--gold);}
@@ -246,6 +255,7 @@
 </head>
 <body>
 <div id="app">
+  <div id="turnbar"></div>
   <div id="board"></div>
   <div id="status"></div>
   <div id="cardDetail">
@@ -1088,7 +1098,8 @@ function endActiveTurn(){
 function promptOrAi(){
   const u=activeUnit(); if(!u){ render(); return; }
   if(u.owner==="A"){
-    say(`<b>${u.name}</b>'s turn — move, attack, or play a card.`);
+    // The turn bar shows whose turn it is + counters; keep the status line clear for action feedback.
+    say("");
     render();
   } else {
     busy=true; render();
@@ -1955,6 +1966,22 @@ function computeHl(){
   if(!u.hasActed){ for(const e of enemiesInRange(u)) board[e.r][e.c]._hl="atk";
     if(u.heal) for(const a of healablyAdjacent(u)) board[a.r][a.c]._hl="heal"; }
 }
+function renderTurnbar(){
+  // Top-of-screen panel: whose turn it is + this turn's move/action economy.
+  // Each turn a unit gets exactly one move and one action (sigils are free and don't count).
+  const el=document.getElementById("turnbar");
+  const u=activeUnit();
+  if(!u){ el.className=""; el.innerHTML=""; return; }
+  const mv=u.hasMoved?1:0, ac=u.hasActed?1:0;
+  el.className=u.owner;
+  el.classList.add("show");
+  el.innerHTML =
+    `<span class="tb-name">${u.sym} <b>${u.name}</b>'s turn</span>`+
+    `<span class="tb-ctrs">`+
+      `<span class="tb-ctr">Moves <b>${mv}/1</b></span>`+
+      `<span class="tb-ctr">Actions <b>${ac}/1</b></span>`+
+    `</span>`;
+}
 function renderInit(){
   // Rolling pool: the active unit (NOW) followed by the next POOL_SIZE upcoming turns.
   // A round divider marks where the pool crosses into the next round.
@@ -2019,7 +2046,8 @@ function render(){
   if(!playing) document.getElementById("cardDetail").classList.remove("show");
   document.getElementById("init").style.display=playing?"":"none";
   document.querySelector(".barrow").style.display=playing?"":"none";
-  if(!playing){ return; }
+  if(!playing){ document.getElementById("turnbar").classList.remove("show"); return; }
+  renderTurnbar();
   renderInit();
   document.getElementById("deckInfo").textContent=`Hand ${players.A.hand.length} · Deck ${players.A.deck.length}`;
   const h=document.getElementById("hand"); h.innerHTML="";
