@@ -356,6 +356,7 @@
     <li><b>push / pull</b> — pure displacement K tiles (kb damage if blocked)</li>
     <li><b>push-adj</b> — shove every enemy adjacent to caster K tiles away (kb if blocked)</li>
     <li><b>dash</b> — caster teleports to any empty tile within R (ignores blockers)</li>
+    <li><b>dash-attack</b> — caster dashes adjacent to a chosen enemy (in range R), then attacks for +N damage</li>
     <li><b>swap</b> — caster swaps places with a target ally</li>
     <li><b>heal</b> — restore N HP to target ally</li>
     <li><b>heal-all</b> — restore N HP to every ally</li>
@@ -684,10 +685,10 @@ const CARDS={
   /* ⚔️ KNIGHT — pushing frontline */
   kn_greatsword:{hero:"knight",  tier:"C", kind:"dmg-push",  dmg:2, push:1, kb:1, bonus:{kind:"ownerStep", amount:1}, sym:"⚔", name:"Greatsword"},
   kn_shove:     {hero:"knight",  tier:"C", kind:"push",      push:2, kb:1,        bonus:{kind:"ownerStep", amount:1}, sym:"⛨", name:"Bulwark Shove"},
-  kn_cleave:    {hero:"knight",  tier:"C", kind:"dmg-adj",   dmg:1, splash:1,     bonus:{kind:"ownerStep", amount:1}, sym:"⚒", name:"Cleave"},
+  kn_cleave:    {hero:"knight",  tier:"C", kind:"dmg-adj",   dmg:1, splash:1,     bonus:{kind:"ownerStrike",amount:1}, sym:"⚒", name:"Cleave"},
   kn_hammer:    {hero:"knight",  tier:"E", kind:"dmg",       dmg:2,               bonus:{kind:"ownerStep", amount:1}, sym:"⚒", name:"Hammer Down"},
   kn_ironwall:  {hero:"knight",  tier:"E", kind:"push-adj",  push:1, kb:1,        bonus:{kind:"ownerStep", amount:1}, sym:"⛨", name:"Iron Wall"},
-  kn_champion:  {hero:"knight",  tier:"L", kind:"dmg-push",  dmg:2, push:1, kb:1, bonus:{kind:"ownerStep", amount:2}, sym:"☄", name:"Champion's Charge"},
+  kn_champion:  {hero:"knight",  tier:"L", kind:"dash-attack",dmg:3, push:1, kb:1, range:2, bonus:{kind:"ownerStrike",amount:1}, sym:"☄", name:"Champion's Charge"},
 
   /* 🏹 RANGER — knockback ranged */
   rn_quickshot: {hero:"ranger",  tier:"C", kind:"dmg",       dmg:2,               bonus:{kind:"ownerStep", amount:1}, sym:"›", name:"Quick Shot"},
@@ -698,7 +699,7 @@ const CARDS={
   rn_pierce:    {hero:"ranger",  tier:"L", kind:"dmg-push",  dmg:2, push:1, kb:2, bonus:{kind:"ownerStrike",amount:1}, sym:"✸", name:"Piercing Arrow"},
 
   /* 🔮 MAGE — AoE + pulls (blink theme on bonus) */
-  mg_spark:     {hero:"mage",    tier:"C", kind:"dmg",       dmg:2,               bonus:{kind:"ownerStep", amount:1}, sym:"⚔", name:"Spark"},
+  mg_blink:     {hero:"mage",    tier:"C", kind:"dash",      dash:1,              bonus:{kind:"ownerStep", amount:1}, sym:"≈", name:"Blink"},
   mg_frostpull: {hero:"mage",    tier:"C", kind:"dmg-pull",  dmg:1, pull:1, kb:1, bonus:{kind:"ownerStep", amount:1}, sym:"❄", name:"Frost Pull"},
   mg_arcane:    {hero:"mage",    tier:"C", kind:"dmg-adj",   dmg:1, splash:1,     bonus:{kind:"ownerStep", amount:1}, sym:"⛨", name:"Arcane Blast"},
   mg_fireball:  {hero:"mage",    tier:"E", kind:"dmg-adj",   dmg:2, splash:2,     bonus:{kind:"ownerStep", amount:1}, sym:"🔥", name:"Fireball"},
@@ -743,19 +744,19 @@ const CARDS={
   sc_vanish:    {hero:"scout",   tier:"C", kind:"dash",      dash:2,              bonus:{kind:"ownerStep", amount:1}, sym:"≈", name:"Vanish"},
   sc_snipe:     {hero:"scout",   tier:"E", kind:"dmg",       dmg:2,               bonus:{kind:"ownerStep", amount:1}, sym:"✸", name:"Snipe"},
   sc_pathfinder:{hero:"scout",   tier:"E", kind:"dash",      dash:3,              bonus:{kind:"ownerStep", amount:1}, sym:"»", name:"Pathfinder"},
-  sc_markprey:  {hero:"scout",   tier:"L", kind:"dmg",       dmg:3,               bonus:{kind:"ownerStep", amount:2}, sym:"◉", name:"Mark Prey"},
+  sc_vanishshot:{hero:"scout",   tier:"L", kind:"dash-attack",dmg:3, range:4,      bonus:{kind:"ownerStep", amount:1}, sym:"◉", name:"Vanishing Shot"},
 
   /* 🗡️ ASSASSIN — single-target burst + swap */
   as_dagger:    {hero:"assassin",tier:"C", kind:"dmg",       dmg:2,               bonus:{kind:"ownerStep", amount:1}, sym:"⚔", name:"Dagger"},
   as_stab:      {hero:"assassin",tier:"C", kind:"dmg",       dmg:2,               bonus:{kind:"ownerStep", amount:1}, sym:"⚒", name:"Vicious Stab"},
   as_shadowstep:{hero:"assassin",tier:"C", kind:"swap",                           bonus:{kind:"ownerStep", amount:1}, sym:"≈", name:"Shadow Step"},
-  as_backstab:  {hero:"assassin",tier:"E", kind:"dmg",       dmg:3,               bonus:{kind:"ownerStep", amount:1}, sym:"✸", name:"Backstab"},
+  as_backstab:  {hero:"assassin",tier:"E", kind:"dash-attack",dmg:2, range:3,      bonus:{kind:"ownerStep", amount:1}, sym:"✸", name:"Backstab"},
   as_deathmark: {hero:"assassin",tier:"E", kind:"dmg-pull",  dmg:2, pull:1, kb:1, bonus:{kind:"ownerStep", amount:1}, sym:"⚑", name:"Death Mark"},
-  as_strike:    {hero:"assassin",tier:"L", kind:"dmg",       dmg:4,               bonus:{kind:"ownerStep", amount:2}, sym:"☠", name:"Shadow Strike"},
+  as_strike:    {hero:"assassin",tier:"L", kind:"dmg",       dmg:3,               bonus:{kind:"ownerStep", amount:2}, sym:"☠", name:"Shadow Strike"},
 
   /* 🏰 SENTINEL — AoE push, heavy tank */
-  sn_halberd:   {hero:"sentinel",tier:"C", kind:"dmg",       dmg:2,               bonus:{kind:"ownerStep", amount:1}, sym:"⚔", name:"Halberd"},
-  sn_bash:      {hero:"sentinel",tier:"C", kind:"dmg-push",  dmg:1, push:1, kb:1, bonus:{kind:"ownerStep", amount:1}, sym:"⚒", name:"Bash"},
+  sn_halberd:   {hero:"sentinel",tier:"C", kind:"dmg",       dmg:2,               bonus:{kind:"ownerStrike",amount:1}, sym:"⚔", name:"Halberd"},
+  sn_bash:      {hero:"sentinel",tier:"C", kind:"dmg-push",  dmg:1, push:1, kb:1, bonus:{kind:"ownerStrike",amount:1}, sym:"⚒", name:"Bash"},
   sn_walloff:   {hero:"sentinel",tier:"C", kind:"push-adj",  push:1, kb:1,        bonus:{kind:"ownerStep", amount:1}, sym:"⛨", name:"Wall of Force"},
   sn_stonesmash:{hero:"sentinel",tier:"E", kind:"dmg-push",  dmg:2, push:1, kb:1, bonus:{kind:"ownerStep", amount:1}, sym:"⚒", name:"Stone Smash"},
   sn_holdline:  {hero:"sentinel",tier:"E", kind:"push",      push:2, kb:2,        bonus:{kind:"ownerStep", amount:1}, sym:"⛨", name:"Hold the Line"},
@@ -764,7 +765,7 @@ const CARDS={
   /* 💀 NECROMANCER — pull, drain, AoE */
   nc_wand:      {hero:"necromancer",tier:"C", kind:"dmg",     dmg:2,              bonus:{kind:"ownerDrain",amount:1}, sym:"⚔", name:"Bone Wand"},
   nc_grasp:     {hero:"necromancer",tier:"C", kind:"dmg-pull",dmg:1, pull:1, kb:1,bonus:{kind:"ownerDrain",amount:1}, sym:"⫯", name:"Withering Grasp"},
-  nc_shroud:    {hero:"necromancer",tier:"C", kind:"dmg-adj", dmg:1, splash:1,    bonus:{kind:"ownerDrain",amount:1}, sym:"⛨", name:"Grave Shroud"},
+  nc_seize:     {hero:"necromancer",tier:"C", kind:"dmg-pull",dmg:1, pull:1, kb:1, bonus:{kind:"ownerDrain",amount:1}, sym:"❦", name:"Grave Seize"},
   nc_corpse:    {hero:"necromancer",tier:"E", kind:"dmg-self-heal", dmg:2, heal:2,bonus:{kind:"ownerHeal", amount:1}, sym:"💀", name:"Corpse Feast"},
   nc_gravepull: {hero:"necromancer",tier:"E", kind:"pull",    pull:2, kb:2,       bonus:{kind:"ownerDrain",amount:1}, sym:"⫯", name:"Grave Pull"},
   nc_reaper:    {hero:"necromancer",tier:"L", kind:"dmg-pull",dmg:2, pull:1, kb:1,bonus:{kind:"ownerDrain",amount:2}, sym:"☠", name:"Reaper's Scythe"},
@@ -1326,6 +1327,31 @@ function pullTarget(target, caster, distance, kb, owner){
   }
   return {moved, blocked, kbTaken, dead};
 }
+// Dash-attack support: pick an enemy within `card.range` manhattan that has at least one
+// orthogonally-adjacent free tile (the caster's own tile counts as free since they'd vacate).
+function dashAttackTargets(u, card){
+  const range = card.range || (u.move + 1);
+  const out=[];
+  eachUnit(t=>{
+    if(t.owner===u.owner) return;
+    if(manh(u,t) > range) return;
+    if(pickDashLanding(u, t)) out.push(t);
+  });
+  return out;
+}
+function pickDashLanding(u, target){
+  // Closest orthogonally-adjacent free tile to `target`; caster's own tile counts as free.
+  let best=null, bestDist=999;
+  for(const k in VEC){
+    const [dr,dc]=VEC[k]; const nr=target.r+dr, nc=target.c+dc;
+    if(!inB(nr,nc)) continue;
+    const occupant = board[nr][nc].unit;
+    if(occupant && occupant.id !== u.id) continue;
+    const d = Math.abs(nr-u.r)+Math.abs(nc-u.c);
+    if(d < bestDist){ bestDist=d; best={r:nr,c:nc}; }
+  }
+  return best;
+}
 function dashCaster(caster, target){
   // teleport-style — destination is an empty in-bounds tile; no path validation between.
   if(!caster) return false;
@@ -1514,6 +1540,21 @@ function playCard(owner,handIdx,target){
       const r=pullTarget(u, caster, card.pull||1, card.kb||0, owner);
       say(`${card.name}: pulled ${r.moved}${r.blocked?` (impact ${r.kbTaken})`:""}.`);
     }
+  } else if(card.kind==="dash-attack"){
+    // Charge an enemy: dash to an empty tile orthogonally adjacent to them, then attack.
+    // Range gate is handled by validity / highlight; here we assume the target is legal.
+    const u=board[target.r][target.c].unit;
+    if(u && caster){
+      const landing = pickDashLanding(caster, u);
+      if(landing && !(landing.r===caster.r && landing.c===caster.c)){
+        dashCaster(caster, landing); // teleport-style, sets facing toward landing
+      }
+      attack(caster, u, {bonusDmg: card.dmg, consumeAction:false, label: card.name});
+      if(u.hp>0 && card.push){
+        const r=pushTarget(u, caster, card.push, card.kb||0, owner);
+        say(`${card.name}: pushed ${r.moved}${r.blocked?` (impact ${r.kbTaken})`:""}.`);
+      }
+    }
   } else if(card.kind==="push"){
     const u=board[target.r][target.c].unit;
     if(caster){
@@ -1579,7 +1620,7 @@ function playCard(owner,handIdx,target){
   // kind=dash/swap additionally consume the move (they ARE the unit's movement for the turn).
   if(caster && caster.owner===owner && card.hero!=="sigil"){
     caster.hasActed=true;
-    if(card.kind==="dash" || card.kind==="swap") caster.hasMoved=true;
+    if(card.kind==="dash" || card.kind==="swap" || card.kind==="dash-attack") caster.hasMoved=true;
   }
 }
 function canPlayCardNow(){
@@ -1692,6 +1733,9 @@ function onCard(i){
   if(k==="swap"){
     let hasAlly=false; eachUnit(au=>{ if(au.owner==="A" && au.id!==u.id) hasAlly=true; });
     if(!hasAlly){ say(`No other ally to swap with.`); return; }
+  }
+  if(k==="dash-attack"){
+    if(dashAttackTargets(u, card).length===0){ say(`No enemy in charge range (or no room to land).`); return; }
   }
   sel=(sel&&sel.t==="card"&&sel.i===i)?null:{t:"card",i}; render();
 }
@@ -1839,6 +1883,16 @@ function aiPickCardForUnit(u){
         if(s>bs){bs=s; bestT=t;}
       }
       if(!bestT || bs<2) return; score=bs; target=bestT;
+    } else if(k==="dash-attack"){
+      // Charge an enemy in extended range; pick the best target by (damage + hero bonus +
+      // finisher bump). The AI doesn't simulate the landing arc, so this is just "find a
+      // good enemy to charge".
+      let bestT=null,bs=-1;
+      for(const t of dashAttackTargets(u, card)){
+        const s = card.dmg*1.5 + (t.hp<=card.dmg+u.atk?6:0) + (t.hero?3:0);
+        if(s>bs){ bs=s; bestT=t; }
+      }
+      if(!bestT) return; score=bs; target={r:bestT.r,c:bestT.c};
     } else if(k==="swap"){
       return; // AI skips swap — too situational for the simple heuristics
     }
@@ -1886,6 +1940,7 @@ function cardMainText(c, caster){
     case "dmg-self-heal": return `${who} attacks for +${c.dmg} damage; caster heals +${c.heal} HP`;
     case "dmg-push": return `${who} attacks for +${c.dmg} damage, pushing target ${c.push||1}${c.kb?` (+${c.kb} impact if blocked)`:""}`;
     case "dmg-pull": return `${who} attacks for +${c.dmg} damage, pulling target ${c.pull||1} toward caster${c.kb?` (+${c.kb} impact if blocked)`:""}`;
+    case "dash-attack": return `${who} charges an enemy within ${c.range||3}: dash adjacent, then attack for +${c.dmg} damage${c.push?`, push ${c.push}${c.kb?` (+${c.kb} impact if blocked)`:""}`:""}`;
     case "push": return `push enemy ${c.push||1} tiles away${c.kb?` (${c.kb} impact dmg if blocked)`:""}`;
     case "pull": return `pull enemy ${c.pull||1} tiles toward caster${c.kb?` (${c.kb} impact dmg if blocked)`:""}`;
     case "push-adj": return `push every enemy adjacent to caster ${c.push||1} tiles${c.kb?` (${c.kb} impact dmg if blocked)`:""}`;
@@ -2012,6 +2067,8 @@ function computeHl(){
       board[u.r][u.c]._hl="spell";
     } else if(k==="dash"){
       for(const t of dashTilesFor(u, card.dash||1)) board[t.r][t.c]._hl="move";
+    } else if(k==="dash-attack"){
+      for(const e of dashAttackTargets(u, card)) board[e.r][e.c]._hl="spell";
     } else if(k==="swap"){
       eachUnit(au=>{ if(au.owner==="A" && au.id!==u.id) board[au.r][au.c]._hl="heal"; });
     }
@@ -2162,6 +2219,7 @@ function render(){
     else if(k==="pull") hint="tap an enemy — yanks them straight toward the caster";
     else if(k==="push-adj") hint="tap the caster's tile to shove every adjacent enemy";
     else if(k==="dash") hint="tap an empty tile to teleport there";
+    else if(k==="dash-attack") hint="tap an enemy — dash adjacent and strike them";
     else if(k==="swap") hint="tap an ally to swap places with the caster";
     const tag=card.spell?"Spell · "+card.cat:card.cat;
     const src=CLASSES[card.hero];
