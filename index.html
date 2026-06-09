@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="theme-color" content="#15171c">
 <title>Sigil Tactics</title>
+<link rel="icon" type="image/png" href="assets/ui/logo-mark.png">
 <meta name="description" content="Sigil Tactics — a 5v5 tactical card-battler on a 5×4 grid. Initiative by speed, push and pull positioning, and free sigils that chain into combo turns.">
 <meta property="og:title" content="Sigil Tactics">
 <meta property="og:description" content="5v5 tactical card-battler. Initiative by speed, push and pull positioning, and free sigils that chain into combo turns. Wipe out the enemy heroes.">
@@ -67,26 +68,36 @@
   }
 
   .unit{width:88%; height:88%; border-radius:8px; display:flex; flex-direction:column;
-    align-items:center; justify-content:center; position:relative; color:#fff; font-weight:700;}
-  .unit.A{background:linear-gradient(160deg,#3a7bef,#214fb0);}
-  .unit.B{background:linear-gradient(160deg,#e8584d,#a82f26);}
+    align-items:center; justify-content:center; position:relative; color:#fff; font-weight:700;
+    overflow:hidden;}
+  /* Side-coloured backgrounds — act as a fallback if the portrait PNG is missing, and as a
+     coloured frame around the painting when it loads (the portrait covers the centre, leaving
+     a side-tinted edge from the gradient + outline). */
+  .unit.A{background:linear-gradient(160deg,#3a7bef,#214fb0); outline:2px solid var(--pa); outline-offset:-1px;}
+  .unit.B{background:linear-gradient(160deg,#e8584d,#a82f26); outline:2px solid var(--pb); outline-offset:-1px;}
   .unit.hero{box-shadow:inset 0 0 0 2px var(--gold);}
-  .unit .sym{font-size:min(5.2vw,22px); line-height:1;}
+  /* Emoji symbol sits behind the portrait so it shows if the PNG fails to load. */
+  .unit .sym{position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-size:min(5.2vw,22px); line-height:1; z-index:0;}
+  /* Hero portrait painting — fills the tile, cropped to upper-third so the head shows.
+     object-position avoids the Gemini sparkle (bottom-right) entirely. */
+  .unit .portrait{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
+    object-position:50% 18%; z-index:1; pointer-events:none;}
   .unit.done{filter:grayscale(.55) brightness(.8);}
 
-  /* on-tile stat overlays */
-  .unit .stat-init{position:absolute; top:1px; left:3px; font-size:9px; font-weight:800; color:#fff; text-shadow:0 1px 2px #000;}
-  .unit .stat-hp{position:absolute; top:1px; right:3px; font-size:9.5px; font-weight:800; color:#fff; text-shadow:0 1px 2px #000;}
-  .unit .hpwrap{position:absolute; left:3px; right:3px; bottom:3px; height:4px; background:rgba(0,0,0,.55); border-radius:2px; overflow:hidden;}
+  /* on-tile stat overlays — z-index:2 keeps them above the portrait painting */
+  .unit .stat-init{position:absolute; top:1px; left:3px; font-size:9px; font-weight:800; color:#fff; text-shadow:0 1px 2px #000, 0 0 3px #000; z-index:2;}
+  .unit .stat-hp{position:absolute; top:1px; right:3px; font-size:9.5px; font-weight:800; color:#fff; text-shadow:0 1px 2px #000, 0 0 3px #000; z-index:2;}
+  .unit .hpwrap{position:absolute; left:3px; right:3px; bottom:3px; height:4px; background:rgba(0,0,0,.55); border-radius:2px; overflow:hidden; z-index:2;}
   .unit .hpbar{height:100%; background:#3fb36a; transition:width .25s;}
   .unit .hpbar.low{background:#e8b53b;}
   .unit .hpbar.crit{background:#e8584d;}
   .unit .buffs{position:absolute; left:3px; bottom:9px; font-size:8.5px; font-weight:800; color:#fff;
-    text-shadow:0 0 3px #000; background:rgba(12,13,17,.7); padding:0 3px; border-radius:4px; line-height:1.35;}
+    text-shadow:0 0 3px #000; background:rgba(12,13,17,.7); padding:0 3px; border-radius:4px; line-height:1.35; z-index:2;}
 
   /* facing arrow — bigger, anchored to the side the unit is facing (half on the edge, half outside) */
   .unit .face{position:absolute; font-size:16px; font-weight:900; line-height:1; color:var(--gold);
-    text-shadow:0 0 3px #000, 0 0 5px #000; pointer-events:none;}
+    text-shadow:0 0 3px #000, 0 0 5px #000; pointer-events:none; z-index:3;}
   .unit .face.face-N{top:-6px; left:50%; transform:translateX(-50%);}
   .unit .face.face-S{bottom:-6px; left:50%; transform:translateX(-50%);}
   .unit .face.face-E{right:-6px; top:50%; transform:translateY(-50%);}
@@ -188,6 +199,8 @@
   #title.open, #missions.open, #missionIntro.open, #victory.open{display:flex;}
   #title .tbox, #missions .mbox, #missionIntro .ibox, #victory .vbox{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:22px 18px; max-width:420px; width:100%; text-align:center; position:relative;}
   #title h1{margin:0 0 4px; font-size:36px; letter-spacing:3px; color:var(--gold);}
+  #title h1.title-h1{padding:0;}
+  #title .wordmark{display:block; margin:0 auto; max-width:min(320px,72vw); height:auto;}
   #title .tag{font-size:11px; color:var(--dim); margin-bottom:22px;}
   .tbtn{display:block; width:100%; background:var(--gold); color:#0c0d11; border:none; border-radius:8px; padding:12px; font-weight:800; letter-spacing:2px; font-size:14px; cursor:pointer; margin-bottom:8px;}
   .tbtn.ghost{background:transparent; color:var(--gold); border:1px solid var(--gold);}
@@ -404,7 +417,7 @@
 </div></div>
 
 <div id="title"><div class="tbox">
-  <h1>SIGIL TACTICS</h1>
+  <h1 class="title-h1"><img class="wordmark" src="assets/ui/wordmark.png" alt="SIGIL TACTICS" onerror="this.replaceWith(document.createTextNode('SIGIL TACTICS'))"></h1>
   <div class="tag">tactical drafting · grid combat · card opportunity-cost</div>
   <button class="tbtn" onclick="enterCampaign()">CAMPAIGN</button>
   <button class="tbtn ghost" onclick="enterSkirmish()">SKIRMISH</button>
@@ -2266,10 +2279,11 @@ function render(){
         const pct=100*Math.max(0,u.hp)/u.maxHp;
         const hpCls = pct<=25?" crit" : pct<=50?" low" : "";
         t.innerHTML=`<div class="unit ${u.owner}${u.hero?" hero":""}${done?" done":""}">
+          <span class="sym">${u.sym}</span>
+          <img class="portrait" src="assets/heroes/${u.cls}.png" alt="" onerror="this.remove()">
           <span class="face face-${u.facing}">${arrow}</span>
           <span class="stat-init">i${u.init}</span>
           <span class="stat-hp">${Math.max(0,u.hp)}/${u.maxHp}</span>
-          <span class="sym">${u.sym}</span>
           ${buffs?`<span class="buffs">${buffs}</span>`:""}
           <div class="hpwrap"><div class="hpbar${hpCls}" style="width:${pct}%"></div></div>
         </div>`;
