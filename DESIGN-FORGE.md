@@ -33,32 +33,69 @@ its class progress, and its identity by looking at it.
 
 ---
 
-## Build status — v0.1 prototype (2026-06-17)
+## Product & physical pack (v0.2)
 
-`forge.html` (in this repo) implements the full loop end-to-end vs. an AI: 5
-Recruits, auto-deploy, lowest-level turn order, **cast-and-tuck** (resolve +
-level), **attunement** → passive + signature snap + queue-jump, elimination win.
-Self-contained, mobile-portrait, no build step — open the file or serve the
-folder. The shipped v0.20 `index.html` is left untouched for side-by-side play;
-promote `forge.html` to `index.html` when it's the one you want live.
+**Positioning: an add-on game for _Sorcery: Contested Realm_ players.** They
+already own the 5×4 playmat (the board was sized to it from day one), so the
+product is *just a pack of cards* that turns their mat into a new tactics game.
 
-Validated headlessly (no browser in the build env) by grinding **200 AI-vs-AI
-games**: all decisive, no errors, ~28 turns avg, **100/100 win balance** (mirror
-is fair), heroes emerge in **196/200** games (~3 attuned units of 10 per game),
-ascension rare (8/200), all 9 classes attuning.
+**One small pack (~59 cards), no dice, no tokens:**
+- **10 Unit cards** — 5 blue + 5 red Recruits (identical; colour = side). Health
+  is tracked on this card (wounds, below).
+- **2× mirror Sigil deck** — 24 distinct cards (5 classes × 4 + 4 neutral),
+  printed twice = 48. Each prints its class glyph + a reminder of that class's
+  attune passive, so no separate hero cards are needed.
+- **1 rules card.** Total ≈ **59 → one solid pack.**
 
-**Tuning decisions from that sim (resolves open Q #1–2):**
-- **Attune threshold → 2** (top-level constant `ATTUNE`; `ASCEND=4`). At 3, heroes
-  appeared in <30 % of ~28-turn games — the core fantasy mostly didn't fire. At 2
-  it's ~98 %, while the round-robin still gates attunement to mid-game and mixed
-  *Mercenary* units stay common. This doc's body uses 2 to match the build.
-- **AI funnels** — biases each unit toward stacking a glyph it already holds, so
-  the opponent forges coherent heroes too.
+**Base pack = 5 classes** (the full spectrum): ⚔️ Knight (tank), 🏹 Ranger
+(range), 🔮 Mage (AoE), 🗡️ Assassin (flank), 🛡️ Paladin (support). The other four
+heroes ship as **expansion packs** that drop new glyphs into the deck — recurring
+revenue, each pack stays small.
 
-**Deferred from this prototype (flagged, not yet built):** terrain / high ground;
-the dash / swap / push / push-adj / team-ATK-buff card kinds (implemented kinds:
-dmg, splash, vuln, lifesteal, heal, shield, charge, single ATK-buff); manual
-deploy placement (auto-formation for now); campaign (skirmish-vs-AI only).
+**No dice — wounds instead.** Life totals are tiny:
+- A unit takes **2 wounds** to kill. **Tank** classes (Knight, Paladin) raise that
+  to 3, then 4 ascended — their attune payoff.
+- A hit deals **1 wound**; **+1 from the rear** (or, for a flank class, the side),
+  **+1** for a heavy sigil, **+1** if the target is *vulnerable*. A **guard**
+  (shield) absorbs the next wound; a **mend** (heal) removes one.
+- Tracking is cardful — rotate / mark the unit card as wounds land; no dice, no
+  counters. (A tried variant — "your tucked sigils ARE your toughness" — let
+  targets out-tank the small deck and caused stalls; dropped. See below.)
+
+This replaces v0.20's numeric HP/damage (`{4,6,…}` dice, 2–7 damage). The old
+`DESIGN.md` card effects no longer apply to the forge pack — **`forge.html` is
+authoritative** for shipped values.
+
+---
+
+## Build status — v0.2 prototype (2026-06-17)
+
+`forge.html` implements the full loop end-to-end vs. an AI: 5 Recruits,
+auto-deploy, **lowest-level turn order**, **cast-and-tuck** (resolve + level),
+**wounds** (no dice), **attunement** → passive + boost + queue-jump, elimination
+win + a deck-out backstop. Self-contained, mobile-portrait, no build step. The
+shipped v0.20 `index.html` is left untouched; promote `forge.html` to
+`index.html` when it's the one you want live.
+
+Validated headlessly (no browser in env) by grinding **300 AI-vs-AI games**: all
+decisive, no errors, **~23 turns avg**, win split 138/162 (within mirror
+variance), heroes emerge in **289/300** games (~2.7 attuned units of 10 per
+game), all 5 classes attuning evenly.
+
+**Key build decisions (resolve open Q #1–2, #5):**
+- **Wound scale + 5-class tight pack** per the product plan above; deck = 24/player.
+- **Attune threshold = 2** (`ATTUNE`; `ASCEND=4`). 3 left heroes appearing in
+  <30 % of games.
+- **Toughness is flat** (2, +1/+2 for tank attune) — *not* tied to tuck count. The
+  tuck-count version let units out-tank the finite deck and games stalled.
+- **Deck-out backstop:** if both decks+hands empty, most-survivors wins —
+  guarantees termination.
+- **AI funnels** units toward a coherent glyph.
+
+**Implemented card kinds:** dmg, dmg-adj (splash), dmg-vuln, mend (heal), guard
+(shield), charge (move), buff (+wound). **Deferred:** terrain; dash/swap/push;
+manual deploy (auto-formation for now); campaign (skirmish-vs-AI only); the other
+4 classes (expansion packs); a rewrite of `paper/rules.md` to the forge model.
 
 ---
 
@@ -89,6 +126,7 @@ inscribe onto a blank unit, and the marks are what it becomes.
 | Hero identity | Chosen up front | **Emergent** — 2 tucked cards of one glyph = that hero |
 | Passives | Granted by the drafted hero | Granted by **attunement** (2 of a glyph) |
 | Growth in a match | None | **Every card you cast levels its unit** — level = cards tucked |
+| Health | HP on dice (d4–d20), 2–7 damage | **Wounds** — 2 to kill, no dice (§ Product) |
 | Turn order | Speed-order initiative + token | **Act with your lowest-level unit** (fewest tucks) |
 | Speed stat | Per-hero, unique | **Removed** — fast classes get a queue-jump instead (§7) |
 | Basic attack | Yes (ATK in range) | **Removed** — you must play a card each turn |
@@ -104,7 +142,7 @@ are identical at deploy.
 
 | Stat | Value | Note |
 |---|---|---|
-| HP | 6 (d6) | Smallest "real" die — nowhere to go but up |
+| Toughness | 2 wounds | No dice; tank classes raise it on attune (§ Product) |
 | ATK | 1 | |
 | Move | 1 | |
 | Range | 1 | Melee |
@@ -112,9 +150,9 @@ are identical at deploy.
 | Level | 0 | = the cards tucked behind it; grows as you play |
 
 No Speed stat (turn order is level-based now, §8). A Recruit does nothing special
-until you inscribe sigils onto it. HP stays on the polyhedral ladder
-`{4,6,8,10,12,20}` — it only changes at attunement (a discrete, visible event),
-never by off-die increments.
+until you inscribe sigils onto it. Health is **wounds**, not HP — 2 wounds to
+kill, raised only by tank attunement (§ Product) — so there are no dice and no
+numbers bigger than a handful.
 
 ---
 
@@ -205,27 +243,28 @@ The payoff. The moment a generic Recruit snaps into a named hero.
 Because turn order forces your activations to spread, attuning a unit takes a few
 rotations of deliberately feeding it one glyph — a real, visible build-up.
 
-| Glyph | Passive | Signature snap (at 3) |
+Snaps are in the wound model (toughness = max wounds; **bold** = in the 5-class base pack):
+
+| Glyph | Passive | Signature snap (at 2) |
 |---|---|---|
-| ⚔️ Knight | Steadfast — immune to push/pull | HP die ↑ d6→d10 |
-| 🛡️ Paladin | Guardian — after a heal card, +1 to most-wounded ally | HP die ↑ d6→d10; may heal an adjacent ally as its cast |
-| 🪓 Berserker | Bloodthirst — heal 1 when it damages an enemy | ATK 1→2; HP die ↑ d6→d8 |
-| 🌿 Druid | Symbiosis — after a heal card, heal self 1 | Range 1→2; may heal |
-| 🔮 Mage | Resonance — your AoE cards +1 splash | Range 1→2 |
-| 🩸 Warlock | Soul Drain — heal 2 when any enemy dies | Range 1→3 |
-| 🏹 Ranger | Spotter — your dmg/push/pull cards +1 range | Range 1→2 |
-| 👁️ Scout | Pathfinder — your dash cards +1 range | Move 1→2; **queue-jump** |
-| 🗡️ Assassin | Shadow Step — after moving, next hit is rear-arc | Move 1→2; flank arcs (side ×2 / rear ×2.5); **queue-jump** |
+| **⚔️ Knight** | Steadfast — immune to knockback | **+1 toughness** (3 wounds) |
+| **🛡️ Paladin** | Guardian — after a mend card, heal most-wounded ally 1 | **+1 toughness; may mend an ally as its cast** |
+| **🔮 Mage** | Resonance — your splash cards +1 wound | **Range 1→2** |
+| **🏹 Ranger** | Spotter — your damage cards reach +1 | **Range 1→2** |
+| **🗡️ Assassin** | Shadow Step — after moving, your hit is rear-arc | **Move 1→2; flank (side counts as rear); queue-jump** |
+| 🪓 Berserker | Bloodthirst — heal 1 when it wounds an enemy | +1 wound on its attacks |
+| 🌿 Druid | Symbiosis — after a mend card, heal self 1 | Range 1→2; may mend |
+| 🩸 Warlock | Soul Drain — heal 1 when any enemy dies | Range 1→3 |
+| 👁️ Scout | Pathfinder — queue-jump | Move 1→2; queue-jump |
 
 **Queue-jump** is how the deleted Speed stat re-enters: an attuned Scout/Assassin
 **may be activated even when it isn't your lowest-level unit** — the fast classes
 break the rotation, exactly the edge their old high Speed gave them.
 
-**Ascension (5 of a glyph).** Fill a unit with five of one class and it Ascends —
-passive empowered + one more signature step (e.g. Ascended Knight → d12; Ascended
-Assassin → Move 3). A full single-glyph unit is the old v0.20 hero, reconstructed:
-the shipped heroes become the "perfect curve" you can aim a unit at. *(Exact
-ascension bonuses — tuning, §13.)*
+**Ascension (`ASCEND` = 4 of a glyph).** Stack four of one class and the unit
+Ascends — one more signature step (e.g. Ascended Knight → 4 wounds; Ascended
+Assassin → Move 3). Rare in a 24-card deck — the "fully committed" payoff. *(Exact
+bonuses — tuning, §13.)*
 
 **The Mercenary (no 2-of-a-glyph).** A mixed unit never attunes — no passive, but
 it got every effect it cast and can answer anything. Specialize for a passive, or
@@ -259,42 +298,32 @@ that tracks turn order is the same thing that tracks levels and identity.
 
 ## 9. Classes & their Sigil suites
 
-Every card belongs to a class and bears its glyph; casting any of them inscribes a
-level in that class. **Card effects are unchanged from the v0.20 suites in
-`DESIGN.md`** — the rework does not re-tune effects. What's new is only that each
-card now (a) bears a class glyph and (b) tucks as a level when cast. The class's
-*identity* (passive + signature stat) no longer rides on its equipment stats; it
-comes entirely from attunement (§7).
+Every card bears a class glyph; casting any of them inscribes a level in that
+class. Effects are on the **wound scale** (§ Product): damage in wounds (1, or 2
+for a heavy sigil), plus mend / guard / vulnerable / splash. The base pack is the
+**24-card mirror deck** below (5 classes × 4 + 4 neutral); the live values are in
+`forge.html`.
 
-**Worked example — the Knight suite (⚔️), effects straight from v0.20:**
+| Glyph | Sigil | Effect |
+|---|---|---|
+| ⚔️ Knight | Greatsword / Shield Bash / Bulwark / Cleave | 1 wound · 1 wound + vulnerable 1 · +2 guard (ally) · 1 wound + 1 splash |
+| 🏹 Ranger | Quick Shot / Piercing Arrow / Hunter's Mark / Volley | 1 wound · **2 wounds** · 1 wound + vuln 1 · 1 wound + 1 splash |
+| 🔮 Mage | Fireball / Lightning / Frostbolt / Magic Missile | 1 wound + 1 splash · **2 wounds** · 1 wound + vuln 1 · 1 wound |
+| 🗡️ Assassin | Dagger / Backstab / Shadow Strike / Mask | 1 wound · 1 wound · **2 wounds** · 1 wound + vuln 1 |
+| 🛡️ Paladin | Smite / Lay on Hands / Holy Plate / Censure | 1 wound · mend 2 · +2 guard · 1 wound + vuln 1 |
+| ✦ Neutral | Zap / Mend / Ward / Quickstep | 1 wound · mend 1 · +1 guard · +2 move |
 
-| Sigil | Effect (unchanged) |
-|---|---|
-| Greatsword | 4 dmg to an enemy in range |
-| Plate Mail | +5 shield to an ally |
-| Iron Helm | 4 dmg (headbutt) |
-| Steel Greaves | ally +3 move this turn |
-| War Banner | heal all allies +2, all allies +1 ATK this round |
-| Cleave | 3 dmg + 1 splash to adjacent |
-| Shield Bash | 4 dmg + mark vulnerable (+2 next hit) |
-| Rally | heal all allies +2 |
-| Shield Wall | +3 shield to all allies |
-| Battle Cry | 3 dmg + all allies +2 ATK this round |
+Casting **Greatsword** deals a wound and tucks a ⚔️; do it twice (across
+rotations) and the unit attunes to Knight (§7). Arc/vulnerable add wounds at
+resolution, so positioning still drives the damage.
 
-Casting **Greatsword** deals 4 and tucks a ⚔️ behind the unit; do that twice
-(across rotations) and the unit attunes to Knight. The other eight active classes
-work identically — 🏹 Ranger, 🔮 Mage, 🛡️ Paladin, 🩸 Warlock, 🌿 Druid, 🪓
-Berserker, 👁️ Scout, 🗡️ Assassin — each with its full v0.20 suite as glyph-bearing
-sigils. (Full effect lists live in `DESIGN.md`; they carry over verbatim.)
+**Neutral Sigils (✦)** bear no attuning glyph — flexible filler, and the natural
+pick for the inscribe-for-the-level safety valve. No card is free; one cast per
+turn.
 
-**Neutral Sigils (✦).** The 10 universal cards become a **Neutral class**:
-castable by anyone, they inscribe a level (so they still cost queue position and
-count toward total level) but bear no glyph that can attune — flexible filler and
-the natural pick for the inscribe-for-the-level safety valve. They are no longer
-"free": in a one-card-per-turn world there are no free casts.
-
-**Hidden classes (Sentinel, Necromancer, Crusader)** stay out of the deck, exactly
-as today — future glyphs once each has an authored suite.
+**The other four heroes** (🪓 Berserker, 🌿 Druid, 🩸 Warlock, 👁️ Scout) and the
+three hidden classes are **expansion-pack** content — authored as 4-sigil suites
+on the wound scale when their pack ships.
 
 ---
 
