@@ -9,8 +9,29 @@
 Decisions locked for v1 (2026-06-17):
 
 - **Growth is per-match.** Units start generic every battle; everything forged
-  and levelled resets when the match ends. (A persistent roguelite run is a
-  natural later layer — explicitly out of scope for v1.)
+  resets when the match ends. (A persistent roguelite run is a natural later
+  layer — explicitly out of scope for v1.)
+- **One deck per player.** Each side draws from its own single deck — not a
+  per-unit deck, not a communal draw pile. v1 is a mirror match (both players
+  run the same standard decklist), exactly as the paper rules already do.
+- **It must be playable on a table.** Every system here has to survive the
+  tabletop version (`paper/rules.md`) — the app *teaches* the paper game, so
+  the two can't diverge. See the hard constraint below.
+
+### Hard constraint — tabletop-trackable
+
+No system may require state a human can't track with **cards, dice, and tokens**.
+Concretely, this forbids:
+
+- **Hidden or accumulating per-unit counters** (XP bars, threshold tables). If a
+  value can't sit on a die face or be read off the cards in front of a unit,
+  it's out.
+- **Mid-game math that can't be pre-tabled.** Keep modifiers to small integers;
+  track a unit's current ATK/HP on a die or dial the way HP already works.
+
+Positive consequence, and the key design move: **a unit's "level" is just the
+forge cards physically stacked on it.** You read its power by looking at it. That
+single idea is what keeps the whole rework tabletop-legal — see §5.
 
 ---
 
@@ -41,11 +62,11 @@ adding one new axis (**levelling**).
 | System | v0.20 (hero-draft) | Forge rework |
 |---|---|---|
 | Your 5 units | Drafted heroes, fixed statlines | Identical generic **Recruits** |
-| Where cards come from | Union of your drafted heroes' suites | One shared pool; you draw from it |
+| Where cards come from | Union of your drafted heroes' suites | One standard deck per player; you draw from it |
 | What a card *is* | One-shot spell/equipment | **Forge cards** (permanent) + **Action cards** (one-shot) |
 | Hero identity | Chosen up front | **Emergent** — earned by forging a unit down an archetype |
 | Passives (Steadfast, etc.) | Granted by the drafted hero | Granted by **attunement** (3+ matching forge cards) |
-| Growth during a match | None | **XP → levels → forge slots + stat bumps** |
+| Growth during a match | None | **Forge a card = level up** — a unit's level *is* the gear stacked on it |
 | Draft phase | 1-2-2-1 snake | **Removed** |
 | Deploy phase | Face-down, concealed | Open placement (units are identical — nothing to hide) |
 | Win condition | Kill all enemy units | Unchanged |
@@ -65,7 +86,7 @@ on the board (5 a side) are mechanically identical at deploy.
 | Range | 1 | Melee |
 | Speed | 2 | Everyone ties at game start — see §8 |
 | Passive | none | Earned via attunement |
-| Forge slots open | 2 (Weapon, Armor) | More unlock with levels |
+| Forge slots | 5, all empty | Weapon / Armor / Helmet / Boots / Artifact — fill over the match |
 
 A Recruit can attack, move, play action cards, and forge — but it does nothing
 *special* until you build it. The fun is in the building.
@@ -92,8 +113,8 @@ the "craft your units into heroes" mechanic.
   Artifact**. One card per slot. Slots are unlocked by level (§5).
 - Forge cards are **not** removed or swapped in v1 — once forged, it's forged.
   (Re-forging / overwriting a slot is a flagged future option.)
-- A forge card can only go on a slot whose tier the unit's level allows
-  (Common/Epic/Legendary gating, §5).
+- All five slots are open from the start; you fill them over the match as you
+  draw gear and spend turns (§5). No tier or level gating in v1.
 
 The five slots map cleanly onto the equipment the game already has — every hero
 suite already ships exactly one Weapon, Armor, Helmet, Boots, and Artifact.
@@ -152,41 +173,37 @@ The full per-archetype forge tables are in §9.
 
 ---
 
-## 5. Levelling (the "level up as you play" axis)
+## 5. Levelling = forging (no XP, no counters)
 
-Units grow by **fighting**. Levelling is what gates how much a unit can be
-forged and nudges its raw stats up.
+> **A unit's level is simply how many forge cards are stacked on it (0–5).**
 
-### XP
+There is no XP, no threshold table, no level die. You level a unit up by
+**forging a card onto it**, and you read its level by counting the cards in front
+of it. That's the whole system — and it's what keeps the rework tabletop-legal.
 
-| Event | XP to the unit |
-|---|---|
-| Land a damaging attack or damage card (≥1 dmg dealt) | **+1** |
-| Land the killing blow on an enemy | **+3** |
+**How a unit grows:**
 
-(Healing and pure-utility plays grant no XP — you level by drawing blood. Tunable.)
+- **Forge as your action.** On a unit's turn, equip one forge card from hand into
+  an open slot. It costs that unit's action (it may still move). Growth is paid in
+  **tempo** (a turn spent forging isn't spent fighting) and **supply** (you have
+  to draw the gear). That's the natural power curve — no gating rules needed.
+- **Kills forge (the combat-feeds-growth hook).** When a unit lands a killing
+  blow, it may **immediately equip one forge card from hand for free** (no
+  action). Spoils of war. This is the "level up by fighting" feel, with zero
+  bookkeeping — it's a triggered action, not a counter.
 
-### Level table
+**Slots:** the five named slots (Weapon / Armor / Helmet / Boots / Artifact), one
+card each, all open from the start. No tier-gating in v1 — equip what you draw.
+Each forge card carries its own stat/ability bump, so a more-forged unit is
+straightforwardly stronger; the unit's current ATK/HP track on dice the way HP
+already does.
 
-| Level | XP to reach | Slots open | Tier allowed | Stat bump on reaching |
-|---|---|---|---|---|
-| **1** | — (start) | Weapon, Armor (2) | Common | — |
-| **2** | 4 | + Helmet (3) | + Epic | +1 max HP (die-step), heal 1 |
-| **3** | 9 | + Boots (4) | + Epic | +1 max HP (die-step) |
-| **4** | 15 | + Artifact (5) | + Legendary | +2 max HP, +1 Speed |
-| **5** | 22 | (cap, 5) | Legendary | +2 max HP, +1 Speed |
+**Counterplay:** the built unit is exposed on a flankable grid — a fully-forged
+monster still dies to a rear-arc gang-up. Build, meet positioning.
 
-Reading it: a fresh Recruit can only forge a **Weapon and Armor**, and only
-**Common** gear. It has to *earn* the right to wear a Helmet, then Boots, then an
-Artifact — and to slot the Epic and Legendary pieces that define a real hero. The
-unit that's winning fights snowballs into something fearsome; the unit that's
-been hiding stays a Recruit.
-
-**Counterplay:** the fed unit is exposed on a flankable grid. A level-5 monster
-still dies to a rear-arc gang-up. Snowball, meet positioning.
-
-All numbers here are first-pass tuning levers, not gospel — they get dialed in
-during playtest.
+*(The richer "XP from every hit" model is the thing that breaks tabletop
+tracking, so it's deliberately cut. Optional digital-only variants — XP bars,
+tier-gating — are listed in §13, not core.)*
 
 ---
 
@@ -205,7 +222,9 @@ gains one verb:
 Dash/swap action cards still also consume the move slot, as today.
 
 Forging costs the action, exactly like playing a card — so every turn is a real
-choice: *build* this unit, or *use* it.
+choice: *build* this unit, or *use* it. The one exception is the **kill-forge**
+(§5): landing a killing blow lets the unit equip one forge card free, so a clean
+kill both wins the exchange and levels the killer.
 
 ---
 
@@ -409,31 +428,27 @@ picks.
 
 ---
 
-## 10. The deck & card economy
+## 10. The deck — one per player
 
-No draft means no hero-locked decks. The v1 economy is the **simplest thing that
-works**:
+No draft means no hero-locked decks. The economy is the simplest thing that fits
+on a table:
 
-- Each side runs **one shared pool**: the full set of forge cards + action cards
-  + sigils, shuffled into a deck. Both sides draw from identical, independent
-  decks (mirror pool).
-- **Starting hand 3.** Draw **1 at the end of every turn** (yours or the AI's),
-  as today. Hand cap 8.
-- Forge cards and action cards are intermixed in the deck — you build with what
-  you draw, adapting your archetype plan to your hand. That draw-and-adapt
-  tension is the roguelite-deckbuilder heartbeat.
+- **One deck per player.** Each side draws from its own deck, independently. v1
+  is a **mirror match** — both players run the **same standard decklist** — which
+  is exactly what the paper rules already do (test the board, not deckbuilding).
+- The deck is a **curated ~40-card slice** of the pool, *not* all ~100 cards. It
+  has to sleeve, shuffle, and draw at a table, and it's built so several
+  archetypes are reachable in a game. (The exact 40 is a build/playtest task —
+  see §13.)
+- It mixes **forge + action + sigil** cards. You build with what you draw, aiming
+  your forges at whatever archetypes your hand supports — so different draws make
+  different heroes each game.
+- **Starting hand 3.** Draw **1 at the end of every turn**. Hand cap 8. (All
+  unchanged from today.)
 
-**Known risk (the biggest open question, §13):** a ~100-card mirror pool may make
-attunement too luck-dependent — you might never draw 3 Knight pieces. Three
-fallbacks, in order of preference, to dial in during playtest:
-
-1. **Curated pool** (~40 cards) weighted so each archetype is reliably reachable.
-2. **Forge offers** — on level-up, offer a choice of 1-of-3 forge cards (a light
-   "shop"), giving directed building without full deckbuilding.
-3. **Pre-match loadout** — bring back deckbuilding (heaviest; least aligned with
-   "5 generic units," so last resort).
-
-v1 ships option 0 (full pool) and we let playtest tell us if 1/2 is needed.
+This collapses the old "where do cards come from?" question into one fixed shared
+decklist per player. **Deckbuilding** (bring-your-own / asymmetric decks) and
+**level-up forge-offers** (a light shop) are deferred options in §13 — not v1.
 
 ---
 
@@ -448,7 +463,7 @@ v1 ships option 0 (full pool) and we let playtest tell us if 1/2 is needed.
      round-start forge auras (shields, heals).
    - **Initiative pass:** units activate in Speed order, ties broken by the token
      (§8). Each unit gets one move + one action (attack / heal / action card /
-     **forge** / pass). XP and level-ups resolve immediately as damage lands.
+     **forge** / pass). A killing blow triggers a free kill-forge (§5) on the spot.
    - Repeat until no unacted units remain → next round.
 4. **Win:** a side loses when all 5 of its units are at 0 HP. *(Unchanged.)*
 
@@ -477,34 +492,42 @@ progression meaningful, zero new persistence machinery.
 
 **Open questions (need playtest data):**
 
-1. **Deck economy (biggest).** Full pool vs. curated vs. level-up forge-offers.
-   Drives whether attunement feels achievable and intentional. (§10)
-2. **Attunement reachability.** Is 3-of-a-kind the right threshold? Does a 6-round
-   game give enough turns to forge 3+ pieces on a unit *and* use it?
-3. **Snowball vs. comeback.** Does XP-fed levelling create a runaway leader? May
-   need diminishing XP, or a catch-up bonus for low-level units.
+1. **The standard 40-card list (main tuning task).** Which cards, in what ratio,
+   so several archetypes are reachable and 3-of-a-kind attunement actually
+   happens in a game? (§10)
+2. **Attunement reachability.** Is 3-of-a-kind the right threshold? Does a
+   ~6-round game give enough turns to forge 3 matching pieces onto one unit *and*
+   still use it?
+3. **Table state.** Five slots × five units is up to 25 forge cards laid out per
+   player. Too busy at a table? Consider capping at 3–4 slots — attunement
+   triggers at 3, so the top end is rarely reached anyway.
 4. **Early initiative.** Verify the token cleanly resolves a whole side tied at
-   Speed 2 round 1.
-5. **Forge timing cost.** Is "forge = your whole action this turn" too slow? May
-   need a free first-forge, or forging as a move-action instead.
-6. **XP from kills only?** Whether utility/healing should grant any XP.
+   Speed 2 in round 1.
+5. **Forge timing cost.** Is "forge = your whole action" too slow to get units
+   online? May want a free first-forge, or forging as a move-action.
+6. **Kill-forge swing.** Does the free forge-on-kill over-reward the side already
+   ahead? Watch for snowball; may need a per-round cap.
+
+**Deferred (digital-only or post-v1) — kept out to stay tabletop-legal:**
+persistent roguelite runs; deckbuilding / asymmetric decks; level-up forge-offers
+(a shop); XP bars and tier-gating (Common/Epic/Legendary unlock curves).
 
 **Build order for next session (vertical slices, test each before the next):**
 
 1. **Recruit + deploy.** Strip the draft; spawn 5 identical Recruits per side;
    open placement on own rows. Game still playable (just bland units).
-2. **Forge slots + permanent modifiers.** Add the 5-slot model + "forge = action"
-   verb; re-interpret the 3 flagship archetypes' (Knight/Ranger/Mage) equipment
-   as permanent forge effects. Confirm a built unit feels distinct.
-3. **XP + levels.** Wire XP from damage/kills, the level table, slot + tier
-   gating, stat bumps. Confirm a unit visibly grows.
-4. **Attunement.** 3-of-a-kind → passive + signature snap + portrait/name swap;
-   5/5 Ascension; Mercenary fallback. The emotional payoff — get it feeling good.
-5. **AI forging.** AI scores forge-toward-an-archetype vs. attack vs. action card;
+2. **Forge slots + levelling.** Add the 5-slot model, the "forge = action" verb,
+   and the kill-forge; re-interpret the 3 flagship archetypes' (Knight/Ranger/
+   Mage) equipment as permanent forge effects. Level = cards attached, so there's
+   nothing extra to wire. Confirm a built unit feels distinct and visibly grows.
+3. **Attunement.** 3-of-a-kind → passive + signature snap + portrait/name swap;
+   5/5 Ascension; Mercenary fallback. The emotional payoff — make it feel good.
+4. **AI forging.** AI scores forge-toward-an-archetype vs. attack vs. action card;
    early rounds bias to building, later to damage; picks pieces matching its
    unit's current dominant archetype.
-6. **Port remaining 6 archetypes** + re-slot the action pool + sigils.
-7. **Economy tuning** per open question 1; **campaign reframe** per §12.
+5. **Standard deck + remaining archetypes.** Build the ~40-card list; port the
+   other 6 archetypes' forge effects + re-slot the action pool + sigils.
+6. **Tuning + campaign reframe** (§12).
 
 Everything downstream of step 1 is independently testable, so we can stop at any
 slice and still have a playable game.
