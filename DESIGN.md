@@ -1,5 +1,10 @@
 # Sigil Tactics — Design
 
+> **This describes the shipped build (v0.20, hero-draft model).** A ground-up
+> rework — generic units forged into heroes by the cards — is specified in
+> [`DESIGN-FORGE.md`](DESIGN-FORGE.md) and is the design we build toward next.
+> This file stays accurate to `index.html` until that rebuild lands.
+
 Mobile-web tactical card-battler. Two sides, three heroes each, on a small grid. Play proceeds in **rounds**; within a round, every living unit gets one turn in **Speed order**. Cards add sidekicks, spells, and battlefield effects. Win by eliminating all three enemy heroes.
 
 Current build: **v0.20** (`index.html`).
