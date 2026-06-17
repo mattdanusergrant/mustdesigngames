@@ -1,490 +1,319 @@
 # Sigil Tactics — The Forge Rework (target design)
 
-> **Status: target spec, not yet built.** This document reimagines the game from
-> the ground up. The current code (`index.html`, v0.20) still implements the
-> *hero-draft* model described in `DESIGN.md`. This file is the design we build
-> *toward* next — `DESIGN.md` stays accurate to the shipped build until the
-> rebuild lands, at which point it gets replaced by this.
+> **Status: target spec, not yet built.** This reimagines the game from the
+> ground up. The current code (`index.html`, v0.20) still implements the
+> *hero-draft* model in `DESIGN.md`. This file is the design we build *toward*;
+> `DESIGN.md` stays accurate to the shipped build (and is still the source of
+> truth for **card effects**, which this rework reuses unchanged) until the
+> rebuild lands.
 
 Decisions locked for v1 (2026-06-17):
 
-- **Growth is per-match.** Units start generic every battle; everything forged
-  resets when the match ends. (A persistent roguelite run is a natural later
-  layer — explicitly out of scope for v1.)
-- **One deck per player.** Each side draws from its own single deck — not a
-  per-unit deck, not a communal draw pile. v1 is a mirror match (both players
-  run the same standard decklist), exactly as the paper rules already do.
-- **It must be playable on a table.** Every system here has to survive the
-  tabletop version (`paper/rules.md`) — the app *teaches* the paper game, so
-  the two can't diverge. See the hard constraint below.
+- **Growth is per-match.** Units start generic every battle; everything resets
+  when the match ends. (A persistent roguelite run is a later layer — out of
+  scope for v1.)
+- **One deck per player.** Each side draws from its own single deck. v1 is a
+  mirror match (both run the same standard decklist), as the paper rules do.
+- **One card type — the Sigil.** No Forge/Action split. *Every* card is a single
+  class action bearing a class glyph. Casting it resolves its effect **and tucks
+  it behind the unit as one level in that class.** Action, levelling, and
+  hero-crafting are the same act. (This supersedes the earlier two-card-type and
+  equipment-slot drafts in this doc's history.)
+- **It must be playable on a table.** Every system survives the tabletop version
+  (`paper/rules.md`) — the app *teaches* the paper game, so the two can't
+  diverge. See the hard constraint below.
 
 ### Hard constraint — tabletop-trackable
 
 No system may require state a human can't track with **cards, dice, and tokens**.
-Concretely, this forbids:
-
-- **Hidden or accumulating per-unit counters** (XP bars, threshold tables). If a
-  value can't sit on a die face or be read off the cards in front of a unit,
-  it's out.
-- **Mid-game math that can't be pre-tabled.** Keep modifiers to small integers;
-  track a unit's current ATK/HP on a die or dial the way HP already works.
-
-Positive consequence, and the key design move: **a unit's "level" is just the
-forge cards physically stacked on it.** You read its power by looking at it. That
-single idea is what keeps the whole rework tabletop-legal — see §5.
+No hidden/accumulating per-unit counters (XP bars, threshold tables); no mid-game
+math that can't be pre-tabled. The whole rework obeys this because **a unit's
+entire state is the fan of glyph-cards tucked behind it** — you read its level,
+its class progress, and its identity by looking at it.
 
 ---
 
 ## 1. The inversion
 
 The old game was **hero-first**: you drafted heroes, and each hero handed you a
-fixed deck of its cards. The hero was the input; the cards were baggage that
-came along.
+fixed deck. The hero was the input; the cards were baggage.
 
 The new game is **card-first**:
 
 > You deploy **5 generic units** and *inscribe sigils onto them* as you play.
-> The cards are the input; the **hero is the output**. The deck doesn't come
-> *from* a hero — the deck *makes* the hero.
+> Each sigil you cast does its thing **and stays**, tucked behind the unit as a
+> level in its class. Stack three of one glyph and the unit *becomes* that hero —
+> mid-battle, in front of you, built by your hand. The deck doesn't come *from* a
+> hero; the deck **makes** the hero.
 
-This is what finally makes the name *Sigil Tactics* mean something. A sigil is a
-mark you forge onto a blank unit. Stack the right marks and a nameless recruit
-*becomes* a Knight, a Mage, an Assassin — mid-battle, in front of you, built by
-your hand.
-
-Nothing about the tactical layer changes. It's still a 5×4 grid, still
-facing/flank arcs, still Speed-order initiative, still kill-everything-to-win.
-We're swapping the **front half** of the game (draft heroes → forge blanks) and
-adding one new axis (**levelling**).
+This is what makes the name *Sigil Tactics* literal: a sigil is a mark you
+inscribe onto a blank unit, and the marks are what it becomes.
 
 ### What changes vs v0.20
 
 | System | v0.20 (hero-draft) | Forge rework |
 |---|---|---|
 | Your 5 units | Drafted heroes, fixed statlines | Identical generic **Recruits** |
-| Where cards come from | Union of your drafted heroes' suites | One standard deck per player; you draw from it |
-| What a card *is* | One-shot spell/equipment | **Forge cards** (permanent) + **Action cards** (one-shot) |
-| Hero identity | Chosen up front | **Emergent** — earned by forging a unit down an archetype |
-| Passives (Steadfast, etc.) | Granted by the drafted hero | Granted by **attunement** (3+ matching forge cards) |
-| Growth during a match | None | **Forge a card = level up** — a unit's level *is* the gear stacked on it |
+| Card types | Equipment + spells + sigils | **One type** — a class Sigil (action) |
+| Casting a card | One-shot; gone after use | One-shot effect **+ tuck behind unit = +1 class level** |
+| Where cards come from | Union of drafted heroes' suites | One standard deck per player |
+| Hero identity | Chosen up front | **Emergent** — 3 tucked cards of one glyph = that hero |
+| Passives | Granted by the drafted hero | Granted by **attunement** (3 of a glyph) |
+| Growth in a match | None | **Every card you cast levels its unit** — level = cards tucked |
+| Turn order | Speed-order initiative + token | **Act with your lowest-level unit** (fewest tucks) |
+| Speed stat | Per-hero, unique | **Removed** — fast classes get a queue-jump instead (§7) |
+| Basic attack | Yes (ATK in range) | **Removed** — you must play a card each turn |
 | Draft phase | 1-2-2-1 snake | **Removed** |
-| Deploy phase | Face-down, concealed | Open placement (units are identical — nothing to hide) |
 | Win condition | Kill all enemy units | Unchanged |
 
 ---
 
 ## 2. The Recruit (the generic unit)
 
-Every unit starts the match as a **Recruit** — deliberately bland. All ten units
-on the board (5 a side) are mechanically identical at deploy.
+Every unit starts as a **Recruit** — deliberately bland. All ten units (5 a side)
+are identical at deploy.
 
 | Stat | Value | Note |
 |---|---|---|
-| HP | 6 (d6) | The smallest "real" die — there's nowhere to go but up |
+| HP | 6 (d6) | Smallest "real" die — nowhere to go but up |
 | ATK | 1 | |
 | Move | 1 | |
 | Range | 1 | Melee |
-| Speed | 2 | Everyone ties at game start — see §8 |
 | Passive | none | Earned via attunement |
-| Forge slots | 5, all empty | Weapon / Armor / Helmet / Boots / Artifact — fill over the match |
+| Level | 0 | = the cards tucked behind it; grows as you play |
 
-A Recruit can attack, move, play action cards, and forge — but it does nothing
-*special* until you build it. The fun is in the building.
-
-Recruits keep the polyhedral-die HP rule: max HP only ever lands on
-`{4, 6, 8, 10, 12, 20}`. Forge cards and levels raise it die-step to die-step (6
-→ 8 → 10 …), never to off-die values.
+No Speed stat (turn order is level-based now, §8). A Recruit does nothing special
+until you inscribe sigils onto it. HP stays on the polyhedral ladder
+`{4,6,8,10,12,20}` — it only changes at attunement (a discrete, visible event),
+never by off-die increments.
 
 ---
 
-## 3. The two card types
+## 3. The Sigil — one card, cast-and-tuck
 
-Every card in the game is now exactly one of two things.
+Every card in the game is a **Sigil**: a single action, marked at the top with a
+**class glyph** (⚔️ Knight, 🔮 Mage, 🏹 Ranger, …). There is no other card type.
 
-### Forge cards (permanent)
+**Casting a Sigil (the core loop), once per unit per turn:**
 
-A forge card is **equipment** — it attaches to one of your units and **stays
-there for the rest of the match**, granting a permanent, ongoing effect. This is
-the "craft your units into heroes" mechanic.
+1. **Resolve its effect** — the action happens this turn (deal damage, heal,
+   push, dash, buff — the existing v0.20 effects, §9).
+2. **Tuck it behind the acting unit** — the card stays there for the rest of the
+   match as **+1 level in its class.**
 
-- Playing a forge card **costs the active unit's action** for the turn (it may
-  still move). Same opportunity-cost economy the game already uses.
-- It drops into one of five **named slots**: **Weapon, Armor, Helmet, Boots,
-  Artifact**. One card per slot. Slots are unlocked by level (§5).
-- Forge cards are **not** removed or swapped in v1 — once forged, it's forged.
-  (Re-forging / overwriting a slot is a flagged future option.)
-- All five slots are open from the start; you fill them over the match as you
-  draw gear and spend turns (§5). No tier or level gating in v1.
+So the same act *does something now* and *builds the unit forever*. The card you
+attack with is the card that levels you — attack with Knight sigils and you're
+becoming a Knight.
 
-The five slots map cleanly onto the equipment the game already has — every hero
-suite already ships exactly one Weapon, Armor, Helmet, Boots, and Artifact.
+**A card every turn — no basic attack.** A unit has no stat-based "just attack"
+option. Its entire offense is the sigils you feed it. On its turn it **must cast
+one Sigil** (it may also move). This guarantees every turn advances a build and
+keeps cards flowing from hand to board.
 
-### Action cards (one-shot)
+**The inscribe-for-the-level safety valve.** You may always cast a Sigil purely
+to tuck it — taking the level and forgoing the effect — even if its effect can't
+or shouldn't resolve (no target in range, etc.). So you can always make a legal
+play, and "spend a card just to advance my hero" is a real, deliberate option.
 
-An action card is a **consumable sigil** — the instant spells the game already
-has (damage, splash, push, pull, dash, heal, buff). Mechanically these behave
-exactly like today's hero action cards + the universal sigils:
-
-- Playing one **costs the active unit's action** (sigils stay free — see below).
-- It resolves entirely **this turn** — no lingering forge effect.
-- **Any unit may cast any action card** (as today). Caster's range/arc applies.
-
-The universal **10 Sigil cards** survive unchanged: free (cost neither move nor
-action), small, removed-on-use. They are the combo grease that lets a built unit
-chain a turn together.
-
-> **Rule of thumb:** if the old card was *equipment* (Weapon/Armor/Helmet/Boots/
-> Artifact), it's now a **Forge card**. If it was an *Action* or *Spell*, it's
-> now an **Action card**. The 60-odd cards already in the game re-slot into the
-> new model with almost no invention — see §9.
+**Every cast pushes you down your own queue.** Because you must act with your
+*lowest-level* unit (§8), inscribing a sigil sends that unit toward the back of
+the rotation. Levelling is therefore self-limiting and your activations fan out
+across all five units — you can't pour your whole hand into one super-unit; the
+board levels together. That tension *is* the game's pacing engine.
 
 ---
 
-## 4. Forging a unit → the five slots
+## 4. Levelling = the cards behind you
 
-A unit's identity is the **sum of what's bolted onto it**. The five slots and
-what they tend to carry:
+> **A unit's level is simply how many Sigils are tucked behind it.** Its **class
+> level** in any class is how many of that glyph it has.
 
-| Slot | Typical role | Examples |
-|---|---|---|
-| **Weapon** | ATK, range, attack shape | Greatsword, Longbow, Staff, Dagger |
-| **Armor** | max HP, shields, reflect | Plate Mail, Holy Plate, Bark Skin |
-| **Helmet** | small stat / utility bump | Iron Helm, Hawk Hood, Crown of Light |
-| **Boots** | Move / Speed | Steel Greaves, Swift Boots, Cat's Boots |
-| **Artifact** | the archetype's signature trick | War Banner, Hunter's Mark, Bloodthirster |
+No XP, no counters, no thresholds — you read level by counting cards. Two numbers
+matter, both visible:
 
-A unit with **Greatsword + Plate Mail** is already a tanky bruiser. Add **Iron
-Helm + Steel Greaves + War Banner** and it's a Knight in all but name — and at
-3 Knight pieces, it literally *becomes* one (§7).
+- **Total level** (all tucked cards) → drives **turn order** (§8).
+- **Class level** (tucked cards of one glyph) → at **3**, the unit **attunes**
+  (§7).
 
-Forge effects are **permanent modifiers**, re-interpreted from each equipment
-card's v0.20 flavor. Example — the Knight's gear stops being one-shot hits and
-becomes ongoing:
-
-| Card | v0.20 (one-shot) | Forge effect (permanent) |
-|---|---|---|
-| Greatsword | 4 dmg | **+2 ATK; your attacks splash 1 to enemies adjacent to the target** |
-| Plate Mail | +5 shield | **+4 max HP; gain 2 shield at the start of each round** |
-| Iron Helm | 4 dmg | **+2 max HP** |
-| Steel Greaves | +3 move | **+1 Move** |
-| War Banner | heal-all + buff | **Allies in adjacent tiles get +1 ATK (aura)** |
-
-The full per-archetype forge tables are in §9.
+Levelling itself grants **no raw stat bumps** in v1 — the value of a cast is (a)
+the effect you got and (b) progress toward attunement, where the real power lives.
+This keeps the board math trivial: a unit is a base Recruit until it attunes, then
+it's a hero. *(An optional "each class level nudges that class's signature stat"
+richness lever is flagged in §13 — left out of v1 for simplicity.)*
 
 ---
 
-## 5. Levelling = forging (no XP, no counters)
+## 5. (reserved)
 
-> **A unit's level is simply how many forge cards are stacked on it (0–5).**
-
-There is no XP, no threshold table, no level die. You level a unit up by
-**forging a card onto it**, and you read its level by counting the cards in front
-of it. That's the whole system — and it's what keeps the rework tabletop-legal.
-
-**How a unit grows:**
-
-- **Forge as your action.** On a unit's turn, equip one forge card from hand into
-  an open slot. It costs that unit's action (it may still move). Growth is paid in
-  **tempo** (a turn spent forging isn't spent fighting) and **supply** (you have
-  to draw the gear). That's the natural power curve — no gating rules needed.
-- **Kills forge (the combat-feeds-growth hook).** When a unit lands a killing
-  blow, it may **immediately equip one forge card from hand for free** (no
-  action). Spoils of war. This is the "level up by fighting" feel, with zero
-  bookkeeping — it's a triggered action, not a counter.
-
-**Slots:** the five named slots (Weapon / Armor / Helmet / Boots / Artifact), one
-card each, all open from the start. No tier-gating in v1 — equip what you draw.
-Each forge card carries its own stat/ability bump, so a more-forged unit is
-straightforwardly stronger; the unit's current ATK/HP track on dice the way HP
-already does.
-
-**Counterplay:** the built unit is exposed on a flankable grid — a fully-forged
-monster still dies to a rear-arc gang-up. Build, meet positioning.
-
-*(The richer "XP from every hit" model is the thing that breaks tabletop
-tracking, so it's deliberately cut. Optional digital-only variants — XP bars,
-tier-gating — are listed in §13, not core.)*
+*Levelling folded into §3–§4 — there is no separate levelling system to spec. A
+unit grows purely by casting sigils, which it must do every turn.*
 
 ---
 
-## 6. The action/turn economy (mostly unchanged)
+## 6. A unit's turn
 
-A unit's turn is still **one move + one action, either order**. The action menu
-gains one verb:
+Strict alternation between players (the chess-style order the code already uses).
+On your turn you activate **one** of your units — and it must be one of your
+**lowest-level** units (§8). That unit gets:
 
-- **Attack** an enemy in range.
-- **Heal** an adjacent ally (only units that can — Druid-attuned, Paladin gear).
-- **Play an action card** from hand.
-- **Forge a card** — equip a forge card from hand into an open slot. *(new)*
-- **Pass.**
+- **Move** — optional, up to its Move value, once.
+- **Cast a Sigil** — **mandatory**, exactly one (resolve + tuck = +1 class level).
 
-**Sigils remain free** (neither move nor action) so combo turns still exist.
-Dash/swap action cards still also consume the move slot, as today.
-
-Forging costs the action, exactly like playing a card — so every turn is a real
-choice: *build* this unit, or *use* it. The one exception is the **kill-forge**
-(§5): landing a killing blow lets the unit equip one forge card free, so a clean
-kill both wins the exchange and levels the killer.
+Move and cast may be taken in either order. That's the whole turn — then it
+passes to the opponent. There is no aether, no resource cost; the cost of a cast
+is the card itself (it leaves your hand forever) and the queue position it spends.
 
 ---
 
 ## 7. Attunement — becoming a hero
 
-This is the payoff. The moment a generic Recruit snaps into a named hero.
+The payoff. The moment a generic Recruit snaps into a named hero.
 
-> **When a unit has 3 or more equipped forge cards of the same archetype, it
-> _attunes_ to that hero.** It gains:
-> - the hero's **name and portrait** (the board token changes),
-> - the hero's **passive** (Steadfast, Bloodthirst, Resonance, …),
-> - a **signature-stat snap** — the one stat that makes that hero *them*.
+> **When a unit has 3 tucked Sigils of the same glyph, it _attunes_ to that
+> hero.** Swap its token for the hero; it gains that hero's **passive** and a
+> **signature-stat snap**.
 
-Because a unit has only 5 slots, it can hold at most one 3-of-a-kind, so
-attunement is never ambiguous.
+Because turn order forces your activations to spread, attuning a unit takes a few
+rotations of deliberately feeding it one glyph — a real, visible build-up.
 
-### Signature-stat snaps
-
-The unique statlines that used to be baked into each hero now arrive as the
-attunement reward:
-
-| Archetype | Passive granted | Signature snap |
+| Glyph | Passive | Signature snap (at 3) |
 |---|---|---|
-| **Knight** | Steadfast (immune to push/pull) | +2 max HP |
-| **Paladin** | Guardian (heal card → +1 to most-wounded) | +2 max HP, gains heal action |
-| **Berserker** | Bloodthirst (heal 1 on damaging an enemy) | ATK floor 2 |
-| **Druid** | Symbiosis (heal card → self +1) | Range 2, gains heal action |
-| **Mage** | Resonance (AoE cards +1 splash/+1 kb) | Range 2 |
-| **Warlock** | Soul Drain (heal 2 when any enemy dies) | Range 3 |
-| **Ranger** | Spotter (your dmg/push/pull cards +1 range) | Range 2 |
-| **Scout** | Pathfinder (your dash cards +1 range) | Move 2, Speed 4 |
-| **Assassin** | Shadow Step (after moving, next hit = rear arc) | Move 2, Speed 4, flank arcs (side ×2 / rear ×2.5) |
+| ⚔️ Knight | Steadfast — immune to push/pull | HP die ↑ d6→d10 |
+| 🛡️ Paladin | Guardian — after a heal card, +1 to most-wounded ally | HP die ↑ d6→d10; may heal an adjacent ally as its cast |
+| 🪓 Berserker | Bloodthirst — heal 1 when it damages an enemy | ATK 1→2; HP die ↑ d6→d8 |
+| 🌿 Druid | Symbiosis — after a heal card, heal self 1 | Range 1→2; may heal |
+| 🔮 Mage | Resonance — your AoE cards +1 splash | Range 1→2 |
+| 🩸 Warlock | Soul Drain — heal 2 when any enemy dies | Range 1→3 |
+| 🏹 Ranger | Spotter — your dmg/push/pull cards +1 range | Range 1→2 |
+| 👁️ Scout | Pathfinder — your dash cards +1 range | Move 1→2; **queue-jump** |
+| 🗡️ Assassin | Shadow Step — after moving, next hit is rear-arc | Move 1→2; flank arcs (side ×2 / rear ×2.5); **queue-jump** |
 
-### Ascension (5/5)
+**Queue-jump** is how the deleted Speed stat re-enters: an attuned Scout/Assassin
+**may be activated even when it isn't your lowest-level unit** — the fast classes
+break the rotation, exactly the edge their old high Speed gave them.
 
-Fill **all five** slots with one archetype and the unit **Ascends**: +2 max HP
-and its signature snap is maxed (e.g. Ascended Assassin → Speed 5). A full
-single-archetype build *is* the original v0.20 hero, reconstructed — the old
-heroes become the "perfect curve" you can aim a unit at.
+**Ascension (5 of a glyph).** Fill a unit with five of one class and it Ascends —
+passive empowered + one more signature step (e.g. Ascended Knight → d12; Ascended
+Assassin → Move 3). A full single-glyph unit is the old v0.20 hero, reconstructed:
+the shipped heroes become the "perfect curve" you can aim a unit at. *(Exact
+ascension bonuses — tuning, §13.)*
 
-### The Mercenary (no attunement)
-
-A unit with no 3-of-a-kind (a mixed build) never attunes — it gets **no passive**
-but keeps every stat its mismatched gear grants. This is a legitimate generalist
-path: a Greatsword + Longbow + Bark Skin brawler that does a bit of everything.
-Specialize for a passive, or stay flexible for coverage — a real decision.
+**The Mercenary (no 3-of-a-glyph).** A mixed unit never attunes — no passive, but
+it got every effect it cast and can answer anything. Specialize for a passive, or
+stay flexible: a real choice every time you pick which unit to feed which sigil.
 
 ---
 
-## 8. Initiative & Speed with identical units
+## 8. Turn order — lowest level acts
 
-At game start every unit is Speed 2 → **one giant tie**. The existing initiative
-system already handles this: the **Initiative token** decides which side's tied
-units go first, then flips. Early rounds resolve in formation/id order, which is
-fine and even thematic — raw recruits act as a block. As Boots and attunements
-come online, speeds spread out and the initiative ribbon gets interesting.
+Speed and the initiative token are **gone**. Turn order is read straight off the
+tucked cards:
 
-No engine change needed here; just verify the token logic stays sane when a whole
-side shares one Speed bracket. (Flagged for playtest in §13.)
+> **On your turn you must activate one of your units that is at the lowest level
+> (fewest tucked Sigils). You choose which, among the tied-lowest.**
+
+Since casting adds a card, an activated unit rises out of the lowest tier, so you
+naturally cycle through all five units before any acts again — a self-enforcing
+round-robin with free choice inside each tier. No tracker, no math: just look for
+your shortest card-stacks. (Attuned Scout/Assassin may queue-jump — §7.)
+
+- **First player** is decided at match start (random / alternates by game);
+  thereafter strict alternation.
+- **Dead units** leave the rotation (and their tucked cards leave with them).
+- A "round" is just one full pass through your units — emergent, not bookkept.
+
+This replaces the entire v0.20 Speed/initiative/token system. It is the single
+biggest simplification in the rework and the most tabletop-friendly: the thing
+that tracks turn order is the same thing that tracks levels and identity.
 
 ---
 
-## 9. Content recategorization — every card, re-slotted
+## 9. Classes & their Sigil suites
 
-The existing pool re-slots into the new model almost mechanically: **equipment →
-Forge**, **actions/spells → Action**. Below, each archetype's 5 equipment pieces
-get a permanent **forge effect** (re-interpreted from their v0.20 flavor), and
-its 5 action/spell cards stay one-shot (carried over as-is).
+Every card belongs to a class and bears its glyph; casting any of them inscribes a
+level in that class. **Card effects are unchanged from the v0.20 suites in
+`DESIGN.md`** — the rework does not re-tune effects. What's new is only that each
+card now (a) bears a class glyph and (b) tucks as a level when cast. The class's
+*identity* (passive + signature stat) no longer rides on its equipment stats; it
+comes entirely from attunement (§7).
 
-Forge effects below are first-pass; the **design principle** is: *a full
-single-archetype set should land the unit roughly where that v0.20 hero sat.*
+**Worked example — the Knight suite (⚔️), effects straight from v0.20:**
 
-### Knight — bruiser / protector
+| Sigil | Effect (unchanged) |
+|---|---|
+| Greatsword | 4 dmg to an enemy in range |
+| Plate Mail | +5 shield to an ally |
+| Iron Helm | 4 dmg (headbutt) |
+| Steel Greaves | ally +3 move this turn |
+| War Banner | heal all allies +2, all allies +1 ATK this round |
+| Cleave | 3 dmg + 1 splash to adjacent |
+| Shield Bash | 4 dmg + mark vulnerable (+2 next hit) |
+| Rally | heal all allies +2 |
+| Shield Wall | +3 shield to all allies |
+| Battle Cry | 3 dmg + all allies +2 ATK this round |
 
-**Forge:**
-| Slot | Card | Forge effect |
-|---|---|---|
-| Weapon | Greatsword | +2 ATK; attacks splash 1 to enemies adjacent to target |
-| Armor | Plate Mail | +4 max HP; +2 shield at round start |
-| Helmet | Iron Helm | +2 max HP |
-| Boots | Steel Greaves | +1 Move |
-| Artifact | War Banner | adjacent allies +1 ATK (aura) |
+Casting **Greatsword** deals 4 and tucks a ⚔️ behind the unit; do that three times
+(across rotations) and the unit attunes to Knight. The other eight active classes
+work identically — 🏹 Ranger, 🔮 Mage, 🛡️ Paladin, 🩸 Warlock, 🌿 Druid, 🪓
+Berserker, 👁️ Scout, 🗡️ Assassin — each with its full v0.20 suite as glyph-bearing
+sigils. (Full effect lists live in `DESIGN.md`; they carry over verbatim.)
 
-**Action:** Cleave (dmg-adj 3+1) · Shield Bash (dmg-vuln 4+2) · Rally (heal-all 2) · Shield Wall (shield-all 3) · Battle Cry (dmg-team-buff 3+2)
+**Neutral Sigils (✦).** The 10 universal cards become a **Neutral class**:
+castable by anyone, they inscribe a level (so they still cost queue position and
+count toward total level) but bear no glyph that can attune — flexible filler and
+the natural pick for the inscribe-for-the-level safety valve. They are no longer
+"free": in a one-card-per-turn world there are no free casts.
 
-### Ranger — sniper
-
-**Forge:**
-| Slot | Card | Forge effect |
-|---|---|---|
-| Weapon | Longbow | +1 ATK; +1 Range |
-| Armor | Quiver of Sharps | attacks splash 1 |
-| Helmet | Hawk Hood | +1 Range |
-| Boots | Swift Boots | +1 Move |
-| Artifact | Hunter's Mark | your attacks apply +1 vulnerable on hit |
-
-**Action:** Quick Shot (dmg 3) · Volley (dmg-adj 2+1) · Reposition (charge 3) · Piercing Arrow (dmg 5) · Eagle's Eye (dmg-team-buff 2+1)
-
-### Mage — arcane caster
-
-**Forge:**
-| Slot | Card | Forge effect |
-|---|---|---|
-| Weapon | Staff | +1 ATK; +1 Range |
-| Armor | Robe of Sparks | attacks splash 1 |
-| Helmet | Crown of Light | +2 ATK |
-| Boots | Ember Sandals | +1 Move |
-| Artifact | Sunflame Orb | your splash radius +1 |
-
-**Action:** Fireball (dmg-adj 3+2) · Frostbolt (dmg-vuln 4+2) · Lightning Strike (dmg 5) · Arcane Blast (dmg-vuln 3+3) · Meteor (dmg 6)
-
-### Paladin — holy tank / support
-
-**Forge:**
-| Slot | Card | Forge effect |
-|---|---|---|
-| Weapon | Warhammer | +2 ATK |
-| Armor | Holy Plate | +4 max HP; +3 shield at round start (biggest armor) |
-| Helmet | Helm of Faith | +1 max HP; adjacent allies heal 1 at round start (aura) |
-| Boots | Sabatons | +1 Move |
-| Artifact | Holy Symbol | heal most-wounded ally 2 at round start (aura) |
-
-**Action:** Lay on Hands (heal-shield 5+3) · Smite Evil (dmg 4) · Divine Wrath (dmg-adj 4+1) · Consecration (dmg-adj 3+1) · Sanctuary (dmg 5)
-
-### Warlock — dark caster / lifesteal
-
-**Forge:**
-| Slot | Card | Forge effect |
-|---|---|---|
-| Weapon | Athame | +1 ATK; +1 Range |
-| Armor | Shadow Veil | attacks splash 1 |
-| Helmet | Hood of Shadows | +1 Range |
-| Boots | Boots of Misdirection | +1 Move |
-| Artifact | Cursed Skull | your attacks apply +1 vulnerable |
-
-**Action:** Hex (dmg 4) · Eldritch Blast (dmg 5) · Pulse of Decay (dmg-adj 3+1) · Drain Soul (dmg-self-heal 3+3) · Curse of Weakness (dmg-adj 2+2)
-
-### Druid — nature support
-
-**Forge:**
-| Slot | Card | Forge effect |
-|---|---|---|
-| Weapon | Sickle | +1 ATK; attacks splash 1 |
-| Armor | Bark Skin | +2 max HP; +2 shield at round start |
-| Helmet | Antlered Crown | +1 max HP; adjacent allies +1 ATK (aura) |
-| Boots | Mossy Wraps | +1 Move |
-| Artifact | Living Wood | heal all allies 1 at round start (aura) |
-
-**Action:** Thorns (dmg 4) · Regrowth (heal-buff 4+2) · Entangle (dmg-adj 3+1) · Lightning Bolt (dmg 5) · Sunbeam (dmg-adj 3+1)
-
-### Berserker — rage melee
-
-**Forge:**
-| Slot | Card | Forge effect |
-|---|---|---|
-| Weapon | Battle Axe | +3 ATK (biggest weapon) |
-| Armor | Spiked Pauldrons | +2 max HP; reflect 1 to melee attackers |
-| Helmet | Horned Helm | +1 ATK |
-| Boots | War Boots | +1 Move |
-| Artifact | Bloodthirster | heal 1 whenever you damage an enemy |
-
-**Action:** Frenzy (dmg-team-buff 3+2) · Reckless Charge (dmg-self-charge 3+3) · Whirlwind (dmg-adj 3+1) · Rend (dmg-adj 4+1) · Battle Trance (dmg-self-buff 4+3)
-
-### Scout — fast skirmisher
-
-**Forge:**
-| Slot | Card | Forge effect |
-|---|---|---|
-| Weapon | Shortbow | +1 ATK; +1 Range |
-| Armor | Studded Cloak | +1 Move |
-| Helmet | Spyglass | +1 Range; attacks apply +1 vulnerable |
-| Boots | Cat's Boots | +1 Move; +1 Speed |
-| Artifact | Trap | attacks splash 1 |
-
-**Action:** Snipe (dmg 5) · Dash (charge 5) · Vanish (dmg-self-charge 3+3) · Mark Target (dmg-team-buff 2+1) · Shadow Step (charge 4)
-
-### Assassin — burst flanker
-
-**Forge:**
-| Slot | Card | Forge effect |
-|---|---|---|
-| Weapon | Dagger | +2 ATK |
-| Armor | Razor Leathers | +1 ATK; +1 Move |
-| Helmet | Mask | attacks apply +2 vulnerable |
-| Boots | Shadow Boots | +1 Move; +1 Speed |
-| Artifact | Death Mark | attacks apply +2 vulnerable (stacks) |
-
-**Action:** Backstab (dmg 5) · Garrote (dmg-adj 2+2) · Smoke Bomb (dmg-team-buff 2+1) · Shadow Strike (dmg 7) · Veil (dmg-self-charge 3+5)
-
-### Universal Sigils (10) — all Action
-
-Carried over unchanged: free, small, removed-on-use generic actions (single
-pushes/pulls, dmg 1–2, dash 1–2, heal 2). Any unit casts any sigil; they don't
-spend the move or action slot.
-
-### Hidden archetypes (Sentinel, Necromancer, Crusader)
-
-Stay defined but out of the pool, exactly as today. They become future forge
-archetypes (each needs a 5-piece equipment set authored) rather than future draft
-picks.
+**Hidden classes (Sentinel, Necromancer, Crusader)** stay out of the deck, exactly
+as today — future glyphs once each has an authored suite.
 
 ---
 
 ## 10. The deck — one per player
 
-No draft means no hero-locked decks. The economy is the simplest thing that fits
-on a table:
+- **One deck per player**, drawn independently. v1 is a **mirror match** (same
+  standard decklist both sides), as the paper rules do.
+- A **curated ~40-card slice** of the pool (not all ~100), sleeve-and-shuffle
+  sized, built so several classes are reachable in a game. The exact 40 is the
+  main build/playtest task (§13).
+- **Starting hand 3; draw 1 at end of every turn; hand cap 8.** (Unchanged.)
+- **Cards deplete.** Cast cards tuck onto units permanently — they never return
+  to the deck. The deck is a finite clock; tune its size so matches end by
+  elimination well before deck-out. If a player truly can't cast (empty deck +
+  hand), that unit passes — the lone exception to "a card every turn." (Edge
+  case; flagged §13.)
 
-- **One deck per player.** Each side draws from its own deck, independently. v1
-  is a **mirror match** — both players run the **same standard decklist** — which
-  is exactly what the paper rules already do (test the board, not deckbuilding).
-- The deck is a **curated ~40-card slice** of the pool, *not* all ~100 cards. It
-  has to sleeve, shuffle, and draw at a table, and it's built so several
-  archetypes are reachable in a game. (The exact 40 is a build/playtest task —
-  see §13.)
-- It mixes **forge + action + sigil** cards. You build with what you draw, aiming
-  your forges at whatever archetypes your hand supports — so different draws make
-  different heroes each game.
-- **Starting hand 3.** Draw **1 at the end of every turn**. Hand cap 8. (All
-  unchanged from today.)
-
-This collapses the old "where do cards come from?" question into one fixed shared
-decklist per player. **Deckbuilding** (bring-your-own / asymmetric decks) and
-**level-up forge-offers** (a light shop) are deferred options in §13 — not v1.
+Deckbuilding (bring-your-own / asymmetric) is a deferred option, not v1.
 
 ---
 
 ## 11. Match flow
 
-1. **Title** → pick Skirmish or Campaign (campaign reframed — see §12).
-2. **Deploy.** Place your 5 Recruits anywhere in your two rows. No concealment
-   (units are identical). An **Auto** button drops a default formation. *(Draft
-   phase is gone.)*
-3. **Play** — numbered rounds:
-   - **Start of round:** both sides draw 1; clear per-turn flags; resolve any
-     round-start forge auras (shields, heals).
-   - **Initiative pass:** units activate in Speed order, ties broken by the token
-     (§8). Each unit gets one move + one action (attack / heal / action card /
-     **forge** / pass). A killing blow triggers a free kill-forge (§5) on the spot.
-   - Repeat until no unacted units remain → next round.
-4. **Win:** a side loses when all 5 of its units are at 0 HP. *(Unchanged.)*
+1. **Title** → Skirmish or Campaign (§12).
+2. **Deploy.** Place your 5 Recruits anywhere in your two rows. No concealment —
+   units are identical. An **Auto** button drops a default formation. *(No draft.)*
+3. **Play.** Strict alternation. On your turn, activate one of your lowest-level
+   units (§8); it may move and **must cast one Sigil** (resolve + tuck = +1 level,
+   §3). Attunement and queue-jumps resolve the instant their card-counts are met.
+   Draw 1 at end of turn.
+4. **Win.** A side loses when all 5 of its units are at 0 HP. *(Unchanged.)*
+
+No round-start phase, no aether ramp, no refill — turn order and growth are
+carried entirely by the tucked-card mechanic.
 
 ---
 
 ## 12. Campaign, reframed
 
-v0.20's campaign unlocked *heroes* by beating bosses. Heroes are emergent now, so
-that hook is gone. Per-match growth (locked decision) means **no persistent
-units** in v1. Options for the campaign axis, lightest first — pick during build:
+Heroes are emergent now, so v0.20's "beat a boss to unlock a hero" hook is gone.
+Per-match growth (locked) means no persistent units in v1. Lightest-first:
 
-- **Unlock forge archetypes.** Start with 3 archetypes' worth of forge cards in
-  your pool; beat missions to add the rest (Paladin set, Druid set, …). Mirrors
-  the old unlock cadence, fits the new model, requires no persistence.
-- **Boss modifiers.** Each mission gives the AI a themed head start (pre-forged
-  units, an extra level) — pure encounter design.
-- **(Deferred) Persistent run.** The roguelite layer the Operator explicitly
-  pushed to "later." Out of scope for v1.
-
-v1 recommendation: **unlock forge archetypes** — smallest change, keeps campaign
-progression meaningful, zero new persistence machinery.
+- **Unlock class glyphs.** Start with a few classes in your deck; beat missions to
+  add the rest (Paladin sigils, Druid sigils, …). Mirrors the old unlock cadence,
+  zero persistence machinery. **v1 recommendation.**
+- **Boss modifiers.** Missions give the AI a themed head start (pre-tucked levels,
+  a free attunement) — pure encounter design.
+- **(Deferred) Persistent run** — the roguelite layer, explicitly later.
 
 ---
 
@@ -492,42 +321,44 @@ progression meaningful, zero new persistence machinery.
 
 **Open questions (need playtest data):**
 
-1. **The standard 40-card list (main tuning task).** Which cards, in what ratio,
-   so several archetypes are reachable and 3-of-a-kind attunement actually
+1. **The standard 40-card list (main tuning task).** Which sigils, in what
+   ratios, so several classes are reachable and 3-of-a-glyph attunement actually
    happens in a game? (§10)
-2. **Attunement reachability.** Is 3-of-a-kind the right threshold? Does a
-   ~6-round game give enough turns to forge 3 matching pieces onto one unit *and*
-   still use it?
-3. **Table state.** Five slots × five units is up to 25 forge cards laid out per
-   player. Too busy at a table? Consider capping at 3–4 slots — attunement
-   triggers at 3, so the top end is rarely reached anyway.
-4. **Early initiative.** Verify the token cleanly resolves a whole side tied at
-   Speed 2 in round 1.
-5. **Forge timing cost.** Is "forge = your whole action" too slow to get units
-   online? May want a free first-forge, or forging as a move-action.
-6. **Kill-forge swing.** Does the free forge-on-kill over-reward the side already
-   ahead? Watch for snowball; may need a per-round cap.
+2. **Attunement pace.** Forced round-robin means attuning one unit to 3-of-a-glyph
+   takes ~3 rotations. Too slow at 5 units? Levers: attune at 2; fewer units; or
+   relax the lowest-level rule (see #3).
+3. **Is "lowest level acts" too rigid?** It bars you from using your scary attuned
+   unit until the others catch up. Bold and anti-snowball, but may feel
+   restrictive. Alternatives if so: "must include a lowest-level unit each round
+   but free order otherwise," or a per-turn level cap instead of a hard floor.
+4. **No per-level stats.** Is a unit feeling flat until attunement OK? Optional
+   richness lever: each class level nudges that class's signature stat by a hair.
+5. **Deck-out.** Tune deck size so it's rare; confirm the "pass if you can't cast"
+   fallback is acceptable.
+6. **Neutral sigils' role.** Do ✦ cards (level but never attune) find a healthy
+   niche, or do they just dilute builds?
 
 **Deferred (digital-only or post-v1) — kept out to stay tabletop-legal:**
-persistent roguelite runs; deckbuilding / asymmetric decks; level-up forge-offers
-(a shop); XP bars and tier-gating (Common/Epic/Legendary unlock curves).
+persistent roguelite runs; deckbuilding / asymmetric decks; per-class-level stat
+curves; any hidden counters.
 
 **Build order for next session (vertical slices, test each before the next):**
 
 1. **Recruit + deploy.** Strip the draft; spawn 5 identical Recruits per side;
-   open placement on own rows. Game still playable (just bland units).
-2. **Forge slots + levelling.** Add the 5-slot model, the "forge = action" verb,
-   and the kill-forge; re-interpret the 3 flagship archetypes' (Knight/Ranger/
-   Mage) equipment as permanent forge effects. Level = cards attached, so there's
-   nothing extra to wire. Confirm a built unit feels distinct and visibly grows.
-3. **Attunement.** 3-of-a-kind → passive + signature snap + portrait/name swap;
-   5/5 Ascension; Mercenary fallback. The emotional payoff — make it feel good.
-4. **AI forging.** AI scores forge-toward-an-archetype vs. attack vs. action card;
-   early rounds bias to building, later to damage; picks pieces matching its
-   unit's current dominant archetype.
-5. **Standard deck + remaining archetypes.** Build the ~40-card list; port the
-   other 6 archetypes' forge effects + re-slot the action pool + sigils.
-6. **Tuning + campaign reframe** (§12).
+   open placement. Game still playable (bland units, basic attack still on).
+2. **Cast-and-tuck + must-play-a-card.** Remove the basic attack; make every
+   activation cast one card that resolves *and* tucks behind the unit as a visible
+   level. Add the inscribe-for-the-level option. This is the heartbeat — get it
+   feeling right first.
+3. **Lowest-level turn order.** Replace the Speed/initiative system with "activate
+   your lowest-level unit"; drop the Speed stat. Confirm activations fan out.
+4. **Attunement.** 3-of-a-glyph → passive + signature snap + token swap; queue-jump
+   for Scout/Assassin; 5/5 Ascension; Mercenary fallback. The emotional payoff.
+5. **AI.** AI picks its lowest-level unit, then chooses a sigil — biased toward
+   completing an attunement on that unit vs. taking the best immediate effect.
+6. **Standard deck + glyphing the pool.** Tag every existing card with its class
+   glyph; fold the 10 universals into Neutral; build the ~40-card list.
+7. **Tuning + campaign reframe** (§12).
 
-Everything downstream of step 1 is independently testable, so we can stop at any
-slice and still have a playable game.
+Each step past #1 is independently testable, so we can stop at any slice and still
+have a playable game.
