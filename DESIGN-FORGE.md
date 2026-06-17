@@ -33,6 +33,35 @@ its class progress, and its identity by looking at it.
 
 ---
 
+## Build status — v0.1 prototype (2026-06-17)
+
+`forge.html` (in this repo) implements the full loop end-to-end vs. an AI: 5
+Recruits, auto-deploy, lowest-level turn order, **cast-and-tuck** (resolve +
+level), **attunement** → passive + signature snap + queue-jump, elimination win.
+Self-contained, mobile-portrait, no build step — open the file or serve the
+folder. The shipped v0.20 `index.html` is left untouched for side-by-side play;
+promote `forge.html` to `index.html` when it's the one you want live.
+
+Validated headlessly (no browser in the build env) by grinding **200 AI-vs-AI
+games**: all decisive, no errors, ~28 turns avg, **100/100 win balance** (mirror
+is fair), heroes emerge in **196/200** games (~3 attuned units of 10 per game),
+ascension rare (8/200), all 9 classes attuning.
+
+**Tuning decisions from that sim (resolves open Q #1–2):**
+- **Attune threshold → 2** (top-level constant `ATTUNE`; `ASCEND=4`). At 3, heroes
+  appeared in <30 % of ~28-turn games — the core fantasy mostly didn't fire. At 2
+  it's ~98 %, while the round-robin still gates attunement to mid-game and mixed
+  *Mercenary* units stay common. This doc's body uses 2 to match the build.
+- **AI funnels** — biases each unit toward stacking a glyph it already holds, so
+  the opponent forges coherent heroes too.
+
+**Deferred from this prototype (flagged, not yet built):** terrain / high ground;
+the dash / swap / push / push-adj / team-ATK-buff card kinds (implemented kinds:
+dmg, splash, vuln, lifesteal, heal, shield, charge, single ATK-buff); manual
+deploy placement (auto-formation for now); campaign (skirmish-vs-AI only).
+
+---
+
 ## 1. The inversion
 
 The old game was **hero-first**: you drafted heroes, and each hero handed you a
@@ -57,8 +86,8 @@ inscribe onto a blank unit, and the marks are what it becomes.
 | Card types | Equipment + spells + sigils | **One type** — a class Sigil (action) |
 | Casting a card | One-shot; gone after use | One-shot effect **+ tuck behind unit = +1 class level** |
 | Where cards come from | Union of drafted heroes' suites | One standard deck per player |
-| Hero identity | Chosen up front | **Emergent** — 3 tucked cards of one glyph = that hero |
-| Passives | Granted by the drafted hero | Granted by **attunement** (3 of a glyph) |
+| Hero identity | Chosen up front | **Emergent** — 2 tucked cards of one glyph = that hero |
+| Passives | Granted by the drafted hero | Granted by **attunement** (2 of a glyph) |
 | Growth in a match | None | **Every card you cast levels its unit** — level = cards tucked |
 | Turn order | Speed-order initiative + token | **Act with your lowest-level unit** (fewest tucks) |
 | Speed stat | Per-hero, unique | **Removed** — fast classes get a queue-jump instead (§7) |
@@ -132,8 +161,8 @@ No XP, no counters, no thresholds — you read level by counting cards. Two numb
 matter, both visible:
 
 - **Total level** (all tucked cards) → drives **turn order** (§8).
-- **Class level** (tucked cards of one glyph) → at **3**, the unit **attunes**
-  (§7).
+- **Class level** (tucked cards of one glyph) → at the attune threshold (**2**),
+  the unit **attunes** (§7).
 
 Levelling itself grants **no raw stat bumps** in v1 — the value of a cast is (a)
 the effect you got and (b) progress toward attunement, where the real power lives.
@@ -169,9 +198,9 @@ is the card itself (it leaves your hand forever) and the queue position it spend
 
 The payoff. The moment a generic Recruit snaps into a named hero.
 
-> **When a unit has 3 tucked Sigils of the same glyph, it _attunes_ to that
-> hero.** Swap its token for the hero; it gains that hero's **passive** and a
-> **signature-stat snap**.
+> **When a unit has 2 tucked Sigils of the same glyph, it _attunes_ to that
+> hero** (threshold = `ATTUNE`, tuned to 2 — see Build status). Swap its token for
+> the hero; it gains that hero's **passive** and a **signature-stat snap**.
 
 Because turn order forces your activations to spread, attuning a unit takes a few
 rotations of deliberately feeding it one glyph — a real, visible build-up.
@@ -198,7 +227,7 @@ Assassin → Move 3). A full single-glyph unit is the old v0.20 hero, reconstruc
 the shipped heroes become the "perfect curve" you can aim a unit at. *(Exact
 ascension bonuses — tuning, §13.)*
 
-**The Mercenary (no 3-of-a-glyph).** A mixed unit never attunes — no passive, but
+**The Mercenary (no 2-of-a-glyph).** A mixed unit never attunes — no passive, but
 it got every effect it cast and can answer anything. Specialize for a passive, or
 stay flexible: a real choice every time you pick which unit to feed which sigil.
 
@@ -252,7 +281,7 @@ comes entirely from attunement (§7).
 | Shield Wall | +3 shield to all allies |
 | Battle Cry | 3 dmg + all allies +2 ATK this round |
 
-Casting **Greatsword** deals 4 and tucks a ⚔️ behind the unit; do that three times
+Casting **Greatsword** deals 4 and tucks a ⚔️ behind the unit; do that twice
 (across rotations) and the unit attunes to Knight. The other eight active classes
 work identically — 🏹 Ranger, 🔮 Mage, 🛡️ Paladin, 🩸 Warlock, 🌿 Druid, 🪓
 Berserker, 👁️ Scout, 🗡️ Assassin — each with its full v0.20 suite as glyph-bearing
@@ -324,9 +353,10 @@ Per-match growth (locked) means no persistent units in v1. Lightest-first:
 1. **The standard 40-card list (main tuning task).** Which sigils, in what
    ratios, so several classes are reachable and 3-of-a-glyph attunement actually
    happens in a game? (§10)
-2. **Attunement pace.** Forced round-robin means attuning one unit to 3-of-a-glyph
-   takes ~3 rotations. Too slow at 5 units? Levers: attune at 2; fewer units; or
-   relax the lowest-level rule (see #3).
+2. **Attunement pace.** *(Largely resolved in v0.1 — threshold moved 3→2; heroes
+   now emerge in ~98 % of games.)* Still worth watching: with `ATTUNE=2` does a
+   hero arrive too *early/cheap*? Further levers if so: fewer units, or relax the
+   lowest-level rule (see #3).
 3. **Is "lowest level acts" too rigid?** It bars you from using your scary attuned
    unit until the others catch up. Bold and anti-snowball, but may feel
    restrictive. Alternatives if so: "must include a lowest-level unit each round
@@ -342,7 +372,8 @@ Per-match growth (locked) means no persistent units in v1. Lightest-first:
 persistent roguelite runs; deckbuilding / asymmetric decks; per-class-level stat
 curves; any hidden counters.
 
-**Build order for next session (vertical slices, test each before the next):**
+**Build order (✅ steps 1–6 shipped in the v0.1 `forge.html` prototype; step 7 is
+the remaining tuning/expansion work):**
 
 1. **Recruit + deploy.** Strip the draft; spawn 5 identical Recruits per side;
    open placement. Game still playable (bland units, basic attack still on).
@@ -352,8 +383,9 @@ curves; any hidden counters.
    feeling right first.
 3. **Lowest-level turn order.** Replace the Speed/initiative system with "activate
    your lowest-level unit"; drop the Speed stat. Confirm activations fan out.
-4. **Attunement.** 3-of-a-glyph → passive + signature snap + token swap; queue-jump
-   for Scout/Assassin; 5/5 Ascension; Mercenary fallback. The emotional payoff.
+4. **Attunement.** 2-of-a-glyph → passive + signature snap + token swap; queue-jump
+   for Scout/Assassin; Ascension at `ASCEND`; Mercenary fallback. The emotional
+   payoff. *(Done in v0.1.)*
 5. **AI.** AI picks its lowest-level unit, then chooses a sigil — biased toward
    completing an attunement on that unit vs. taking the best immediate effect.
 6. **Standard deck + glyphing the pool.** Tag every existing card with its class

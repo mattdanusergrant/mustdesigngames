@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Sigil Tactics — Forge</title>
+<style>
+  :root{
+    --bg:#11141c; --panel:#1a1f2b; --line:#2c3447; --ink:#e8ecf6; --dim:#8a93a8;
+    --a:#3f7fff; --b:#ff5266; --gold:#f6c453; --green:#46c38a; --shield:#7fd0ff;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;height:100%;}
+  body{background:var(--bg);color:var(--ink);font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    display:flex;flex-direction:column;align-items:center;overflow:hidden;}
+  #app{width:100%;max-width:460px;height:100%;display:flex;flex-direction:column;padding:8px;gap:8px;}
+  .hidden{display:none !important;}
+
+  /* status */
+  #status{min-height:34px;background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:6px 10px;font-size:13px;display:flex;align-items:center;gap:6px;}
+  #status b{color:var(--gold);}
+  .sideA{color:var(--a);font-weight:700;} .sideB{color:var(--b);font-weight:700;}
+
+  /* board */
+  #board{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;aspect-ratio:5/4;width:100%;}
+  .tile{position:relative;background:#0e1118;border:1px solid #222a3a;border-radius:8px;
+    display:flex;align-items:center;justify-content:center;}
+  .tile.rA{background:#0e1422;} .tile.rB{background:#1a0f14;}
+  .tile.move{outline:2px solid var(--a);outline-offset:-2px;background:#16243f;}
+  .tile.tgt{outline:2px solid var(--b);outline-offset:-2px;}
+  .tile.tgtAlly{outline:2px solid var(--green);outline-offset:-2px;}
+  .tile.elig{outline:2px dashed var(--gold);outline-offset:-2px;}
+  .tile.active{outline:3px solid #fff;outline-offset:-3px;}
+
+  .unit{width:88%;height:88%;border-radius:8px;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;position:relative;font-weight:700;color:#fff;border:2px solid rgba(255,255,255,.25);}
+  .unit.uA{background:linear-gradient(180deg,#2b5bd0,#1c3f9a);}
+  .unit.uB{background:linear-gradient(180deg,#c0394a,#8a232f);}
+  .unit.att{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold) inset;}
+  .glyph{font-size:min(5.2vw,24px);line-height:1;}
+  .hp{position:absolute;bottom:1px;right:3px;font-size:11px;background:#000a;border-radius:6px;padding:0 4px;}
+  .shield{position:absolute;bottom:1px;left:3px;font-size:10px;color:var(--shield);background:#000a;border-radius:6px;padding:0 3px;}
+  .vuln{position:absolute;top:1px;left:3px;font-size:10px;color:#ff9f43;}
+  .face{position:absolute;top:0;font-size:9px;color:#fff;opacity:.85;}
+  .tucks{position:absolute;top:1px;right:2px;display:flex;flex-wrap:wrap;gap:0;max-width:46%;justify-content:flex-end;font-size:8px;line-height:1;}
+  .lvl{position:absolute;top:1px;left:2px;font-size:9px;color:var(--gold);font-weight:700;}
+
+  /* hand */
+  #handwrap{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px;}
+  #handlabel{font-size:11px;color:var(--dim);margin-bottom:4px;display:flex;justify-content:space-between;}
+  #hand{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;}
+  .card{flex:0 0 auto;width:96px;background:#0f1320;border:1px solid var(--line);border-radius:8px;padding:6px;
+    font-size:11px;cursor:pointer;position:relative;}
+  .card .cg{font-size:16px;} .card .cn{font-weight:700;margin:2px 0;font-size:11px;}
+  .card .ce{color:var(--dim);font-size:10px;}
+  .card.sel{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset;}
+  .card.dead{opacity:.4;}
+
+  /* controls */
+  #ctrl{display:flex;gap:8px;}
+  button{flex:1;background:var(--a);color:#fff;border:none;border-radius:9px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;}
+  button.ghost{background:#28304a;}
+  button:disabled{opacity:.4;}
+
+  /* overlays */
+  .ov{position:fixed;inset:0;background:#0b0d14ee;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;text-align:center;padding:24px;gap:14px;z-index:10;}
+  .ov h1{font-size:30px;margin:0;letter-spacing:1px;}
+  .ov h1 .s{color:var(--gold);}
+  .ov p{color:var(--dim);max-width:340px;font-size:13px;margin:0;}
+  .ov button{max-width:240px;}
+  .rules{text-align:left;background:#141826;border:1px solid var(--line);border-radius:10px;padding:12px;font-size:12px;color:#c5ccdb;max-width:360px;}
+  .rules b{color:var(--ink);}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="status">Loading…</div>
+  <div id="board"></div>
+  <div id="handwrap">
+    <div id="handlabel"><span>Your hand</span><span id="deckcount"></span></div>
+    <div id="hand"></div>
+  </div>
+  <div id="ctrl">
+    <button id="inscribeBtn" class="ghost">Inscribe only</button>
+    <button id="endBtn">End turn</button>
+  </div>
+</div>
+
+<div id="title" class="ov">
+  <h1>SIGIL<span class="s"> TACTICS</span></h1>
+  <p>Five blank recruits. Every card you cast does its thing — then tucks behind the unit as a level in its class. Two of one glyph and the recruit <b>becomes that hero</b>.</p>
+  <div class="rules">
+    <b>How it works</b><br>
+    • On your turn, activate one of your <b>lowest-level</b> units (fewest tucked cards, dashed gold).<br>
+    • It may <b>move</b> once, and <b>must cast one card</b> — no plain attacks. The card resolves and tucks behind it (+1 level in that glyph).<br>
+    • Hit from the <b>side (×1.5)</b> or <b>rear (×2)</b> of a unit's facing for bonus damage.<br>
+    • Stack <b>2 of one glyph</b> on a unit → it attunes: gains that hero's passive + a stat boost.<br>
+    • Wipe out all 5 enemy units to win.
+  </div>
+  <button id="startBtn">Start skirmish</button>
+</div>
+
+<div id="win" class="ov hidden">
+  <h1 id="winText"></h1>
+  <button id="againBtn">Play again</button>
+</div>
+
+<script>
+/* ===================== data ===================== */
+var ROWS=4, COLS=5;
+var ATTUNE=2, ASCEND=4;   // glyphs-of-one-class to become / fully ascend a hero (the main tuning knob)
+var GLYPH={knight:"⚔️",ranger:"🏹",mage:"🔮",paladin:"🛡️",warlock:"🩸",druid:"🌿",berserker:"🪓",scout:"👁️",assassin:"🗡️",neutral:"✦"};
+var HEROES={
+  knight:{name:"Knight",passive:"steadfast",snap:{hp:10},asc:{hp:12}},
+  paladin:{name:"Paladin",passive:"guardian",snap:{hp:10,canheal:1},asc:{hp:12}},
+  berserker:{name:"Berserker",passive:"bloodthirst",snap:{atk:2,hp:8},asc:{atk:3,hp:10}},
+  druid:{name:"Druid",passive:"symbiosis",snap:{range:2,canheal:1},asc:{range:2,hp:8}},
+  mage:{name:"Mage",passive:"resonance",snap:{range:2},asc:{range:3}},
+  warlock:{name:"Warlock",passive:"souldrain",snap:{range:3},asc:{range:3,hp:8}},
+  ranger:{name:"Ranger",passive:"spotter",snap:{range:2},asc:{range:3}},
+  scout:{name:"Scout",passive:"pathfinder",snap:{move:2,jump:1},asc:{move:3,jump:1}},
+  assassin:{name:"Assassin",passive:"shadowstep",snap:{move:2,flank:1,jump:1},asc:{move:2,flank:1,jump:1,atk:2}}
+};
+var PASS_TEXT={steadfast:"Steadfast: immune to knockback.",guardian:"Guardian: after a heal card, +1 to most-wounded ally.",
+  bloodthirst:"Bloodthirst: heal 1 when it damages an enemy.",symbiosis:"Symbiosis: after a heal card, heal self 1.",
+  resonance:"Resonance: your splash cards hit +1.",souldrain:"Soul Drain: heal 2 when any enemy dies.",
+  spotter:"Spotter: your damage cards reach +1.",pathfinder:"Pathfinder: queue-jump.",shadowstep:"Shadow Step: after moving, your hit is rear-arc; queue-jump."};
+
+// kinds: dmg(d) dmgvuln(d,v) drain(d) dmgadj(d,s) heal(h) healall(h) shield(sh) shieldall(sh) charge(m,self) buff(a,ally)
+var CARDS=[
+  {c:"knight",n:"Greatsword",k:"dmg",d:4},{c:"knight",n:"Shield Bash",k:"dmgvuln",d:3,v:2},
+  {c:"knight",n:"Plate Mail",k:"shield",sh:5},{c:"knight",n:"Rally",k:"healall",h:2},{c:"knight",n:"Shield Wall",k:"shieldall",sh:3},
+  {c:"ranger",n:"Quick Shot",k:"dmg",d:3},{c:"ranger",n:"Piercing Arrow",k:"dmg",d:5},
+  {c:"ranger",n:"Volley",k:"dmgadj",d:2,s:1},{c:"ranger",n:"Hunter's Mark",k:"dmgvuln",d:3,v:3},{c:"ranger",n:"Reposition",k:"charge",m:3},
+  {c:"mage",n:"Frostbolt",k:"dmgvuln",d:4,v:2},{c:"mage",n:"Fireball",k:"dmgadj",d:3,s:2},
+  {c:"mage",n:"Lightning",k:"dmg",d:5},{c:"mage",n:"Meteor",k:"dmg",d:6},
+  {c:"paladin",n:"Smite",k:"dmg",d:4},{c:"paladin",n:"Lay on Hands",k:"heal",h:5},
+  {c:"paladin",n:"Holy Symbol",k:"healall",h:3},{c:"paladin",n:"Holy Plate",k:"shield",sh:6},
+  {c:"warlock",n:"Hex",k:"dmg",d:4},{c:"warlock",n:"Eldritch Blast",k:"dmg",d:5},
+  {c:"warlock",n:"Drain Soul",k:"drain",d:3},{c:"warlock",n:"Curse",k:"dmgvuln",d:3,v:3},
+  {c:"druid",n:"Thorns",k:"dmg",d:4},{c:"druid",n:"Regrowth",k:"heal",h:4},
+  {c:"druid",n:"Living Wood",k:"healall",h:3},{c:"druid",n:"Entangle",k:"dmgadj",d:3,s:1},
+  {c:"berserker",n:"Battle Axe",k:"dmg",d:5},{c:"berserker",n:"Bloodthirster",k:"dmg",d:6},
+  {c:"berserker",n:"Whirlwind",k:"dmgadj",d:3,s:1},{c:"berserker",n:"Rage",k:"buff",a:2},
+  {c:"scout",n:"Snipe",k:"dmg",d:5},{c:"scout",n:"Shortbow",k:"dmg",d:3},
+  {c:"scout",n:"Mark",k:"dmgvuln",d:3,v:2},{c:"scout",n:"Dash",k:"charge",m:5},
+  {c:"assassin",n:"Backstab",k:"dmg",d:5},{c:"assassin",n:"Shadow Strike",k:"dmg",d:7},
+  {c:"assassin",n:"Dagger",k:"dmg",d:4},{c:"assassin",n:"Mask",k:"dmgvuln",d:4,v:2},
+  {c:"neutral",n:"Zap",k:"dmg",d:2},{c:"neutral",n:"Mend",k:"heal",h:2},
+  {c:"neutral",n:"Ward",k:"shield",sh:2},{c:"neutral",n:"Quickstep",k:"charge",m:2}
+];
+function cardText(c){
+  if(c.k==="dmg")return c.d+" damage";
+  if(c.k==="dmgvuln")return c.d+" dmg, +"+c.v+" next hit";
+  if(c.k==="drain")return c.d+" dmg, heal self "+c.d;
+  if(c.k==="dmgadj")return c.d+" dmg +"+c.s+" splash";
+  if(c.k==="heal")return "heal ally "+c.h;
+  if(c.k==="healall")return "heal allies "+c.h;
+  if(c.k==="shield")return "+"+c.sh+" shield";
+  if(c.k==="shieldall")return "+"+c.sh+" shield all";
+  if(c.k==="charge")return "+"+c.m+" move (self)";
+  if(c.k==="buff")return "ally +"+c.a+" ATK";
+  return "";
+}
+var DMGKINDS={dmg:1,dmgvuln:1,drain:1,dmgadj:1};
+var DIR={N:[-1,0],S:[1,0],E:[0,1],W:[0,-1]};
+var OPP={N:"S",S:"N",E:"W",W:"E"};
+
+/* ===================== state ===================== */
+var G=null;
+function shuffle(a){for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}return a;}
+function inB(r,c){return r>=0&&r<ROWS&&c>=0&&c<COLS;}
+function manh(a,b){return Math.abs(a.r-b.r)+Math.abs(a.c-b.c);}
+function live(side){return G.units.filter(function(u){return u.owner===side&&u.hp>0;});}
+function allies(side){return live(side);}
+function enemies(side){return live(side==="A"?"B":"A");}
+function unitAt(r,c){return G.units.find(function(u){return u.hp>0&&u.r===r&&u.c===c;});}
+function occupied(r,c){return !!unitAt(r,c);}
+function passiveOnSide(side,p){return live(side).some(function(u){return u.passive===p;});}
+
+function newUnit(owner,r,c,facing){
+  return {id:G.uid++,owner:owner,r:r,c:c,facing:facing,hp:6,maxHp:6,atk:1,move:1,range:1,
+    sym:"○",name:"Recruit",passive:null,attuned:null,tucked:[],
+    shield:0,vuln:0,bonusAtk:0,bonusMove:0,flank:false,jump:false,canheal:false,
+    hasMoved:false,hasCast:false,movedThisTurn:false};
+}
+var FORM={A:[[3,0,"N"],[3,2,"N"],[3,4,"N"],[2,1,"N"],[2,3,"N"]],
+          B:[[0,0,"S"],[0,2,"S"],[0,4,"S"],[1,1,"S"],[1,3,"S"]]};
+
+function newGame(){
+  G={uid:1,units:[],side:"A",active:null,sel:null,over:false,winner:null,busy:false,
+     decks:{A:shuffle(CARDS.map(function(_,i){return i;})),B:shuffle(CARDS.map(function(_,i){return i;}))},
+     hands:{A:[],B:[]},msg:""};
+  ["A","B"].forEach(function(s){FORM[s].forEach(function(f){G.units.push(newUnit(s,f[0],f[1],f[2]));});});
+  for(var n=0;n<3;n++){draw("A");draw("B");}
+  G.side=Math.random()<0.5?"A":"B";
+  G.msg=(G.side==="A"?"You":"Enemy")+" go first.";
+  startSide();
+}
+function draw(side){if(G.decks[side].length)G.hands[side].push(G.decks[side].shift());}
+
+/* ===================== turn flow ===================== */
+function eligible(side){
+  var l=live(side);if(!l.length)return [];
+  var min=Math.min.apply(null,l.map(function(u){return u.tucked.length;}));
+  var set=l.filter(function(u){return u.tucked.length===min;});
+  l.forEach(function(u){if(u.jump&&set.indexOf(u)<0)set.push(u);});
+  return set;
+}
+function activate(u){
+  G.msg="";
+  G.active=u;G.sel=null;u.hasMoved=false;u.hasCast=false;u.movedThisTurn=false;u.bonusMove=0;
+}
+function maybeEnd(u){
+  // auto-end only for the human player; the AI path (busy) owns its own endTurn
+  if(u.owner==="A"&&!G.busy&&u.hasMoved&&u.hasCast){endTurn();return true;}
+  return false;
+}
+function startSide(){
+  G.active=null;G.sel=null;
+  if(checkWin())return;
+  if(G.side==="B"){scheduleAI();return;}
+  var e=eligible("A");
+  if(e.length===1)activate(e[0]);
+  draw; // no-op
+  render();
+}
+function endTurn(){
+  if(G.active){G.active.bonusAtk=0;G.active.bonusMove=0;}
+  draw(G.side);
+  G.side=G.side==="A"?"B":"A";
+  startSide();
+}
+
+/* ===================== combat ===================== */
+function setFace(u,r,c){
+  var dr=r-u.r,dc=c-u.c;
+  if(dr===0&&dc===0)return;
+  if(Math.abs(dr)>=Math.abs(dc))u.facing=dr<0?"N":"S";else u.facing=dc<0?"W":"E";
+}
+function arcMult(a,t){
+  var dr=a.r-t.r,dc=a.c-t.c,rel;
+  if(Math.abs(dr)>=Math.abs(dc))rel=dr<0?"N":"S";else rel=dc<0?"W":"E";
+  var arc;
+  if(rel===t.facing)arc="front";else if(rel===OPP[t.facing])arc="rear";else arc="side";
+  if(a.passive==="shadowstep"&&a.movedThisTurn)arc="rear";
+  if(arc==="front")return 1;
+  if(arc==="side")return a.flank?2:1.5;
+  return a.flank?2.5:2;
+}
+function heal(u,n){if(u.hp<=0)return;u.hp=Math.min(u.maxHp,u.hp+n);}
+function mostWounded(side){
+  var l=live(side).filter(function(u){return u.hp<u.maxHp;});
+  if(!l.length)return null;
+  l.sort(function(x,y){return (x.hp/x.maxHp)-(y.hp/y.maxHp);});
+  return l[0];
+}
+function applyDmg(a,t,d){
+  if(d<0)d=0;
+  if(t.shield>0){var ab=Math.min(t.shield,d);t.shield-=ab;d-=ab;}
+  t.hp-=d;
+  if(d>0&&a.passive==="bloodthirst")heal(a,1);
+  if(t.hp<=0)die(t);
+}
+function dmgTo(a,t,base){
+  var arc=arcMult(a,t);
+  var d=Math.round((base+(a.bonusAtk||0))*arc)+(t.vuln||0);t.vuln=0;
+  applyDmg(a,t,d);
+}
+function die(t){
+  t.hp=0;
+  G.units.forEach(function(w){if(w.hp>0&&w.owner!==t.owner&&w.passive==="souldrain")heal(w,2);});
+}
+function adjEnemies(t){
+  var side=t.owner;var out=[];
+  for(var k in DIR){var nr=t.r+DIR[k][0],nc=t.c+DIR[k][1];var u=unitAt(nr,nc);if(u&&u.owner!==side)out.push(u);}
+  return out;
+}
+function effRange(u,card){var r=u.range;if(DMGKINDS[card.k]&&passiveOnSide(u.owner,"spotter"))r+=1;return r;}
+
+function resolve(u,card,target){
+  var k=card.k;
+  if(k==="dmg")dmgTo(u,target,card.d);
+  else if(k==="dmgvuln"){dmgTo(u,target,card.d);if(target.hp>0)target.vuln+=card.v;}
+  else if(k==="drain"){dmgTo(u,target,card.d);heal(u,card.d);}
+  else if(k==="dmgadj"){dmgTo(u,target,card.d);var sp=card.s+(u.passive==="resonance"?1:0);adjEnemies(target).forEach(function(e){applyDmg(u,e,sp);});}
+  else if(k==="heal"){heal(target,card.h);afterHeal(u);}
+  else if(k==="healall"){allies(u.owner).forEach(function(a){heal(a,card.h);});afterHeal(u);}
+  else if(k==="shield")target.shield+=card.sh;
+  else if(k==="shieldall")allies(u.owner).forEach(function(a){a.shield+=card.sh;});
+  else if(k==="charge")u.bonusMove+=card.m;
+  else if(k==="buff")target.bonusAtk+=card.a;
+}
+function afterHeal(u){
+  if(u.passive==="guardian"){var w=mostWounded(u.owner);if(w)heal(w,1);}
+  if(u.passive==="symbiosis")heal(u,1);
+}
+function attuneCheck(u,cls){
+  if(cls==="neutral")return;
+  var c=u.tucked.filter(function(x){return x===cls;}).length;
+  if(c===ATTUNE&&!u.attuned)attune(u,cls,false);
+  else if(c===ASCEND&&u.attuned===cls)attune(u,cls,true);
+}
+function attune(u,cls,asc){
+  var h=HEROES[cls];var s=asc?h.asc:h.snap;
+  u.attuned=cls;u.name=(asc?"Ascended ":"")+h.name;u.sym=GLYPH[cls];u.passive=h.passive;
+  if(s.hp&&s.hp>u.maxHp){var g=s.hp-u.maxHp;u.maxHp=s.hp;u.hp+=g;}
+  if(s.atk)u.atk=Math.max(u.atk,s.atk);
+  if(s.range)u.range=Math.max(u.range,s.range);
+  if(s.move)u.move=Math.max(u.move,s.move);
+  if(s.flank)u.flank=true;
+  if(s.jump)u.jump=true;
+  if(s.canheal)u.canheal=true;
+  G.msg=(u.owner==="A"?"Your":"Enemy")+" recruit attuned → "+u.name+"! "+(PASS_TEXT[u.passive]||"");
+}
+
+/* ===================== targeting ===================== */
+function validTargets(u,card){
+  var k=card.k;
+  if(k==="healall"||k==="shieldall")return [];
+  if(k==="charge")return [u];
+  if(k==="heal"||k==="shield"||k==="buff")return allies(u.owner);
+  // damage
+  var r=effRange(u,card);
+  return enemies(u.owner).filter(function(e){return manh(u,e)<=r;});
+}
+function reachable(u){
+  var budget=u.move+(u.bonusMove||0);
+  var seen={};seen[u.r+","+u.c]=0;var q=[[u.r,u.c,0]];var out=[];
+  while(q.length){
+    var cur=q.shift(),r=cur[0],c=cur[1],d=cur[2];
+    if(d>0)out.push({r:r,c:c,d:d});
+    if(d>=budget)continue;
+    for(var key in DIR){var nr=r+DIR[key][0],nc=c+DIR[key][1];
+      if(!inB(nr,nc)||occupied(nr,nc))continue;var kk=nr+","+nc;if(kk in seen)continue;
+      seen[kk]=d+1;q.push([nr,nc,d+1]);}
+  }
+  return out;
+}
+
+/* ===================== plays ===================== */
+function moveActive(r,c){
+  var u=G.active;if(!u||u.hasMoved)return;
+  if(!reachable(u).some(function(t){return t.r===r&&t.c===c;}))return;
+  setFace(u,r,c);u.r=r;u.c=c;u.hasMoved=true;u.movedThisTurn=true;
+  G.sel=null;if(!maybeEnd(u))render();
+}
+function castSelected(target,skip){
+  var u=G.active;if(!u||u.hasCast)return;
+  var idx=G.sel;if(idx==null)idx=0;
+  var card=CARDS[G.hands[u.owner][idx]];if(!card)return;
+  if(target&&!skip){setFace(u,target.r,target.c);resolve(u,card,target);}
+  // tuck
+  G.hands[u.owner].splice(idx,1);
+  u.tucked.push(card.c);
+  u.hasCast=true;G.sel=null;
+  attuneCheck(u,card.c);
+  if(checkWin()){render();return;}
+  if(!maybeEnd(u))render();
+}
+function checkWin(){
+  if(G.over)return true;
+  var a=live("A").length,b=live("B").length;
+  if(a===0||b===0){G.over=true;G.winner=a>0?"A":"B";render();return true;}
+  return false;
+}
+
+/* ===================== AI ===================== */
+function nearestEnemy(u){
+  var es=enemies(u.owner);if(!es.length)return null;
+  es.sort(function(x,y){return manh(u,x)-manh(u,y);});return es[0];
+}
+function countTuck(u,cls){return u.tucked.filter(function(x){return x===cls;}).length;}
+function completes(u,card){return card.c!=="neutral"&&!u.attuned&&countTuck(u,card.c)===ATTUNE-1;}
+function scorePlay(u,card,target){
+  var k=card.k,s=0;
+  if(DMGKINDS[k]){
+    var arc=arcMult(u,target);
+    var d=Math.round((card.d+(u.bonusAtk||0))*arc)+(target.vuln||0);
+    s=d*2;if(d>=target.hp+target.shield)s+=100;
+    if(k==="dmgadj")s+=adjEnemies(target).length*2;
+  }else if(k==="heal"){s=Math.min(card.h,target.maxHp-target.hp)*1.5;}
+  else if(k==="shield"){s=Math.min(card.sh,6)*(target.hp<target.maxHp*0.6?1.2:0.4);}
+  else if(k==="buff"){s=card.a*0.6;}
+  else if(k==="charge"){s=0.3;}
+  if(card.c!=="neutral")s+=countTuck(u,card.c)*4;  // funnel: favor stacking a glyph the unit already has
+  if(completes(u,card))s+=18;
+  return s;
+}
+function aiAct(side){
+  var e=eligible(side);if(!e.length)return;
+  // pick unit nearest an enemy (most likely to do something)
+  e.sort(function(x,y){var nx=nearestEnemy(x),ny=nearestEnemy(y);return (nx?manh(x,nx):99)-(ny?manh(y,ny):99);});
+  var u=e[0];activate(u);
+  var hand=G.hands[side];
+
+  function bestNow(){
+    var best=null;
+    hand.forEach(function(ci,i){var card=CARDS[ci];var tg=validTargets(u,card);
+      if(card.k==="healall"||card.k==="shieldall"){var sc=card.k==="healall"?allies(side).reduce(function(a,x){return a+Math.min(card.h,x.maxHp-x.hp);},0):allies(side).length*1.2;sc+=completes(u,card)?18:0;if(!best||sc>best.s)best={i:i,card:card,target:null,s:sc};return;}
+      tg.forEach(function(t){var sc=scorePlay(u,card,t);if(!best||sc>best.s)best={i:i,card:card,target:t,s:sc};});
+    });
+    return best;
+  }
+  var b=bestNow();
+  // if nothing useful and a move could bring an enemy in range, step toward nearest enemy
+  if((!b||b.s<3)&&!u.hasMoved){
+    var ne=nearestEnemy(u);
+    if(ne){var tiles=reachable(u);
+      tiles.sort(function(x,y){return (Math.abs(x.r-ne.r)+Math.abs(x.c-ne.c))-(Math.abs(y.r-ne.r)+Math.abs(y.c-ne.c));});
+      if(tiles.length&&(Math.abs(tiles[0].r-ne.r)+Math.abs(tiles[0].c-ne.c))<manh(u,ne)){
+        setFace(u,tiles[0].r,tiles[0].c);u.r=tiles[0].r;u.c=tiles[0].c;u.hasMoved=true;u.movedThisTurn=true;
+        b=bestNow();
+      }
+    }
+  }
+  if(b&&b.s>0){G.sel=b.i;castSelected(b.target,false);}
+  else{ // inscribe to build toward an attunement
+    var pick=0,bestc=-1;
+    hand.forEach(function(ci,i){var card=CARDS[ci];var ct=card.c==="neutral"?-1:countTuck(u,card.c);if(ct>bestc){bestc=ct;pick=i;}});
+    G.sel=pick;castSelected(null,true);
+  }
+  if(!u.hasCast){G.sel=0;castSelected(null,true);} // safety
+}
+function scheduleAI(){
+  if(typeof document==="undefined")return; // tests drive manually
+  G.busy=true;render();
+  setTimeout(function(){
+    if(G.over)return;
+    aiAct("B");render();
+    setTimeout(function(){G.busy=false;if(!G.over)endTurn();},500);
+  },550);
+}
+
+/* ===================== render ===================== */
+var boardEl,statusEl,handEl,deckEl,endBtn,inscribeBtn,tiles=[];
+function buildBoard(){
+  boardEl.innerHTML="";tiles=[];
+  for(var r=0;r<ROWS;r++){tiles[r]=[];for(var c=0;c<COLS;c++){
+    var d=document.createElement("div");
+    d.className="tile "+(r<2?"rB":"rA");
+    (function(rr,cc){d.addEventListener("click",function(){onTile(rr,cc);});})(r,c);
+    boardEl.appendChild(d);tiles[r][c]=d;
+  }}
+}
+function faceArrow(f){return {N:"▲",S:"▼",E:"▶",W:"◀"}[f];}
+function render(){
+  if(typeof document==="undefined"||!boardEl)return;
+  var human=G.side==="A"&&!G.busy&&!G.over;
+  var elig=human?eligible("A"):[];
+  var moveTiles=(human&&G.active&&!G.active.hasMoved&&G.sel==null)?reachable(G.active):[];
+  var tgts=(human&&G.active&&G.sel!=null)?validTargets(G.active,CARDS[G.hands.A[G.sel]]):[];
+
+  for(var r=0;r<ROWS;r++)for(var c=0;c<COLS;c++){
+    var t=tiles[r][c];t.className="tile "+(r<2?"rB":"rA");t.innerHTML="";
+    if(moveTiles.some(function(m){return m.r===r&&m.c===c;}))t.classList.add("move");
+    var u=unitAt(r,c);
+    if(u){
+      var div=document.createElement("div");
+      div.className="unit "+(u.owner==="A"?"uA":"uB")+(u.attuned?" att":"");
+      var tuckStr=u.tucked.map(function(x){return GLYPH[x];}).join("");
+      div.innerHTML='<span class="face">'+faceArrow(u.facing)+'</span>'+
+        (u.tucked.length?'<span class="lvl">L'+u.tucked.length+'</span><span class="tucks">'+tuckStr+'</span>':'')+
+        '<span class="glyph">'+u.sym+'</span>'+
+        (u.shield>0?'<span class="shield">⛊'+u.shield+'</span>':'')+
+        (u.vuln>0?'<span class="vuln">▼'+u.vuln+'</span>':'')+
+        '<span class="hp">'+u.hp+'</span>';
+      t.appendChild(div);
+      if(G.active===u)t.classList.add("active");
+      else if(elig.indexOf(u)>=0)t.classList.add("elig");
+      if(tgts.indexOf(u)>=0)t.classList.add(u.owner==="A"?"tgtAlly":"tgt");
+    }
+  }
+  // status
+  var who=G.side==="A"?'<span class="sideA">You</span>':'<span class="sideB">Enemy</span>';
+  var line=G.msg?G.msg+" ":"";
+  if(G.over)line=(G.winner==="A"?"Victory!":"Defeat.");
+  else if(G.busy)line+="Enemy is thinking…";
+  else if(G.side==="A"){
+    if(!G.active)line+="Tap a unit to activate ("+eligible("A").length+" lowest-level).";
+    else if(!G.active.hasCast)line+="Move (optional), then cast a card."+(G.active.passive?" "+(PASS_TEXT[G.active.passive]||""):"");
+    else line+="Cast done — move or end turn.";
+  }else line+="taking their turn.";
+  statusEl.innerHTML=who+" — "+line;
+
+  // hand
+  handEl.innerHTML="";
+  G.hands.A.forEach(function(ci,i){
+    var card=CARDS[ci];var el=document.createElement("div");
+    var playable=human&&G.active&&!G.active.hasCast;
+    el.className="card"+(G.sel===i?" sel":"")+(playable?"":" dead");
+    el.innerHTML='<div class="cg">'+GLYPH[card.c]+'</div><div class="cn">'+card.n+'</div><div class="ce">'+cardText(card)+'</div>';
+    (function(ii){el.addEventListener("click",function(){onCard(ii);});})(i);
+    handEl.appendChild(el);
+  });
+  deckEl.textContent="Deck "+G.decks.A.length+" · Hand "+G.hands.A.length;
+
+  var canCast=human&&G.active&&!G.active.hasCast;
+  inscribeBtn.disabled=!canCast;
+  endBtn.disabled=!(human&&G.active&&(G.active.hasCast||G.hands.A.length===0));
+  document.getElementById("win").classList.toggle("hidden",!G.over);
+  if(G.over)document.getElementById("winText").textContent=G.winner==="A"?"Victory":"Defeat";
+}
+
+/* ===================== input ===================== */
+function onTile(r,c){
+  if(G.side!=="A"||G.busy||G.over)return;
+  var u=unitAt(r,c);
+  if(!G.active){
+    if(u&&u.owner==="A"&&eligible("A").indexOf(u)>=0){activate(u);render();}
+    return;
+  }
+  if(G.sel!=null){
+    var card=CARDS[G.hands.A[G.sel]];
+    var ok=validTargets(G.active,card);
+    if(u&&ok.indexOf(u)>=0)castSelected(u,false);
+    return;
+  }
+  // no card selected → move
+  if(!G.active.hasMoved)moveActive(r,c);
+}
+function onCard(i){
+  if(G.side!=="A"||G.busy||G.over||!G.active||G.active.hasCast)return;
+  var card=CARDS[G.hands.A[i]];
+  if(card.k==="healall"||card.k==="shieldall"){G.sel=i;castSelected(null,false);return;}
+  if(card.k==="charge"){G.sel=i;castSelected(G.active,false);return;}
+  G.sel=(G.sel===i?null:i);render();
+}
+function init(){
+  boardEl=document.getElementById("board");statusEl=document.getElementById("status");
+  handEl=document.getElementById("hand");deckEl=document.getElementById("deckcount");
+  endBtn=document.getElementById("endBtn");inscribeBtn=document.getElementById("inscribeBtn");
+  buildBoard();
+  document.getElementById("startBtn").addEventListener("click",function(){document.getElementById("title").classList.add("hidden");newGame();});
+  document.getElementById("againBtn").addEventListener("click",function(){document.getElementById("win").classList.add("hidden");newGame();});
+  endBtn.addEventListener("click",function(){if(!endBtn.disabled){G.msg="";endTurn();}});
+  inscribeBtn.addEventListener("click",function(){if(!inscribeBtn.disabled)castSelected(null,true);});
+}
+if(typeof document!=="undefined"){
+  if(document.readyState!=="loading")init();else document.addEventListener("DOMContentLoaded",init);
+}
+try{__sigil={newGame:newGame,aiAct:aiAct,endTurn:endTurn,eligible:eligible,attune:attune,getG:function(){return G;},CARDS:CARDS};}catch(e){}
+</script>
+</body>
+</html>
