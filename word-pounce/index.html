@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>Word Pounce</title>
+<style>
+  :root {
+    --bg: #11131a; --panel: #1b1f2b; --panel2: #232838; --ink: #eef1f7;
+    --muted: #8b93a7; --accent: #ffcc3f; --line: #313748; --ok: #4ade80;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100%; padding: env(safe-area-inset-top) 10px env(safe-area-inset-bottom);
+    overflow-x: hidden; user-select: none; -webkit-user-select: none;
+  }
+  .wrap { width: 100%; max-width: 460px; display: flex; flex-direction: column; flex: 1; }
+  h1 { font-size: 28px; margin: 14px 0 2px; letter-spacing: .5px; text-align: center; }
+  h1 span { color: var(--accent); }
+  .tag { color: var(--muted); text-align: center; font-size: 13px; margin-bottom: 18px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 12px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin: 0 0 5px; text-transform: uppercase; letter-spacing: .6px; }
+  input, select, textarea {
+    width: 100%; background: var(--panel2); border: 1px solid var(--line); color: var(--ink);
+    border-radius: 10px; padding: 13px; font-size: 16px; margin-bottom: 12px; font-family: inherit;
+  }
+  input.code { text-transform: uppercase; letter-spacing: 6px; font-weight: 700; text-align: center; font-size: 24px; }
+  button {
+    width: 100%; background: var(--accent); color: #1a1300; border: 0; border-radius: 10px;
+    padding: 14px; font-size: 17px; font-weight: 700; cursor: pointer; margin-bottom: 8px;
+  }
+  button.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+  button:disabled { opacity: .45; }
+  .row { display: flex; gap: 8px; }
+  .row > * { flex: 1; }
+  .hidden { display: none !important; }
+  .err { color: #ff7a7a; font-size: 13px; min-height: 16px; text-align: center; }
+  .note { font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .note code { background: var(--panel2); padding: 1px 5px; border-radius: 5px; }
+
+  /* Lobby */
+  .roomcode { text-align: center; font-size: 44px; font-weight: 800; letter-spacing: 10px; color: var(--accent); margin: 6px 0; }
+  .players { list-style: none; padding: 0; margin: 6px 0 0; }
+  .players li { display: flex; align-items: center; gap: 10px; padding: 9px 4px; border-bottom: 1px solid var(--line); font-size: 16px; }
+  .players li:last-child { border-bottom: 0; }
+  .dot { width: 14px; height: 14px; border-radius: 50%; flex: none; }
+  .me { color: var(--accent); }
+
+  /* Game */
+  #game { flex: 1; display: flex; flex-direction: column; }
+  .hud { display: flex; justify-content: space-between; align-items: center; margin: 6px 0 8px; }
+  .scoreboard { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+  .pill { display: flex; align-items: center; gap: 6px; background: var(--panel); border: 1px solid var(--line);
+          border-radius: 20px; padding: 5px 11px; font-size: 14px; font-weight: 600; }
+  #gridwrap { display: flex; justify-content: center; }
+  #grid { display: grid; gap: 3px; touch-action: none; margin: 2px auto 10px; }
+  .cell {
+    display: flex; align-items: center; justify-content: center;
+    background: var(--panel2); border-radius: 6px; font-weight: 700;
+    aspect-ratio: 1; user-select: none;
+  }
+  .cell.sel { background: var(--accent); color: #1a1300; }
+  .wordlist { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; padding-bottom: 12px; }
+  .word { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px;
+          font-size: 14px; font-weight: 600; letter-spacing: .5px; }
+  .word.done { text-decoration: line-through; color: #1a1300; }
+
+  /* Overlay */
+  .overlay { position: fixed; inset: 0; background: rgba(8,9,13,.92); display: flex; align-items: center;
+             justify-content: center; padding: 20px; z-index: 50; }
+  .overlay .card { width: 100%; max-width: 380px; }
+  .standings { list-style: none; padding: 0; margin: 4px 0 14px; }
+  .standings li { display: flex; align-items: center; gap: 10px; padding: 10px 4px; border-bottom: 1px solid var(--line); font-size: 17px; }
+  .rank { font-weight: 800; width: 26px; color: var(--muted); }
+  .flash { text-align: center; font-weight: 700; min-height: 20px; color: var(--ok); margin-bottom: 6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Word <span>Pounce</span></h1>
+  <div class="tag">Same grid. First to trace a word claims it.</div>
+
+  <!-- SETUP (only if no Firebase config baked in) -->
+  <div id="setup" class="card hidden">
+    <label>Firebase config</label>
+    <textarea id="cfgInput" rows="7" placeholder="Paste the firebaseConfig object from your Firebase project"></textarea>
+    <button id="cfgSave">Save & continue</button>
+    <p class="note">One-time per device. Create a free project at <code>console.firebase.google.com</code>, add a Web app, enable <b>Realtime Database</b> (test mode), and paste the <code>firebaseConfig</code> here. See <code>DEPLOY.md</code> to bake it into the file so the family doesn't each paste it.</p>
+  </div>
+
+  <!-- HOME -->
+  <div id="home" class="card hidden">
+    <label>Your name</label>
+    <input id="name" maxlength="12" placeholder="e.g. Mum" />
+    <button id="createBtn">Create a room</button>
+    <div class="row">
+      <input id="joinCode" class="code" maxlength="4" placeholder="CODE" />
+    </div>
+    <button id="joinBtn" class="ghost">Join room</button>
+    <div id="homeErr" class="err"></div>
+  </div>
+
+  <!-- LOBBY -->
+  <div id="lobby" class="card hidden">
+    <label>Room code — share it with the family</label>
+    <div id="lobbyCode" class="roomcode">----</div>
+    <label>Theme</label>
+    <select id="theme"></select>
+    <ul id="lobbyPlayers" class="players"></ul>
+    <button id="startBtn">Start round</button>
+    <button id="leaveBtn" class="ghost">Leave</button>
+    <div id="lobbyHint" class="note" style="text-align:center"></div>
+  </div>
+
+  <!-- GAME -->
+  <div id="game" class="hidden">
+    <div class="hud">
+      <div class="pill">Room <b id="gameCode" style="margin-left:4px">----</b></div>
+      <div class="pill"><b id="found">0</b>/<b id="total">0</b> found</div>
+    </div>
+    <div id="scoreboard" class="scoreboard"></div>
+    <div id="flash" class="flash"></div>
+    <div id="gridwrap"><div id="grid"></div></div>
+    <div id="wordlist" class="wordlist"></div>
+  </div>
+</div>
+
+<!-- DONE OVERLAY -->
+<div id="done" class="overlay hidden">
+  <div class="card">
+    <h2 style="margin:0 0 4px">Round over</h2>
+    <ul id="standings" class="standings"></ul>
+    <button id="againBtn">Play again</button>
+    <button id="doneLeaveBtn" class="ghost">Back to home</button>
+    <div id="doneHint" class="note" style="text-align:center"></div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+"use strict";
+
+/* ============================================================
+   1. FIREBASE CONFIG
+   Paste your project's config object here before deploying so
+   the whole family shares it. Leave the placeholder to be
+   prompted in-app (saved per-device in localStorage).
+   ============================================================ */
+const BAKED_CONFIG = {
+  apiKey: "AIzaSyB23amgbl5FHYzd35G7ImC8TKOY6B0vWjw",
+  authDomain: "word-pounce.firebaseapp.com",
+  databaseURL: "https://word-pounce-default-rtdb.firebaseio.com",
+  projectId: "word-pounce",
+  storageBucket: "word-pounce.firebasestorage.app",
+  messagingSenderId: "508919448966",
+  appId: "1:508919448966:web:3a88a0fda7883d5165d807",
+  measurementId: "G-XX0FVR7ZXV"
+};
+
+/* ---------- word banks ---------- */
+const BANKS = {
+  Mixed:   ["RIVER","PLANET","GARDEN","BRIDGE","CANDLE","MARKET","WINTER","JACKET","ROCKET","SILVER","TIGER","MELON","BREEZE","FOREST","PEPPER","ISLAND"],
+  Animals: ["TIGER","PANDA","OTTER","FALCON","DONKEY","RABBIT","WALRUS","BEAVER","JAGUAR","TURTLE","MONKEY","BADGER","LIZARD","FERRET","PARROT"],
+  Food:    ["MANGO","PEPPER","CHEESE","WAFFLE","TOMATO","PICKLE","COOKIE","NOODLE","PEANUT","BUTTER","HONEY","BAGEL","MUFFIN","SALMON","CARROT"],
+  Space:   ["PLANET","COMET","GALAXY","NEBULA","ROCKET","ORBIT","METEOR","COSMOS","SATURN","SOLAR","LAUNCH","CRATER","GRAVITY","STELLAR","ECLIPSE"],
+  Nature:  ["RIVER","FOREST","CANYON","MEADOW","BREEZE","PEBBLE","BLOSSOM","THUNDER","GLACIER","SUMMIT","HARBOR","WILLOW","CAVERN","PRAIRIE","ORCHID"],
+  Home:    ["KETTLE","PILLOW","WINDOW","GARDEN","CARPET","CANDLE","LADDER","BLANKET","MIRROR","KITCHEN","DRAWER","CUSHION","TEAPOT","SHELF","HALLWAY"]
+};
+const COLORS = ["#ff6b6b","#4dabff","#4ade80","#c084fc","#ffd43b","#ff9f43","#2dd4bf","#f472b6"];
+const SIZE = 10, WORDS_PER_ROUND = 9;
+const DIRS = [[0,1],[1,0],[1,1],[1,-1],[0,-1],[-1,0],[-1,-1],[-1,1]];
+
+/* ---------- state ---------- */
+let db, roomRef, code = "", pid = "", isHost = false, myColor = "";
+let placements = {}, words = [], grid = [];
+let sel = [], dragging = false;
+const $ = id => document.getElementById(id);
+const show = (...ids) => { ["setup","home","lobby","game"].forEach(s => $(s).classList.add("hidden")); ids.forEach(i => $(i).classList.remove("hidden")); };
+
+/* ============================================================
+   2. BOOT — wire up Firebase or prompt for config
+   ============================================================ */
+function getConfig() {
+  if (BAKED_CONFIG.databaseURL) return BAKED_CONFIG;
+  const saved = localStorage.getItem("wp_cfg");
+  if (saved) { try { return JSON.parse(saved); } catch (e) {} }
+  return null;
+}
+function boot() {
+  const cfg = getConfig();
+  if (!cfg) { show("setup"); return; }
+  try {
+    firebase.initializeApp(cfg);
+    db = firebase.database();
+  } catch (e) { show("setup"); $("cfgInput").value = "Init failed: " + e.message; return; }
+  pid = localStorage.getItem("wp_pid") || (Math.random().toString(36).slice(2, 10));
+  localStorage.setItem("wp_pid", pid);
+  $("name").value = localStorage.getItem("wp_name") || "";
+  // theme dropdown
+  Object.keys(BANKS).forEach(t => { const o = document.createElement("option"); o.value = o.textContent = t; $("theme").appendChild(o); });
+  show("home");
+}
+$("cfgSave").onclick = () => {
+  let raw = $("cfgInput").value.trim();
+  const m = raw.match(/\{[\s\S]*\}/);
+  if (m) raw = m[0];
+  try {
+    // tolerate JS object literal (unquoted keys, trailing commas)
+    const obj = Function('"use strict";return (' + raw + ')')();
+    if (!obj.databaseURL) throw new Error("missing databaseURL");
+    localStorage.setItem("wp_cfg", JSON.stringify(obj));
+    location.reload();
+  } catch (e) { $("cfgInput").value = "Couldn't parse config (" + e.message + ").\n\n" + $("cfgInput").value; }
+};
+
+/* ============================================================
+   3. GRID GENERATION (host only)
+   ============================================================ */
+function makeRound(theme) {
+  const bank = (BANKS[theme] || BANKS.Mixed).filter(w => w.length <= SIZE);
+  const pick = bank.slice().sort(() => Math.random() - .5).slice(0, WORDS_PER_ROUND)
+                   .sort((a, b) => b.length - a.length);
+  const g = Array.from({ length: SIZE }, () => Array(SIZE).fill(""));
+  const place = {};
+  for (const w of pick) {
+    let placed = false;
+    for (let t = 0; t < 220 && !placed; t++) {
+      const [dr, dc] = DIRS[(Math.random() * DIRS.length) | 0];
+      const r0 = (Math.random() * SIZE) | 0, c0 = (Math.random() * SIZE) | 0;
+      const cells = [];
+      let ok = true;
+      for (let i = 0; i < w.length; i++) {
+        const r = r0 + dr * i, c = c0 + dc * i;
+        if (r < 0 || r >= SIZE || c < 0 || c >= SIZE) { ok = false; break; }
+        if (g[r][c] && g[r][c] !== w[i]) { ok = false; break; }
+        cells.push([r, c]);
+      }
+      if (!ok) continue;
+      cells.forEach(([r, c], i) => g[r][c] = w[i]);
+      place[w] = cells;
+      placed = true;
+    }
+  }
+  const used = Object.keys(place);
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++)
+    if (!g[r][c]) g[r][c] = letters[(Math.random() * 26) | 0];
+  return { grid: g.map(row => row.join("")), words: used, placements: place };
+}
+
+/* ============================================================
+   4. ROOM LIFECYCLE
+   ============================================================ */
+function randCode() { let s = ""; for (let i = 0; i < 4; i++) s += "ABCDEFGHJKLMNPQRSTUVWXYZ"[(Math.random() * 24) | 0]; return s; }
+
+$("createBtn").onclick = async () => {
+  const name = saveName(); if (!name) return;
+  code = randCode(); isHost = true;
+  roomRef = db.ref("rooms/" + code);
+  await roomRef.set({ status: "lobby", host: pid, theme: "Mixed", round: 0, created: Date.now() });
+  enterRoom(name);
+};
+$("joinBtn").onclick = async () => {
+  const name = saveName(); if (!name) return;
+  const c = $("joinCode").value.trim().toUpperCase();
+  if (c.length !== 4) { $("homeErr").textContent = "Enter a 4-letter code."; return; }
+  const snap = await db.ref("rooms/" + c).get();
+  if (!snap.exists()) { $("homeErr").textContent = "No room with that code."; return; }
+  code = c; isHost = snap.val().host === pid;
+  roomRef = db.ref("rooms/" + code);
+  enterRoom(name);
+};
+function saveName() {
+  const n = $("name").value.trim();
+  if (!n) { $("homeErr").textContent = "Enter your name first."; return null; }
+  $("homeErr").textContent = "";
+  localStorage.setItem("wp_name", n);
+  return n;
+}
+
+function enterRoom(name) {
+  const me = roomRef.child("players/" + pid);
+  me.onDisconnect().remove();
+  // assign a color based on join order
+  roomRef.child("players").get().then(s => {
+    const existing = s.exists() ? Object.values(s.val()) : [];
+    const taken = existing.map(p => p.color);
+    myColor = COLORS.find(c => !taken.includes(c)) || COLORS[existing.length % COLORS.length];
+    me.set({ name, color: myColor });
+  });
+  $("lobbyCode").textContent = code;
+  $("gameCode").textContent = code;
+  bindListeners();
+  show("lobby");
+}
+
+function leave() {
+  if (roomRef) { roomRef.child("players/" + pid).remove(); roomRef.off(); }
+  roomRef = null; code = ""; isHost = false;
+  $("done").classList.add("hidden");
+  show("home");
+}
+$("leaveBtn").onclick = leave;
+$("doneLeaveBtn").onclick = leave;
+
+/* ============================================================
+   5. LIVE LISTENERS
+   ============================================================ */
+function bindListeners() {
+  roomRef.child("host").on("value", s => { roomHost = s.val() || ""; isHost = roomHost === pid; });
+  roomRef.child("status").on("value", s => {
+    const st = s.val();
+    if (st === "playing") { $("done").classList.add("hidden"); show("game"); }
+    else if (st === "lobby") { $("done").classList.add("hidden"); show("lobby"); }
+  });
+  roomRef.child("theme").on("value", s => { if (s.val()) $("theme").value = s.val(); });
+  roomRef.child("players").on("value", s => renderPlayers(s.val() || {}));
+  // a new round arrives: rebuild the grid
+  roomRef.child("round").on("value", () => {
+    roomRef.get().then(snap => {
+      const v = snap.val(); if (!v || !v.grid) return;
+      grid = v.grid.map(r => r.split(""));
+      words = v.words || [];
+      placements = v.placements || {};
+      buildGrid();
+      renderWords(v.claims || {});
+    });
+  });
+  roomRef.child("claims").on("value", s => {
+    const claims = s.val() || {};
+    renderWords(claims);
+    colorClaims(claims);
+    renderScores(claims);
+    checkDone(claims);
+  });
+}
+
+/* host changes theme */
+$("theme").onchange = () => { if (isHost && roomRef) roomRef.child("theme").set($("theme").value); };
+
+$("startBtn").onclick = startRound;
+$("againBtn").onclick = startRound;
+function startRound() {
+  if (!roomRef) return;
+  if (!isHost) { return; }
+  const r = makeRound($("theme").value || "Mixed");
+  roomRef.update({
+    grid: r.grid, words: r.words, placements: r.placements,
+    claims: null, status: "playing", round: Date.now()
+  });
+}
+
+/* ============================================================
+   6. RENDERING
+   ============================================================ */
+function renderPlayers(players) {
+  const ids = Object.keys(players);
+  const ul = $("lobbyPlayers"); ul.innerHTML = "";
+  ids.forEach(id => {
+    const p = players[id];
+    const li = document.createElement("li");
+    li.innerHTML = `<span class="dot" style="background:${p.color}"></span>` +
+                   `<span class="${id === pid ? "me" : ""}">${esc(p.name)}${id === pid ? " (you)" : ""}${players[id] && roomHost === id ? " · host" : ""}</span>`;
+    ul.appendChild(li);
+  });
+  const hint = isHost ? "You're the host — pick a theme and start when everyone's in."
+                      : "Waiting for the host to start the round…";
+  $("lobbyHint").textContent = hint;
+  $("startBtn").classList.toggle("hidden", !isHost);
+  $("theme").disabled = !isHost;
+}
+let roomHost = "";
+
+function buildGrid() {
+  const g = $("grid");
+  g.style.gridTemplateColumns = `repeat(${SIZE}, 1fr)`;
+  const avail = Math.min(window.innerWidth - 24, 440);
+  const cell = Math.floor((avail - (SIZE - 1) * 3) / SIZE);
+  g.style.fontSize = Math.max(13, Math.floor(cell * 0.5)) + "px";
+  g.innerHTML = "";
+  for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+    const d = document.createElement("div");
+    d.className = "cell"; d.dataset.r = r; d.dataset.c = c;
+    d.style.width = cell + "px";
+    d.textContent = grid[r][c];
+    g.appendChild(d);
+  }
+}
+function cellAt(r, c) { return $("grid").children[r * SIZE + c]; }
+
+function renderWords(claims) {
+  const wl = $("wordlist"); wl.innerHTML = "";
+  words.forEach(w => {
+    const el = document.createElement("div");
+    el.className = "word"; el.textContent = w;
+    if (claims[w]) { el.classList.add("done"); el.style.background = claims[w].color; el.style.borderColor = claims[w].color; }
+    wl.appendChild(el);
+  });
+  $("total").textContent = words.length;
+  $("found").textContent = Object.keys(claims).length;
+}
+function colorClaims(claims) {
+  if (!$("grid").children.length) return;
+  Object.keys(claims).forEach(w => {
+    (placements[w] || []).forEach(([r, c]) => {
+      const el = cellAt(r, c);
+      if (el) { el.style.background = claims[w].color; el.style.color = "#1a1300"; }
+    });
+  });
+}
+function renderScores(claims) {
+  roomRef.child("players").get().then(s => {
+    const players = s.val() || {};
+    const score = {};
+    Object.values(claims).forEach(c => score[c.by] = (score[c.by] || 0) + 1);
+    const rows = Object.keys(players).map(id => ({ id, name: players[id].name, color: players[id].color, s: score[id] || 0 }))
+                       .sort((a, b) => b.s - a.s);
+    const sb = $("scoreboard"); sb.innerHTML = "";
+    rows.forEach(r => {
+      const p = document.createElement("div"); p.className = "pill";
+      p.innerHTML = `<span class="dot" style="background:${r.color}"></span>${esc(r.name)}: ${r.s}`;
+      sb.appendChild(p);
+    });
+  });
+}
+function checkDone(claims) {
+  if (words.length && Object.keys(claims).length >= words.length) showStandings(claims);
+}
+function showStandings(claims) {
+  roomRef.child("players").get().then(s => {
+    const players = s.val() || {};
+    const score = {};
+    Object.values(claims).forEach(c => score[c.by] = (score[c.by] || 0) + 1);
+    const rows = Object.keys(players).map(id => ({ name: players[id].name, color: players[id].color, s: score[id] || 0 }))
+                       .sort((a, b) => b.s - a.s);
+    const ol = $("standings"); ol.innerHTML = "";
+    rows.forEach((r, i) => {
+      const li = document.createElement("li");
+      li.innerHTML = `<span class="rank">${i === 0 ? "🏆" : "#" + (i + 1)}</span>` +
+                     `<span class="dot" style="background:${r.color}"></span>` +
+                     `<span style="flex:1">${esc(r.name)}</span><b>${r.s}</b>`;
+      ol.appendChild(li);
+    });
+    $("againBtn").classList.toggle("hidden", !isHost);
+    $("doneHint").textContent = isHost ? "" : "Waiting for the host to start the next round…";
+    $("done").classList.remove("hidden");
+  });
+}
+
+/* ============================================================
+   7. SELECTION & CLAIMING (drag to trace a straight line)
+   ============================================================ */
+const gridEl = $("grid");
+function cellFromPoint(x, y) {
+  const el = document.elementFromPoint(x, y);
+  return el && el.classList.contains("cell") ? el : null;
+}
+function lineCells(a, b) {
+  const r0 = +a.dataset.r, c0 = +a.dataset.c, r1 = +b.dataset.r, c1 = +b.dataset.c;
+  const dr = r1 - r0, dc = c1 - c0;
+  const straight = (dr === 0 || dc === 0 || Math.abs(dr) === Math.abs(dc));
+  if (!straight) return null;
+  const steps = Math.max(Math.abs(dr), Math.abs(dc));
+  const sr = Math.sign(dr), sc = Math.sign(dc);
+  const out = [];
+  for (let i = 0; i <= steps; i++) out.push(cellAt(r0 + sr * i, c0 + sc * i));
+  return out;
+}
+function clearSel() { sel.forEach(c => c && c.classList.remove("sel")); sel = []; }
+function paintSel(start, end) {
+  const cells = lineCells(start, end);
+  clearSel();
+  if (cells) { sel = cells; cells.forEach(c => c.classList.add("sel")); }
+}
+let startCell = null;
+function onDown(e) {
+  const t = e.touches ? e.touches[0] : e;
+  const cell = cellFromPoint(t.clientX, t.clientY);
+  if (!cell) return;
+  dragging = true; startCell = cell; paintSel(cell, cell);
+  e.preventDefault();
+}
+function onMove(e) {
+  if (!dragging) return;
+  const t = e.touches ? e.touches[0] : e;
+  const cell = cellFromPoint(t.clientX, t.clientY);
+  if (cell) paintSel(startCell, cell);
+  e.preventDefault();
+}
+function onUp() {
+  if (!dragging) return;
+  dragging = false;
+  if (sel.length > 1) attemptClaim();
+  clearSel();
+}
+function attemptClaim() {
+  const str = sel.map(c => grid[+c.dataset.r][+c.dataset.c]).join("");
+  const rev = str.split("").reverse().join("");
+  const match = words.find(w => w === str || w === rev);
+  if (!match) { flash("✗ not a word", "#ff7a7a"); return; }
+  const ref = roomRef.child("claims/" + match);
+  ref.transaction(cur => cur === null ? { by: pid, name: localStorage.getItem("wp_name"), color: myColor, ts: Date.now() } : undefined)
+     .then(res => {
+       if (res.committed && res.snapshot.val() && res.snapshot.val().by === pid) flash("✓ " + match, "#4ade80");
+       else flash("taken!", "#ffd43b");
+     });
+}
+let flashT;
+function flash(msg, col) {
+  const f = $("flash"); f.textContent = msg; f.style.color = col;
+  clearTimeout(flashT); flashT = setTimeout(() => { if (f.textContent === msg) f.textContent = ""; }, 1200);
+}
+gridEl.addEventListener("mousedown", onDown);
+window.addEventListener("mousemove", onMove);
+window.addEventListener("mouseup", onUp);
+gridEl.addEventListener("touchstart", onDown, { passive: false });
+gridEl.addEventListener("touchmove", onMove, { passive: false });
+window.addEventListener("touchend", onUp);
+
+window.addEventListener("resize", () => { if (grid.length && !$("game").classList.contains("hidden")) buildGrid(); });
+
+/* ---------- utils ---------- */
+function esc(s) { return String(s).replace(/[&<>"]/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m])); }
+
+boot();
+</script>
+</body>
+</html>

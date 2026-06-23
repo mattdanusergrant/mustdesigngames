@@ -21,6 +21,7 @@ served at its own sub-path.
 | Sigil Tactics | [`/sigil-tactics/`](sigil-tactics/) |
 | Split System | [`/split-system/`](split-system/) |
 | Switchback TD | [`/switchback-td/`](switchback-td/) |
+| Word Pounce | [`/word-pounce/`](word-pounce/) |
 
 ## Add a new prototype
 
