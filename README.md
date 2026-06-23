@@ -12,6 +12,7 @@ served at its own sub-path.
 |------|------|
 | Baduk Blitz | [`/baduk-blitz/`](baduk-blitz/) |
 | Bloom Again | [`/bloom-again/`](bloom-again/) |
+| Class Cadence | [`/rhythm-rpg/`](rhythm-rpg/) |
 | Eat, Monkey, Eat | [`/eat-monkey-eat/`](eat-monkey-eat/) |
 | Groundwork | [`/groundwork/`](groundwork/) |
 | Keep Ripping Packs | [`/ripping-packs/`](ripping-packs/) |
