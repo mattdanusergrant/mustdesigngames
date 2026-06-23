@@ -165,12 +165,12 @@ const BAKED_CONFIG = {
 
 /* ---------- word banks ---------- */
 const BANKS = {
-  Mixed:   ["RIVER","PLANET","GARDEN","BRIDGE","CANDLE","MARKET","WINTER","JACKET","ROCKET","SILVER","TIGER","MELON","BREEZE","FOREST","PEPPER","ISLAND"],
-  Animals: ["TIGER","PANDA","OTTER","FALCON","DONKEY","RABBIT","WALRUS","BEAVER","JAGUAR","TURTLE","MONKEY","BADGER","LIZARD","FERRET","PARROT"],
-  Food:    ["MANGO","PEPPER","CHEESE","WAFFLE","TOMATO","PICKLE","COOKIE","NOODLE","PEANUT","BUTTER","HONEY","BAGEL","MUFFIN","SALMON","CARROT"],
-  Space:   ["PLANET","COMET","GALAXY","NEBULA","ROCKET","ORBIT","METEOR","COSMOS","SATURN","SOLAR","LAUNCH","CRATER","GRAVITY","STELLAR","ECLIPSE"],
-  Nature:  ["RIVER","FOREST","CANYON","MEADOW","BREEZE","PEBBLE","BLOSSOM","THUNDER","GLACIER","SUMMIT","HARBOR","WILLOW","CAVERN","PRAIRIE","ORCHID"],
-  Home:    ["KETTLE","PILLOW","WINDOW","GARDEN","CARPET","CANDLE","LADDER","BLANKET","MIRROR","KITCHEN","DRAWER","CUSHION","TEAPOT","SHELF","HALLWAY"]
+  Mixed:   ["RIVER","PLANET","GARDEN","BRIDGE","CANDLE","MARKET","WINTER","JACKET","ROCKET","SILVER","TIGER","MELON","BREEZE","FOREST","PEPPER","ISLAND","PENCIL","GUITAR","CAMERA","PUZZLE","BUTTON","POCKET","PURPLE","WIZARD","DRAGON","CASTLE","COPPER","LANTERN","JOURNEY","BALLOON"],
+  Animals: ["TIGER","PANDA","OTTER","FALCON","DONKEY","RABBIT","WALRUS","BEAVER","JAGUAR","TURTLE","MONKEY","BADGER","LIZARD","FERRET","PARROT","ZEBRA","KOALA","CAMEL","MOOSE","COBRA","IGUANA","PENGUIN","DOLPHIN","GIRAFFE","LEOPARD","HAMSTER","OSTRICH","PIGEON"],
+  Food:    ["MANGO","PEPPER","CHEESE","WAFFLE","TOMATO","PICKLE","COOKIE","NOODLE","PEANUT","BUTTER","HONEY","BAGEL","MUFFIN","SALMON","CARROT","APPLE","GRAPE","LEMON","ONION","POTATO","BANANA","YOGURT","PASTA","PRETZEL","BISCUIT","CUPCAKE","POPCORN","PANCAKE"],
+  Space:   ["PLANET","COMET","GALAXY","NEBULA","ROCKET","ORBIT","METEOR","COSMOS","SATURN","SOLAR","LAUNCH","CRATER","GRAVITY","STELLAR","ECLIPSE","VENUS","PLUTO","URANUS","JUPITER","MERCURY","QUASAR","PULSAR","SUNSPOT","LUNAR","APOLLO","STARDUST"],
+  Nature:  ["RIVER","FOREST","CANYON","MEADOW","BREEZE","PEBBLE","BLOSSOM","THUNDER","GLACIER","SUMMIT","HARBOR","WILLOW","CAVERN","PRAIRIE","ORCHID","VALLEY","DESERT","JUNGLE","STREAM","LAGOON","ICEBERG","VOLCANO","RAINBOW","TORNADO","CACTUS","MAPLE","SUNSET","SWAMP"],
+  Home:    ["KETTLE","PILLOW","WINDOW","GARDEN","CARPET","CANDLE","LADDER","BLANKET","MIRROR","KITCHEN","DRAWER","CUSHION","TEAPOT","SHELF","HALLWAY","TABLE","CLOSET","PANTRY","BASKET","SAUCER","FAUCET","BLENDER","TOASTER","HANGER","FRIDGE","DOORMAT","BATHTUB","CURTAIN"]
 };
 /* clue shown until a word is claimed; claiming reveals the word */
 const HINTS = {
@@ -201,7 +201,32 @@ const HINTS = {
   KETTLE:"Boils water for tea", PILLOW:"Rest your head", WINDOW:"Glass you see through",
   CARPET:"Soft floor covering", LADDER:"Climb it to reach high", BLANKET:"Keeps you warm in bed",
   MIRROR:"Shows your reflection", KITCHEN:"Where you cook", DRAWER:"Slides out to store things",
-  CUSHION:"Soft seat pad", TEAPOT:"Pours your brew", SHELF:"Holds your books", HALLWAY:"Passage between rooms"
+  CUSHION:"Soft seat pad", TEAPOT:"Pours your brew", SHELF:"Holds your books", HALLWAY:"Passage between rooms",
+  PENCIL:"Write, then erase", GUITAR:"Six strings to strum", CAMERA:"Snaps photos",
+  PUZZLE:"Pieces that fit together", BUTTON:"Push it, or it holds your shirt", POCKET:"Trouser pouch for keys",
+  PURPLE:"Red and blue mixed", WIZARD:"Spell-casting old man", DRAGON:"Fire-breathing beast",
+  CASTLE:"Where a king lives", COPPER:"Reddish metal in pennies", LANTERN:"A carry-along light",
+  JOURNEY:"A long trip", BALLOON:"Fill it with air or helium",
+  ZEBRA:"Striped like a barcode horse", KOALA:"Sleepy eucalyptus hugger", CAMEL:"Desert ride with humps",
+  MOOSE:"Huge antlered forest deer", COBRA:"Hooded venomous snake", IGUANA:"Big spiny lizard",
+  PENGUIN:"Tuxedo bird that can't fly", DOLPHIN:"Smart leaping sea swimmer", GIRAFFE:"Tallest animal, long neck",
+  LEOPARD:"Spotted big cat", HAMSTER:"Pocket pet on a wheel", OSTRICH:"Biggest bird, runs fast", PIGEON:"Common city bird",
+  APPLE:"Keeps the doctor away", GRAPE:"Small fruit in bunches", LEMON:"Sour yellow citrus",
+  ONION:"Makes you cry to chop", POTATO:"Mash it or fry it", BANANA:"Peel this yellow fruit",
+  YOGURT:"Creamy cultured snack", PASTA:"Spaghetti and friends", PRETZEL:"Twisted salty snack",
+  BISCUIT:"Crumbly tea-time bake", CUPCAKE:"Tiny frosted cake", POPCORN:"Movie-night puffs", PANCAKE:"Flat breakfast stack",
+  VENUS:"Hottest planet, our neighbour", PLUTO:"Demoted dwarf planet", URANUS:"Tilted blue-green planet",
+  JUPITER:"Biggest planet, great red spot", MERCURY:"Closest planet to the sun", QUASAR:"Blazing distant galaxy core",
+  PULSAR:"Spinning star that pulses", SUNSPOT:"Dark patch on the sun", LUNAR:"Of the moon",
+  APOLLO:"Mission that reached the moon", STARDUST:"Cosmic specks between stars",
+  VALLEY:"Low land between hills", DESERT:"Dry sandy place", JUNGLE:"Dense tropical forest",
+  STREAM:"A little flowing brook", LAGOON:"Shallow sheltered water", ICEBERG:"Floating chunk of ice",
+  VOLCANO:"Mountain that erupts", RAINBOW:"Arc of colours after rain", TORNADO:"Spinning funnel storm",
+  CACTUS:"Prickly desert plant", MAPLE:"Tree with the syrup", SUNSET:"Sky show at dusk", SWAMP:"Soggy muddy wetland",
+  TABLE:"Eat your dinner on it", CLOSET:"Where clothes hang", PANTRY:"Food storage cupboard",
+  BASKET:"Carry or store things in it", SAUCER:"Little plate under a cup", FAUCET:"Tap that runs water",
+  BLENDER:"Whirs up a smoothie", TOASTER:"Browns your bread", HANGER:"Holds a shirt in the closet",
+  FRIDGE:"Keeps food cold", DOORMAT:"Wipe your feet here", BATHTUB:"Soak in a bath here", CURTAIN:"Covers the window"
 };
 const COLORS = ["#ff6b6b","#4dabff","#4ade80","#c084fc","#ffd43b","#ff9f43","#2dd4bf","#f472b6"];
 const SIZE = 8, WORDS_PER_ROUND = 8;
