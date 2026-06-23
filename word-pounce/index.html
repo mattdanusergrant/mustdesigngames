@@ -170,7 +170,9 @@ const BANKS = {
   Food:    ["MANGO","PEPPER","CHEESE","WAFFLE","TOMATO","PICKLE","COOKIE","NOODLE","PEANUT","BUTTER","HONEY","BAGEL","MUFFIN","SALMON","CARROT","APPLE","GRAPE","LEMON","ONION","POTATO","BANANA","YOGURT","PASTA","PRETZEL","BISCUIT","CUPCAKE","POPCORN","PANCAKE"],
   Space:   ["PLANET","COMET","GALAXY","NEBULA","ROCKET","ORBIT","METEOR","COSMOS","SATURN","SOLAR","LAUNCH","CRATER","GRAVITY","STELLAR","ECLIPSE","VENUS","PLUTO","URANUS","JUPITER","MERCURY","QUASAR","PULSAR","SUNSPOT","LUNAR","APOLLO","STARDUST"],
   Nature:  ["RIVER","FOREST","CANYON","MEADOW","BREEZE","PEBBLE","BLOSSOM","THUNDER","GLACIER","SUMMIT","HARBOR","WILLOW","CAVERN","PRAIRIE","ORCHID","VALLEY","DESERT","JUNGLE","STREAM","LAGOON","ICEBERG","VOLCANO","RAINBOW","TORNADO","CACTUS","MAPLE","SUNSET","SWAMP"],
-  Home:    ["KETTLE","PILLOW","WINDOW","GARDEN","CARPET","CANDLE","LADDER","BLANKET","MIRROR","KITCHEN","DRAWER","CUSHION","TEAPOT","SHELF","HALLWAY","TABLE","CLOSET","PANTRY","BASKET","SAUCER","FAUCET","BLENDER","TOASTER","HANGER","FRIDGE","DOORMAT","BATHTUB","CURTAIN"]
+  Home:    ["KETTLE","PILLOW","WINDOW","GARDEN","CARPET","CANDLE","LADDER","BLANKET","MIRROR","KITCHEN","DRAWER","CUSHION","TEAPOT","SHELF","HALLWAY","TABLE","CLOSET","PANTRY","BASKET","SAUCER","FAUCET","BLENDER","TOASTER","HANGER","FRIDGE","DOORMAT","BATHTUB","CURTAIN"],
+  Sports:  ["SOCCER","TENNIS","HOCKEY","BOXING","SKIING","RUGBY","KARATE","ROWING","SURFING","CYCLING","BOWLING","FENCING","CRICKET","NETBALL","BASEBALL","FOOTBALL","SOFTBALL","HANDBALL","SPRINT","HURDLES","JAVELIN","DISCUS","ARCHERY","DIVING","SAILING","CURLING","SKATING","CLIMBING"],
+  Music:   ["PIANO","VIOLIN","DRUMS","FLUTE","TRUMPET","GUITAR","CELLO","BANJO","HARP","TUBA","OBOE","MELODY","RHYTHM","TEMPO","CHORUS","LYRICS","SINGER","CONCERT","ALBUM","RECORD","STEREO","ENCORE","OCTAVE","BALLAD","ANTHEM","SYMPHONY","KEYBOARD","ACOUSTIC"]
 };
 /* clue shown until a word is claimed; claiming reveals the word */
 const HINTS = {
@@ -226,7 +228,26 @@ const HINTS = {
   TABLE:"Eat your dinner on it", CLOSET:"Where clothes hang", PANTRY:"Food storage cupboard",
   BASKET:"Carry or store things in it", SAUCER:"Little plate under a cup", FAUCET:"Tap that runs water",
   BLENDER:"Whirs up a smoothie", TOASTER:"Browns your bread", HANGER:"Holds a shirt in the closet",
-  FRIDGE:"Keeps food cold", DOORMAT:"Wipe your feet here", BATHTUB:"Soak in a bath here", CURTAIN:"Covers the window"
+  FRIDGE:"Keeps food cold", DOORMAT:"Wipe your feet here", BATHTUB:"Soak in a bath here", CURTAIN:"Covers the window",
+  SOCCER:"Kick the ball into the goal", TENNIS:"Rackets, a net, and 'love' for zero", HOCKEY:"Sticks and a puck on ice",
+  BOXING:"Two in a ring with gloves", SKIING:"Slide downhill on snow", RUGBY:"Like football, oval ball, no pads",
+  KARATE:"Martial art of chops and kicks", ROWING:"Pull oars through the water", SURFING:"Ride waves on a board",
+  CYCLING:"Race on two wheels", BOWLING:"Roll to knock down ten pins", FENCING:"A duel with thin swords",
+  CRICKET:"Bats, wickets, and overs", NETBALL:"Pass and shoot, no dribbling", BASEBALL:"Bat, then run the bases",
+  FOOTBALL:"Touchdowns and helmets", SOFTBALL:"Like baseball, bigger ball", HANDBALL:"Throw it into the goal by hand",
+  SPRINT:"A short, fast race", HURDLES:"Race jumping over barriers", JAVELIN:"Throw the long spear",
+  DISCUS:"Hurl the heavy disc", ARCHERY:"Bow and arrow at a target", DIVING:"Leap off a board into the pool",
+  SAILING:"Wind-powered boat sport", CURLING:"Sweep stones across the ice", SKATING:"Glide on blades or wheels",
+  CLIMBING:"Scale a rock wall",
+  PIANO:"88 black-and-white keys", VIOLIN:"String instrument under the chin", DRUMS:"Hit them to keep the beat",
+  FLUTE:"Side-blown silver pipe", TRUMPET:"Brass with three valves", CELLO:"Big violin played sitting down",
+  BANJO:"Twangy bluegrass strings", HARP:"Tall strings you pluck", TUBA:"Biggest, lowest brass",
+  OBOE:"Double-reed woodwind", MELODY:"The tune you hum", RHYTHM:"The beat and timing",
+  TEMPO:"How fast the music goes", CHORUS:"The repeated part of a song", LYRICS:"The words to a song",
+  SINGER:"Person who uses their voice", CONCERT:"A live music show", ALBUM:"A collection of songs",
+  RECORD:"Spinning vinyl disc", STEREO:"Plays your tunes out loud", ENCORE:"One more song after the show",
+  OCTAVE:"Eight notes apart", BALLAD:"A slow love song", ANTHEM:"A song for a nation or team",
+  SYMPHONY:"Big orchestra piece", KEYBOARD:"An electronic piano", ACOUSTIC:"Unplugged, no amp"
 };
 const COLORS = ["#ff6b6b","#4dabff","#4ade80","#c084fc","#ffd43b","#ff9f43","#2dd4bf","#f472b6"];
 const SIZE = 8, WORDS_PER_ROUND = 8;
