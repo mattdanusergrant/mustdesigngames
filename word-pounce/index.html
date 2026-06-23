@@ -56,6 +56,7 @@
   .scoreboard { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
   .pill { display: flex; align-items: center; gap: 6px; background: var(--panel); border: 1px solid var(--line);
           border-radius: 20px; padding: 5px 11px; font-size: 14px; font-weight: 600; }
+  .pill.low { color: #ff7a7a; border-color: #ff7a7a; }
   #gridwrap { display: flex; justify-content: center; }
   #grid { display: grid; gap: 3px; touch-action: none; margin: 2px auto 10px; }
   .cell {
@@ -121,6 +122,7 @@
   <div id="game" class="hidden">
     <div class="hud">
       <div class="pill">Room <b id="gameCode" style="margin-left:4px">----</b></div>
+      <div class="pill" id="timerPill">⏱ <b id="timer">—</b></div>
       <div class="pill"><b id="found">0</b>/<b id="total">0</b> found</div>
     </div>
     <div id="scoreboard" class="scoreboard"></div>
@@ -250,13 +252,15 @@ const HINTS = {
   SYMPHONY:"Big orchestra piece", KEYBOARD:"An electronic piano", ACOUSTIC:"Unplugged, no amp"
 };
 const COLORS = ["#ff6b6b","#4dabff","#4ade80","#c084fc","#ffd43b","#ff9f43","#2dd4bf","#f472b6"];
-const SIZE = 8, WORDS_PER_ROUND = 8;
+const EMOJIS = ["🦊","🐼","🦁","🐸","🐙","🦄","🐯","🐵","🦉","🐧","🦖","🐝"];
+const SIZE = 8, WORDS_PER_ROUND = 8, ROUND_SECONDS = 180;
 const DIRS = [[0,1],[1,0],[1,1],[1,-1],[0,-1],[-1,0],[-1,-1],[-1,1]];
+const pts = w => w.length; // longer words are worth more
 
 /* ---------- state ---------- */
-let db, roomRef, code = "", pid = "", isHost = false, myColor = "";
+let db, roomRef, code = "", pid = "", isHost = false, myColor = "", myEmoji = "";
 let placements = {}, words = [], grid = [];
-let sel = [], dragging = false;
+let sel = [], dragging = false, timerInt = null, roundStart = 0;
 const $ = id => document.getElementById(id);
 const show = (...ids) => { ["setup","home","lobby","game"].forEach(s => $(s).classList.add("hidden")); ids.forEach(i => $(i).classList.remove("hidden")); };
 
@@ -367,9 +371,10 @@ function enterRoom(name) {
   // assign a color based on join order
   roomRef.child("players").get().then(s => {
     const existing = s.exists() ? Object.values(s.val()) : [];
-    const taken = existing.map(p => p.color);
+    const taken = existing.map(p => p.color), takenE = existing.map(p => p.emoji);
     myColor = COLORS.find(c => !taken.includes(c)) || COLORS[existing.length % COLORS.length];
-    me.set({ name, color: myColor });
+    myEmoji = EMOJIS.find(e => !takenE.includes(e)) || EMOJIS[existing.length % EMOJIS.length];
+    me.set({ name, color: myColor, emoji: myEmoji });
   });
   $("lobbyCode").textContent = code;
   $("gameCode").textContent = code;
@@ -378,6 +383,7 @@ function enterRoom(name) {
 }
 
 function leave() {
+  stopTimer();
   if (roomRef) { roomRef.child("players/" + pid).remove(); roomRef.off(); }
   roomRef = null; code = ""; isHost = false;
   $("done").classList.add("hidden");
@@ -402,11 +408,14 @@ function bindListeners() {
   roomRef.child("round").on("value", () => {
     roomRef.get().then(snap => {
       const v = snap.val(); if (!v || !v.grid) return;
+      $("done").classList.add("hidden");
       grid = v.grid.map(r => r.split(""));
       words = v.words || [];
       placements = v.placements || {};
+      roundStart = v.round || Date.now();
       buildGrid();
       renderWords(v.claims || {});
+      startTimer();
     });
   });
   roomRef.child("claims").on("value", s => {
@@ -443,7 +452,7 @@ function renderPlayers(players) {
     const p = players[id];
     const li = document.createElement("li");
     li.innerHTML = `<span class="dot" style="background:${p.color}"></span>` +
-                   `<span class="${id === pid ? "me" : ""}">${esc(p.name)}${id === pid ? " (you)" : ""}${players[id] && roomHost === id ? " · host" : ""}</span>`;
+                   `<span class="${id === pid ? "me" : ""}">${p.emoji || ""} ${esc(p.name)}${id === pid ? " (you)" : ""}${players[id] && roomHost === id ? " · host" : ""}</span>`;
     ul.appendChild(li);
   });
   const hint = isHost ? "You're the host — pick a theme and start when everyone's in."
@@ -496,13 +505,13 @@ function renderScores(claims) {
   roomRef.child("players").get().then(s => {
     const players = s.val() || {};
     const score = {};
-    Object.values(claims).forEach(c => score[c.by] = (score[c.by] || 0) + 1);
-    const rows = Object.keys(players).map(id => ({ id, name: players[id].name, color: players[id].color, s: score[id] || 0 }))
+    Object.entries(claims).forEach(([w, c]) => score[c.by] = (score[c.by] || 0) + pts(w));
+    const rows = Object.keys(players).map(id => ({ id, name: players[id].name, color: players[id].color, emoji: players[id].emoji || "", s: score[id] || 0 }))
                        .sort((a, b) => b.s - a.s);
     const sb = $("scoreboard"); sb.innerHTML = "";
     rows.forEach(r => {
       const p = document.createElement("div"); p.className = "pill";
-      p.innerHTML = `<span class="dot" style="background:${r.color}"></span>${esc(r.name)}: ${r.s}`;
+      p.innerHTML = `<span class="dot" style="background:${r.color}"></span>${r.emoji} ${esc(r.name)}: ${r.s}`;
       sb.appendChild(p);
     });
   });
@@ -511,18 +520,19 @@ function checkDone(claims) {
   if (words.length && Object.keys(claims).length >= words.length) showStandings(claims);
 }
 function showStandings(claims) {
+  stopTimer();
   roomRef.child("players").get().then(s => {
     const players = s.val() || {};
     const score = {};
-    Object.values(claims).forEach(c => score[c.by] = (score[c.by] || 0) + 1);
-    const rows = Object.keys(players).map(id => ({ name: players[id].name, color: players[id].color, s: score[id] || 0 }))
+    Object.entries(claims).forEach(([w, c]) => score[c.by] = (score[c.by] || 0) + pts(w));
+    const rows = Object.keys(players).map(id => ({ name: players[id].name, color: players[id].color, emoji: players[id].emoji || "", s: score[id] || 0 }))
                        .sort((a, b) => b.s - a.s);
     const ol = $("standings"); ol.innerHTML = "";
     rows.forEach((r, i) => {
       const li = document.createElement("li");
       li.innerHTML = `<span class="rank">${i === 0 ? "🏆" : "#" + (i + 1)}</span>` +
                      `<span class="dot" style="background:${r.color}"></span>` +
-                     `<span style="flex:1">${esc(r.name)}</span><b>${r.s}</b>`;
+                     `<span style="flex:1">${r.emoji} ${esc(r.name)}</span><b>${r.s}</b>`;
       ol.appendChild(li);
     });
     $("againBtn").classList.toggle("hidden", !isHost);
@@ -581,18 +591,52 @@ function attemptClaim() {
   const str = sel.map(c => grid[+c.dataset.r][+c.dataset.c]).join("");
   const rev = str.split("").reverse().join("");
   const match = words.find(w => w === str || w === rev);
-  if (!match) { flash("✗ not a word", "#ff7a7a"); return; }
+  if (!match) { flash("✗ not a word", "#ff7a7a"); claimFx(false); return; }
   const ref = roomRef.child("claims/" + match);
   ref.transaction(cur => cur === null ? { by: pid, name: localStorage.getItem("wp_name"), color: myColor, ts: Date.now() } : undefined)
      .then(res => {
-       if (res.committed && res.snapshot.val() && res.snapshot.val().by === pid) flash("✓ " + match, "#4ade80");
-       else flash("taken!", "#ffd43b");
+       if (res.committed && res.snapshot.val() && res.snapshot.val().by === pid) { flash("✓ " + match + "  +" + pts(match), "#4ade80"); claimFx(true); }
+       else { flash("taken!", "#ffd43b"); claimFx(false); }
      });
 }
 let flashT;
 function flash(msg, col) {
   const f = $("flash"); f.textContent = msg; f.style.color = col;
   clearTimeout(flashT); flashT = setTimeout(() => { if (f.textContent === msg) f.textContent = ""; }, 1200);
+}
+
+/* round timer (shared via the host's round timestamp) */
+function fmt(s) { s = Math.max(0, s); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
+function stopTimer() { if (timerInt) { clearInterval(timerInt); timerInt = null; } }
+function startTimer() {
+  stopTimer();
+  const tick = () => {
+    const left = ROUND_SECONDS - Math.floor((Date.now() - roundStart) / 1000);
+    $("timer").textContent = fmt(left);
+    $("timerPill").classList.toggle("low", left <= 30);
+    if (left <= 0) { stopTimer(); roomRef.child("claims").get().then(s => showStandings(s.val() || {})); }
+  };
+  tick(); timerInt = setInterval(tick, 250);
+}
+
+/* sound + haptics on claim */
+let actx;
+function beep(freq, dur, type) {
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime;
+    o.type = type || "sine"; o.frequency.value = freq;
+    o.connect(g); g.connect(actx.destination);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.2, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.start(t); o.stop(t + dur + 0.02);
+  } catch (e) {}
+}
+function vibrate(ms) { try { navigator.vibrate && navigator.vibrate(ms); } catch (e) {} }
+function claimFx(ok) {
+  if (ok) { beep(680, 0.12); setTimeout(() => beep(1020, 0.12), 90); vibrate(35); }
+  else { beep(170, 0.2, "square"); vibrate(110); }
 }
 gridEl.addEventListener("mousedown", onDown);
 window.addEventListener("mousemove", onMove);
