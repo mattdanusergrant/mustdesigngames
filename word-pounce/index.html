@@ -67,7 +67,8 @@
   .wordlist { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; padding-bottom: 12px; }
   .word { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px;
           font-size: 14px; font-weight: 600; letter-spacing: .5px; }
-  .word.done { text-decoration: line-through; color: #1a1300; }
+  .word.clue { font-weight: 500; font-style: italic; color: var(--muted); letter-spacing: 0; }
+  .word.done { text-decoration: line-through; color: #1a1300; font-style: normal; }
 
   /* Overlay */
   .overlay { position: fixed; inset: 0; background: rgba(8,9,13,.92); display: flex; align-items: center;
@@ -82,7 +83,7 @@
 <body>
 <div class="wrap">
   <h1>Word <span>Pounce</span></h1>
-  <div class="tag">Same grid. First to trace a word claims it.</div>
+  <div class="tag">Same grid. Solve the clue, trace the word, claim it.</div>
 
   <!-- SETUP (only if no Firebase config baked in) -->
   <div id="setup" class="card hidden">
@@ -171,8 +172,39 @@ const BANKS = {
   Nature:  ["RIVER","FOREST","CANYON","MEADOW","BREEZE","PEBBLE","BLOSSOM","THUNDER","GLACIER","SUMMIT","HARBOR","WILLOW","CAVERN","PRAIRIE","ORCHID"],
   Home:    ["KETTLE","PILLOW","WINDOW","GARDEN","CARPET","CANDLE","LADDER","BLANKET","MIRROR","KITCHEN","DRAWER","CUSHION","TEAPOT","SHELF","HALLWAY"]
 };
+/* clue shown until a word is claimed; claiming reveals the word */
+const HINTS = {
+  RIVER:"Water flowing to the sea", PLANET:"Earth is one", GARDEN:"Where flowers grow",
+  BRIDGE:"Crosses a river", CANDLE:"Wax with a wick", MARKET:"Where you buy and sell",
+  WINTER:"Coldest season", JACKET:"Wear it when it's chilly", ROCKET:"Blasts into space",
+  SILVER:"Second-place metal", TIGER:"Big striped cat", MELON:"Juicy summer fruit",
+  BREEZE:"Gentle wind", FOREST:"Lots of trees", PEPPER:"Salt's partner", ISLAND:"Land surrounded by water",
+  PANDA:"Black-and-white bamboo eater", OTTER:"Playful river swimmer", FALCON:"Fast hunting bird",
+  DONKEY:"Stubborn farm animal", RABBIT:"Hops, long ears", WALRUS:"Tusked sea mammal",
+  BEAVER:"Builds dams", JAGUAR:"Spotted jungle cat", TURTLE:"Shelled and slow",
+  MONKEY:"Swings in trees", BADGER:"Burrowing striped digger", LIZARD:"Scaly little reptile",
+  FERRET:"Long, sneaky pet", PARROT:"Talking colourful bird",
+  MANGO:"Tropical orange fruit", CHEESE:"Say it for photos", WAFFLE:"Breakfast with squares",
+  TOMATO:"Red salad fruit", PICKLE:"Sour cucumber", COOKIE:"Sweet baked treat",
+  NOODLE:"Long and slurpy", PEANUT:"Goes with butter", BUTTER:"Spread on toast",
+  HONEY:"Bees make it", BAGEL:"Bread with a hole", MUFFIN:"Cupcake's plain cousin",
+  SALMON:"Pink swimming fish", CARROT:"Orange and crunchy",
+  COMET:"Icy ball with a tail", GALAXY:"Billions of stars", NEBULA:"Cloud of space gas",
+  ORBIT:"Path around a planet", METEOR:"Shooting star", COSMOS:"The whole universe",
+  SATURN:"The ringed planet", SOLAR:"Of the sun", LAUNCH:"Send a rocket up",
+  CRATER:"Hole from an impact", GRAVITY:"Pulls you down", STELLAR:"Star-related, or excellent",
+  ECLIPSE:"When the sun goes dark",
+  CANYON:"Deep rocky gorge", MEADOW:"Grassy field", PEBBLE:"Small smooth stone",
+  BLOSSOM:"Spring flower bloom", THUNDER:"A storm's loud boom", GLACIER:"Slow river of ice",
+  SUMMIT:"Top of a mountain", HARBOR:"Where boats dock", WILLOW:"Weeping tree",
+  CAVERN:"Big underground cave", PRAIRIE:"Open grassland", ORCHID:"Fancy houseplant flower",
+  KETTLE:"Boils water for tea", PILLOW:"Rest your head", WINDOW:"Glass you see through",
+  CARPET:"Soft floor covering", LADDER:"Climb it to reach high", BLANKET:"Keeps you warm in bed",
+  MIRROR:"Shows your reflection", KITCHEN:"Where you cook", DRAWER:"Slides out to store things",
+  CUSHION:"Soft seat pad", TEAPOT:"Pours your brew", SHELF:"Holds your books", HALLWAY:"Passage between rooms"
+};
 const COLORS = ["#ff6b6b","#4dabff","#4ade80","#c084fc","#ffd43b","#ff9f43","#2dd4bf","#f472b6"];
-const SIZE = 10, WORDS_PER_ROUND = 9;
+const SIZE = 8, WORDS_PER_ROUND = 8;
 const DIRS = [[0,1],[1,0],[1,1],[1,-1],[0,-1],[-1,0],[-1,-1],[-1,1]];
 
 /* ---------- state ---------- */
@@ -397,8 +429,9 @@ function renderWords(claims) {
   const wl = $("wordlist"); wl.innerHTML = "";
   words.forEach(w => {
     const el = document.createElement("div");
-    el.className = "word"; el.textContent = w;
-    if (claims[w]) { el.classList.add("done"); el.style.background = claims[w].color; el.style.borderColor = claims[w].color; }
+    el.className = "word";
+    if (claims[w]) { el.textContent = w; el.classList.add("done"); el.style.background = claims[w].color; el.style.borderColor = claims[w].color; }
+    else { el.textContent = HINTS[w] || w; el.classList.add("clue"); }
     wl.appendChild(el);
   });
   $("total").textContent = words.length;
