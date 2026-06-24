@@ -12,13 +12,13 @@ served at its own sub-path.
 |------|------|
 | Baduk Blitz | [`/baduk-blitz/`](baduk-blitz/) |
 | Bloom Again | [`/bloom-again/`](bloom-again/) |
-| Class Cadence | [`/rhythm-rpg/`](rhythm-rpg/) |
 | Eat, Monkey, Eat | [`/eat-monkey-eat/`](eat-monkey-eat/) |
 | Groundwork | [`/groundwork/`](groundwork/) |
 | Keep Ripping Packs | [`/ripping-packs/`](ripping-packs/) |
 | Matgo | [`/matgo/`](matgo/) |
 | Mosslings | [`/mosslings/`](mosslings/) |
 | Prism Pond | [`/prism-pond/`](prism-pond/) |
+| Rolls Per Groove | [`/rhythm-rpg/`](rhythm-rpg/) |
 | Sigil Tactics | [`/sigil-tactics/`](sigil-tactics/) |
 | Split System | [`/split-system/`](split-system/) |
 | Switchback TD | [`/switchback-td/`](switchback-td/) |
