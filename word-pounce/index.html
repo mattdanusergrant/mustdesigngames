@@ -139,6 +139,7 @@
 <div id="done" class="overlay hidden">
   <div class="card">
     <h2 style="margin:0 0 4px">Round over</h2>
+    <div id="doneCode" class="note" style="text-align:center;margin:0 0 8px"></div>
     <ul id="standings" class="standings"></ul>
     <button id="againBtn">Play again</button>
     <button id="doneLeaveBtn" class="ghost">Back to home</button>
@@ -510,6 +511,7 @@ function bindListeners() {
     const st = s.val();
     if (st === "playing") { stopLobbyTimer(); $("done").classList.add("hidden"); show("game"); }
     else if (st === "starting") { $("done").classList.add("hidden"); show("lobby"); startLobbyTimer(); }
+    else if (st === "ended") { stopTimer(); stopLobbyTimer(); show("lobby"); roomRef.child("claims").get().then(c => showStandings(c.val() || {})); }
     else if (st === "lobby") { stopLobbyTimer(); $("done").classList.add("hidden"); show("lobby"); }
   });
   roomRef.child("theme").on("value", s => { if (s.val()) $("theme").value = s.val(); });
@@ -541,7 +543,7 @@ function bindListeners() {
 $("theme").onchange = () => { if (isHost && roomRef) roomRef.child("theme").set($("theme").value); };
 
 $("startBtn").onclick = startRound;
-$("againBtn").onclick = beginPlay;
+$("againBtn").onclick = startRound; // next round also runs the shared countdown so latecomers join
 // "Start round" from the lobby kicks off a shared 60s countdown so latecomers can join.
 function startRound() {
   if (!roomRef || !isHost) return;
@@ -635,7 +637,10 @@ function renderScores(claims) {
   });
 }
 function checkDone(claims) {
-  if (words.length && Object.keys(claims).length >= words.length) showStandings(claims);
+  if (words.length && Object.keys(claims).length >= words.length) {
+    showStandings(claims);
+    if (isHost && roomRef) roomRef.child("status").set("ended"); // so latecomers land on standings too
+  }
 }
 function showStandings(claims) {
   stopTimer();
@@ -654,7 +659,9 @@ function showStandings(claims) {
       ol.appendChild(li);
     });
     $("againBtn").classList.toggle("hidden", !isHost);
-    $("doneHint").textContent = isHost ? "" : "Waiting for the host to start the next round…";
+    $("doneCode").textContent = "Room " + code + " — share it, others can still join";
+    $("doneHint").textContent = isHost ? "Take your time — tap Play again when everyone's ready."
+                                       : "Waiting for the host to start the next round…";
     $("done").classList.remove("hidden");
   });
 }
@@ -732,7 +739,7 @@ function startTimer() {
     const left = ROUND_SECONDS - Math.floor((Date.now() - roundStart) / 1000);
     $("timer").textContent = fmt(left);
     $("timerPill").classList.toggle("low", left <= 30);
-    if (left <= 0) { stopTimer(); roomRef.child("claims").get().then(s => showStandings(s.val() || {})); }
+    if (left <= 0) { stopTimer(); roomRef.child("claims").get().then(s => showStandings(s.val() || {})); if (isHost && roomRef) roomRef.child("status").set("ended"); }
   };
   tick(); timerInt = setInterval(tick, 250);
 }
