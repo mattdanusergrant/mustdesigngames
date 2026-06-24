@@ -49,6 +49,8 @@
   .players li:last-child { border-bottom: 0; }
   .dot { width: 14px; height: 14px; border-radius: 50%; flex: none; }
   .me { color: var(--accent); }
+  .countdown { text-align: center; font-size: 34px; font-weight: 800; color: var(--accent); margin: 4px 0 10px; }
+  .countdown small { display: block; font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: .3px; margin-top: 2px; }
 
   /* Game */
   #game { flex: 1; display: flex; flex-direction: column; }
@@ -113,6 +115,7 @@
     <label>Theme</label>
     <select id="theme"></select>
     <ul id="lobbyPlayers" class="players"></ul>
+    <div id="countdown" class="countdown hidden"></div>
     <button id="startBtn">Start round</button>
     <button id="leaveBtn" class="ghost">Leave</button>
     <div id="lobbyHint" class="note" style="text-align:center"></div>
@@ -253,14 +256,14 @@ const HINTS = {
 };
 const COLORS = ["#ff6b6b","#4dabff","#4ade80","#c084fc","#ffd43b","#ff9f43","#2dd4bf","#f472b6"];
 const EMOJIS = ["🦊","🐼","🦁","🐸","🐙","🦄","🐯","🐵","🦉","🐧","🦖","🐝"];
-const SIZE = 8, WORDS_PER_ROUND = 8, ROUND_SECONDS = 180;
+const SIZE = 8, WORDS_PER_ROUND = 8, ROUND_SECONDS = 180, LOBBY_SECONDS = 60;
 const DIRS = [[0,1],[1,0],[1,1],[1,-1],[0,-1],[-1,0],[-1,-1],[-1,1]];
 const pts = w => w.length; // longer words are worth more
 
 /* ---------- state ---------- */
 let db, roomRef, code = "", pid = "", isHost = false, myColor = "", myEmoji = "";
 let placements = {}, words = [], grid = [];
-let sel = [], dragging = false, timerInt = null, roundStart = 0;
+let sel = [], dragging = false, timerInt = null, roundStart = 0, lobbyInt = null, lobbyAt = 0;
 const $ = id => document.getElementById(id);
 const show = (...ids) => { ["setup","home","lobby","game"].forEach(s => $(s).classList.add("hidden")); ids.forEach(i => $(i).classList.remove("hidden")); };
 
@@ -383,7 +386,7 @@ function enterRoom(name) {
 }
 
 function leave() {
-  stopTimer();
+  stopTimer(); stopLobbyTimer();
   if (roomRef) { roomRef.child("players/" + pid).remove(); roomRef.off(); }
   roomRef = null; code = ""; isHost = false;
   $("done").classList.add("hidden");
@@ -399,8 +402,9 @@ function bindListeners() {
   roomRef.child("host").on("value", s => { roomHost = s.val() || ""; isHost = roomHost === pid; });
   roomRef.child("status").on("value", s => {
     const st = s.val();
-    if (st === "playing") { $("done").classList.add("hidden"); show("game"); }
-    else if (st === "lobby") { $("done").classList.add("hidden"); show("lobby"); }
+    if (st === "playing") { stopLobbyTimer(); $("done").classList.add("hidden"); show("game"); }
+    else if (st === "starting") { $("done").classList.add("hidden"); show("lobby"); startLobbyTimer(); }
+    else if (st === "lobby") { stopLobbyTimer(); $("done").classList.add("hidden"); show("lobby"); }
   });
   roomRef.child("theme").on("value", s => { if (s.val()) $("theme").value = s.val(); });
   roomRef.child("players").on("value", s => renderPlayers(s.val() || {}));
@@ -431,10 +435,16 @@ function bindListeners() {
 $("theme").onchange = () => { if (isHost && roomRef) roomRef.child("theme").set($("theme").value); };
 
 $("startBtn").onclick = startRound;
-$("againBtn").onclick = startRound;
+$("againBtn").onclick = beginPlay;
+// "Start round" from the lobby kicks off a shared 60s countdown so latecomers can join.
 function startRound() {
-  if (!roomRef) return;
-  if (!isHost) { return; }
+  if (!roomRef || !isHost) return;
+  roomRef.update({ status: "starting", startAt: Date.now() + LOBBY_SECONDS * 1000 });
+}
+// Builds the grid and flips everyone into play. Called by the host when the countdown
+// ends, and immediately on "Play again".
+function beginPlay() {
+  if (!roomRef || !isHost) return;
   const r = makeRound($("theme").value || "Mixed");
   roomRef.update({
     grid: r.grid, words: r.words, placements: r.placements,
@@ -455,11 +465,13 @@ function renderPlayers(players) {
                    `<span class="${id === pid ? "me" : ""}">${p.emoji || ""} ${esc(p.name)}${id === pid ? " (you)" : ""}${players[id] && roomHost === id ? " · host" : ""}</span>`;
     ul.appendChild(li);
   });
-  const hint = isHost ? "You're the host — pick a theme and start when everyone's in."
+  const counting = lobbyInt !== null;
+  const hint = counting ? "Round starting — others can still join!"
+             : isHost ? "You're the host — pick a theme and start when everyone's in."
                       : "Waiting for the host to start the round…";
   $("lobbyHint").textContent = hint;
-  $("startBtn").classList.toggle("hidden", !isHost);
-  $("theme").disabled = !isHost;
+  $("startBtn").classList.toggle("hidden", !isHost || counting);
+  $("theme").disabled = !isHost || counting;
 }
 let roomHost = "";
 
@@ -617,6 +629,30 @@ function startTimer() {
     if (left <= 0) { stopTimer(); roomRef.child("claims").get().then(s => showStandings(s.val() || {})); }
   };
   tick(); timerInt = setInterval(tick, 250);
+}
+
+/* pre-game lobby countdown — everyone starts together when it hits zero */
+function stopLobbyTimer() {
+  if (lobbyInt) { clearInterval(lobbyInt); lobbyInt = null; }
+  $("countdown").classList.add("hidden");
+  $("startBtn").classList.toggle("hidden", !isHost);
+  $("theme").disabled = !isHost;
+}
+function startLobbyTimer() {
+  if (lobbyInt) return;
+  $("countdown").classList.remove("hidden");
+  $("startBtn").classList.add("hidden");
+  $("theme").disabled = true;
+  roomRef.child("startAt").get().then(s => {
+    lobbyAt = s.val() || (Date.now() + LOBBY_SECONDS * 1000);
+    const tick = () => {
+      const left = Math.ceil((lobbyAt - Date.now()) / 1000);
+      $("countdown").innerHTML = "Starts in " + fmt(Math.max(0, left)) +
+        "<small>jump in — everyone starts together</small>";
+      if (left <= 0) { stopLobbyTimer(); if (isHost) beginPlay(); }
+    };
+    tick(); lobbyInt = setInterval(tick, 250);
+  });
 }
 
 /* sound + haptics on claim */
