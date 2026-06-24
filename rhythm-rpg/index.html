@@ -29,7 +29,7 @@
     background:linear-gradient(90deg,var(--accent),var(--accent2));
     -webkit-background-clip:text;background-clip:text;color:transparent}
   .sub{color:var(--muted);margin:.2rem 0 1.1rem;font-size:.95rem;max-width:24rem}
-  .keys{display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem;margin:.4rem 0 1.2rem;
+  .keys{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin:.4rem 0 1.2rem;
     width:100%;max-width:22rem}
   .keycap{border:1px solid var(--line);border-radius:10px;padding:.55rem .2rem;
     background:linear-gradient(180deg,#171826,#11121b)}
@@ -54,13 +54,15 @@
       beat sends that hero in to <b>attack</b>. Land hits to level your party and
       cut down the horde. Miss, and the enemy strikes back.</p>
     <div class="keys">
-      <div class="keycap"><b>D</b><span>⚔️ Warrior</span></div>
-      <div class="keycap"><b>F</b><span>🔮 Mage</span></div>
-      <div class="keycap"><b>J</b><span>🏹 Archer</span></div>
-      <div class="keycap"><b>K</b><span>✨ Healer</span></div>
+      <div class="keycap"><b>A</b><span>⚔️ Warrior</span></div>
+      <div class="keycap"><b>S</b><span>🔮 Mage</span></div>
+      <div class="keycap"><b>D</b><span>🗡️ Rogue</span></div>
+      <div class="keycap"><b>L</b><span>🏹 Archer</span></div>
+      <div class="keycap"><b>;</b><span>✨ Healer</span></div>
+      <div class="keycap"><b>'</b><span>🎶 Bard</span></div>
     </div>
     <button id="startBtn">Begin the set ▸</button>
-    <p class="hint">Keyboard <b>D F J K</b> — or tap the lanes on touch.</p>
+    <p class="hint">Keyboard <b>A S D</b> · <b>L ; '</b> — or tap the lanes on touch.</p>
   </div>
 </div>
 <script>
@@ -73,7 +75,7 @@
   const startBtn = document.getElementById("startBtn");
 
   // ---- Layout ----------------------------------------------------------
-  const LANES = 4;
+  const LANES = 6;
   const LANE_W = W / LANES;
   const BATTLE_H = 250;                 // top battle scene
   const FIELD_TOP = BATTLE_H;           // note field begins
@@ -83,12 +85,15 @@
 
   // ---- Classes (lanes) -------------------------------------------------
   const CLASSES = [
-    { name:"Warrior", key:"D", emoji:"⚔️", color:"#ff5d6c", atk:9, freq:196.0, heal:0 },
-    { name:"Mage",    key:"F", emoji:"🔮", color:"#9b6cff", atk:7, freq:261.6, heal:0, crit:0.25 },
-    { name:"Archer",  key:"J", emoji:"🏹", color:"#36d1c4", atk:6, freq:329.6, heal:0 },
-    { name:"Healer",  key:"K", emoji:"✨", color:"#ffd166", atk:4, freq:392.0, heal:5 },
+    { name:"Warrior", key:"A", emoji:"⚔️", color:"#ff5d6c", atk:9, freq:196.0, heal:0 },
+    { name:"Mage",    key:"S", emoji:"🔮", color:"#9b6cff", atk:7, freq:261.6, heal:0, crit:0.25 },
+    { name:"Rogue",   key:"D", emoji:"🗡️", color:"#ff8f3f", atk:6, freq:329.6, heal:0, crit:0.40 },
+    { name:"Archer",  key:"L", emoji:"🏹", color:"#36d1c4", atk:6, freq:392.0, heal:0 },
+    { name:"Healer",  key:";", emoji:"✨", color:"#ffd166", atk:4, freq:493.9, heal:5 },
+    { name:"Bard",    key:"'", emoji:"🎶", color:"#5cc8ff", atk:5, freq:587.3, heal:2 },
   ];
-  const KEY_TO_LANE = { d:0, f:1, j:2, k:3 };
+  // left cluster A S D, right cluster L ; ' — shifted ; ' (: ") map to the same lanes
+  const KEY_TO_LANE = { a:0, s:1, d:2, l:3, ";":4, "'":5, ":":4, '"':5 };
 
   // ---- Enemy roster ----------------------------------------------------
   const FOES = [
