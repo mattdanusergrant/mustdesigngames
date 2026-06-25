@@ -10,6 +10,7 @@ served at its own sub-path.
 
 | Game | Path |
 |------|------|
+| Apple Farmer Simulator | [`/apple-farmer-sim/`](apple-farmer-sim/) |
 | Baduk Blitz | [`/baduk-blitz/`](baduk-blitz/) |
 | Bloom Again | [`/bloom-again/`](bloom-again/) |
 | Eat, Monkey, Eat | [`/eat-monkey-eat/`](eat-monkey-eat/) |
