@@ -71,6 +71,20 @@
   .tile { width: 40px; height: 48px; display: flex; align-items: center; justify-content: center;
           background: var(--accent); color: #1a1300; border-radius: 8px; font-weight: 800; font-size: 22px; }
   #anaInput { text-transform: uppercase; letter-spacing: 3px; font-weight: 700; margin-bottom: 0; }
+  /* Wordle */
+  .wboard { display: grid; grid-template-rows: repeat(6, 1fr); gap: 5px; justify-content: center; margin: 6px 0 10px; }
+  .wrow { display: flex; gap: 5px; justify-content: center; }
+  .wtile { width: 46px; height: 46px; display: flex; align-items: center; justify-content: center;
+           border: 2px solid var(--line); border-radius: 6px; font-weight: 800; font-size: 22px; }
+  .wtile.g { background: #4ade80; border-color: #4ade80; color: #0b1411; }
+  .wtile.y { background: #ffd43b; border-color: #ffd43b; color: #1a1300; }
+  .wtile.x { background: #33384a; border-color: #33384a; color: #cfd3df; }
+  #wInput { text-transform: uppercase; letter-spacing: 6px; font-weight: 800; text-align: center; margin-bottom: 0; }
+  /* Hangman */
+  .hmword { text-align: center; font-size: 30px; font-weight: 800; letter-spacing: 8px; margin: 10px 0; min-height: 38px; }
+  .kbd { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; }
+  .key { width: 32px; height: 40px; padding: 0; margin: 0; font-size: 16px; font-weight: 700; flex: 0 0 auto; }
+  .key.ok { background: #4ade80; color: #0b1411; } .key.no { background: #33384a; color: #777f95; }
   .wordlist { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; padding-bottom: 12px; }
   .word { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px;
           font-size: 14px; font-weight: 600; letter-spacing: .5px; }
@@ -121,6 +135,8 @@
       <option value="search">Word Search</option>
       <option value="boggle">Boggle</option>
       <option value="anagram">Anagrams</option>
+      <option value="wordle">Wordle</option>
+      <option value="hangman">Hangman (team)</option>
     </select>
     <div id="themeRow">
       <label>Theme</label>
@@ -149,6 +165,19 @@
         <input id="anaInput" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="type a word" />
         <button id="anaSubmit" style="flex:0 0 96px">Enter</button>
       </div>
+    </div>
+    <div id="wordle" class="hidden">
+      <div id="wboard" class="wboard"></div>
+      <div class="row">
+        <input id="wInput" maxlength="5" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="guess" />
+        <button id="wSubmit" style="flex:0 0 96px">Guess</button>
+      </div>
+      <div id="wmsg" class="note" style="text-align:center"></div>
+    </div>
+    <div id="hangman" class="hidden">
+      <div id="hmword" class="hmword"></div>
+      <div id="hmstatus" class="note" style="text-align:center;margin-bottom:8px"></div>
+      <div id="kbd" class="kbd"></div>
     </div>
     <div id="wordlist" class="wordlist"></div>
   </div>
@@ -391,11 +420,15 @@ const DICT_WORDS = "ABILITY ABLE ABORTION ABOUT ABOVE ABROAD ABS ABSENCE ABSENT 
 const DICT = new Set(DICT_WORDS.split(" "));
 const PREFIX = (() => { const p = new Set(); for (const w of DICT) for (let i = 1; i <= w.length; i++) p.add(w.slice(0, i)); return p; })();
 const ANAGRAM_SEEDS = [...DICT].filter(w => w.length === 7);
+const FIVES = [...DICT].filter(w => w.length === 5);                 // Wordle answers
+const HANGWORDS = [...DICT].filter(w => w.length >= 5 && w.length <= 8);
+const HANG_MAX = 7;                                                  // allowed wrong guesses
 
 /* ---------- state ---------- */
 let db, roomRef, code = "", pid = "", isHost = false, myColor = "", myEmoji = "";
 let placements = {}, words = [], grid = [], gridN = SIZE;
 let roomMode = "search", rackLetters = "", roundTotal = 0;
+let answer = "", wGuesses = [], wSolved = false;                     // Wordle (board is local; answer shared)
 let sel = [], dragging = false, timerInt = null, roundStart = 0, lobbyInt = null, lobbyAt = 0;
 const $ = id => document.getElementById(id);
 const show = (...ids) => { ["setup","home","lobby","game"].forEach(s => $(s).classList.add("hidden")); ids.forEach(i => $(i).classList.remove("hidden")); };
@@ -521,6 +554,16 @@ function makeAnagram() {
   return best;
 }
 
+/* ---------- Wordle & Hangman: pick a shared secret word (host only) ---------- */
+function makeWordle() { return { answer: FIVES[(Math.random() * FIVES.length) | 0] }; }
+function makeHangman() { const w = HANGWORDS[(Math.random() * HANGWORDS.length) | 0]; return { answer: w, total: new Set(w).size }; }
+function wordleMark(guess, ans) {
+  const res = Array(5).fill("x"), pool = {};
+  for (let i = 0; i < 5; i++) { if (guess[i] === ans[i]) res[i] = "g"; else pool[ans[i]] = (pool[ans[i]] || 0) + 1; }
+  for (let i = 0; i < 5; i++) { if (res[i] === "g") continue; if (pool[guess[i]]) { res[i] = "y"; pool[guess[i]]--; } }
+  return res;
+}
+
 /* ============================================================
    4. ROOM LIFECYCLE
    ============================================================ */
@@ -600,17 +643,22 @@ function bindListeners() {
       roomMode = v.mode || "search";
       roundStart = v.round || Date.now();
       roundTotal = v.total || 0;
+      answer = v.answer || "";
       $("done").classList.add("hidden");
       if (roomMode === "anagram") {
         if (!v.letters) return;
-        rackLetters = v.letters;
-        $("gridwrap").classList.add("hidden"); $("anagram").classList.remove("hidden");
-        buildRack(); renderFound(v.claims || {});
+        rackLetters = v.letters; showArea("anagram"); buildRack(); renderFound(v.claims || {});
+      } else if (roomMode === "wordle") {
+        if (!v.answer) return;
+        wGuesses = []; wSolved = false; $("wmsg").textContent = ""; $("wInput").value = "";
+        showArea("wordle"); buildWordleBoard(); renderScores(v.claims || {});
+      } else if (roomMode === "hangman") {
+        if (!v.answer) return;
+        showArea("hangman"); buildKeyboard(); renderHangman(v.claims || {});
       } else {
         if (!v.grid) return;
-        $("anagram").classList.add("hidden"); $("gridwrap").classList.remove("hidden");
-        grid = v.grid.map(r => r.split(""));
-        buildGrid();
+        showArea("gridwrap");
+        grid = v.grid.map(r => r.split("")); buildGrid();
         if (roomMode === "search") { words = v.words || []; placements = v.placements || {}; renderWords(v.claims || {}); }
         else { words = []; placements = {}; renderFound(v.claims || {}); }
       }
@@ -620,7 +668,9 @@ function bindListeners() {
   roomRef.child("claims").on("value", s => {
     const claims = s.val() || {};
     if (roomMode === "search") { renderWords(claims); colorClaims(claims); }
-    else renderFound(claims);
+    else if (roomMode === "boggle" || roomMode === "anagram") renderFound(claims);
+    else if (roomMode === "hangman") renderHangman(claims);
+    // wordle: each board is local; the scoreboard reflects who has solved
     renderScores(claims);
     checkDone(claims);
   });
@@ -630,6 +680,7 @@ function bindListeners() {
 $("theme").onchange = () => { if (isHost && roomRef) roomRef.child("theme").set($("theme").value); };
 $("gameSel").onchange = () => { if (isHost && roomRef) roomRef.child("mode").set($("gameSel").value); };
 function updateGamePicker() { $("themeRow").classList.toggle("hidden", roomMode !== "search"); }
+function showArea(id) { ["gridwrap","anagram","wordle","hangman"].forEach(a => $(a).classList.toggle("hidden", a !== id)); }
 
 $("startBtn").onclick = startRound;
 $("againBtn").onclick = startRound; // next round also runs the shared countdown so latecomers join
@@ -644,9 +695,11 @@ function beginPlay() {
   if (!roomRef || !isHost) return;
   const mode = roomMode || "search";
   const upd = { claims: null, status: "playing", round: Date.now(), mode,
-                grid: null, words: null, placements: null, letters: null, total: 0 };
+                grid: null, words: null, placements: null, letters: null, answer: null, total: 0 };
   if (mode === "boggle") { const b = makeBoggle(); upd.grid = b.grid; upd.total = b.total; }
   else if (mode === "anagram") { const a = makeAnagram(); upd.letters = a.letters; upd.total = a.total; }
+  else if (mode === "wordle") { upd.answer = makeWordle().answer; }
+  else if (mode === "hangman") { const hm = makeHangman(); upd.answer = hm.answer; upd.total = hm.total; }
   else { const r = makeRound($("theme").value || "Mixed"); upd.grid = r.grid; upd.words = r.words; upd.placements = r.placements; upd.total = r.words.length; }
   roomRef.update(upd);
 }
@@ -738,11 +791,12 @@ function submitAnagram() {
   if (!DICT.has(word)) { flash("✗ not a word", "#ff7a7a"); claimFx(false); return; }
   claimWord(word);
 }
+const claimPts = (w, c) => (c && c.p != null) ? c.p : pts(w); // word modes score by length; wordle/hangman store p
 function renderScores(claims) {
   roomRef.child("players").get().then(s => {
     const players = s.val() || {};
     const score = {};
-    Object.entries(claims).forEach(([w, c]) => score[c.by] = (score[c.by] || 0) + pts(w));
+    Object.entries(claims).forEach(([w, c]) => score[c.by] = (score[c.by] || 0) + claimPts(w, c));
     const rows = Object.keys(players).map(id => ({ id, name: players[id].name, color: players[id].color, emoji: players[id].emoji || "", s: score[id] || 0 }))
                        .sort((a, b) => b.s - a.s);
     const sb = $("scoreboard"); sb.innerHTML = "";
@@ -751,20 +805,34 @@ function renderScores(claims) {
       p.innerHTML = `<span class="dot" style="background:${r.color}"></span>${r.emoji} ${esc(r.name)}: ${r.s}`;
       sb.appendChild(p);
     });
+    if (roomMode === "wordle") { $("found").textContent = Object.values(claims).filter(c => c.solved).length; $("total").textContent = Object.keys(players).length; }
   });
 }
+function endRound(claims) {
+  showStandings(claims);
+  if (isHost && roomRef) roomRef.child("status").set("ended"); // so latecomers land on standings too
+}
 function checkDone(claims) {
-  if (roomMode === "search" && words.length && Object.keys(claims).length >= words.length) {
-    showStandings(claims);
-    if (isHost && roomRef) roomRef.child("status").set("ended"); // so latecomers land on standings too
+  if (roomMode === "search") {
+    if (words.length && Object.keys(claims).length >= words.length) endRound(claims);
+  } else if (roomMode === "hangman") {
+    const wrong = Object.keys(claims).filter(L => !answer.includes(L)).length;
+    const solved = answer && [...new Set(answer)].every(L => claims[L]);
+    if (answer && (solved || wrong >= HANG_MAX)) endRound(claims);
+  } else if (roomMode === "wordle") {
+    roomRef.child("players").get().then(s => {
+      const n = Object.keys(s.val() || {}).length;
+      if (n && Object.keys(claims).length >= n) endRound(claims);
+    });
   }
+  // boggle / anagram: end on the timer only
 }
 function showStandings(claims) {
   stopTimer();
   roomRef.child("players").get().then(s => {
     const players = s.val() || {};
     const score = {};
-    Object.entries(claims).forEach(([w, c]) => score[c.by] = (score[c.by] || 0) + pts(w));
+    Object.entries(claims).forEach(([w, c]) => score[c.by] = (score[c.by] || 0) + claimPts(w, c));
     const rows = Object.keys(players).map(id => ({ name: players[id].name, color: players[id].color, emoji: players[id].emoji || "", s: score[id] || 0 }))
                        .sort((a, b) => b.s - a.s);
     const ol = $("standings"); ol.innerHTML = "";
@@ -777,8 +845,9 @@ function showStandings(claims) {
     });
     $("againBtn").classList.toggle("hidden", !isHost);
     $("doneCode").textContent = "Room " + code + " — share it, others can still join";
-    $("doneHint").textContent = isHost ? "Take your time — tap Play again when everyone's ready."
-                                       : "Waiting for the host to start the next round…";
+    const reveal = answer ? "The word was " + answer + ". " : "";
+    $("doneHint").textContent = reveal + (isHost ? "Take your time — tap Play again when everyone's ready."
+                                                 : "Waiting for the host to start the next round…");
     $("done").classList.remove("hidden");
   });
 }
@@ -858,6 +927,74 @@ function claimWord(word) {
        else { flash("taken!", "#ffd43b"); claimFx(false); }
      });
 }
+
+/* ---------- Wordle (private 6-guess board, shared secret answer) ---------- */
+function buildWordleBoard() {
+  const b = $("wboard"); b.innerHTML = "";
+  for (let r = 0; r < 6; r++) {
+    const row = document.createElement("div"); row.className = "wrow";
+    const g = wGuesses[r], mark = g ? wordleMark(g, answer) : null;
+    for (let i = 0; i < 5; i++) {
+      const t = document.createElement("div"); t.className = "wtile";
+      if (g) { t.textContent = g[i]; t.classList.add(mark[i]); }
+      row.appendChild(t);
+    }
+    b.appendChild(row);
+  }
+}
+function submitWordle() {
+  if (wSolved || wGuesses.length >= 6) return;
+  const g = $("wInput").value.trim().toUpperCase(); $("wInput").value = "";
+  if (g.length !== 5) { flash("5 letters", "#ff7a7a"); claimFx(false); return; }
+  if (!DICT.has(g)) { flash("✗ not a word", "#ff7a7a"); claimFx(false); return; }
+  wGuesses.push(g); buildWordleBoard();
+  const me = { by: pid, name: localStorage.getItem("wp_name"), color: myColor, ts: Date.now() };
+  if (g === answer) {
+    wSolved = true; const tries = wGuesses.length, p = Math.max(1, 7 - tries);
+    flash("✓ solved! +" + p, "#4ade80"); claimFx(true);
+    $("wmsg").textContent = "Solved in " + tries + "! Waiting for others…";
+    roomRef.child("claims/" + pid).set({ ...me, p, g: tries, solved: true });
+  } else if (wGuesses.length >= 6) {
+    flash("out of guesses", "#ffd43b"); claimFx(false);
+    $("wmsg").textContent = "Out of guesses — it was " + answer;
+    roomRef.child("claims/" + pid).set({ ...me, p: 0, g: 6, solved: false });
+  }
+}
+
+/* ---------- Hangman (team: shared word + shared letter guesses) ---------- */
+function buildKeyboard() {
+  const k = $("kbd"); k.innerHTML = "";
+  for (const L of "ABCDEFGHIJKLMNOPQRSTUVWXYZ") {
+    const b = document.createElement("button"); b.className = "key"; b.textContent = L;
+    b.onclick = () => guessLetter(L);
+    k.appendChild(b);
+  }
+}
+function renderHangman(claims) {
+  if (!answer) return;
+  $("hmword").textContent = answer.split("").map(ch => claims[ch] ? ch : "·").join(" ");
+  const wrong = Object.keys(claims).filter(L => !answer.includes(L)).sort();
+  $("hmstatus").textContent = "Misses: " + wrong.length + "/" + HANG_MAX + (wrong.length ? "  " + wrong.join(" ") : "");
+  [...$("kbd").children].forEach(btn => {
+    const L = btn.textContent, c = claims[L];
+    btn.disabled = !!c;
+    btn.classList.toggle("ok", !!c && answer.includes(L));
+    btn.classList.toggle("no", !!c && !answer.includes(L));
+  });
+  $("found").textContent = [...new Set(answer)].filter(L => claims[L]).length;
+  $("total").textContent = new Set(answer).size;
+}
+function guessLetter(L) {
+  if (!roomRef || !answer) return;
+  const correct = answer.includes(L), occ = answer.split("").filter(ch => ch === L).length;
+  roomRef.child("claims/" + L).transaction(cur => cur === null ? { by: pid, name: localStorage.getItem("wp_name"), color: myColor, p: correct ? occ * 2 : 0, ts: Date.now() } : undefined)
+     .then(res => {
+       if (res.committed && res.snapshot.val() && res.snapshot.val().by === pid) {
+         if (correct) { flash("✓ " + L + "  +" + occ * 2, "#4ade80"); claimFx(true); }
+         else { flash("✗ " + L, "#ff7a7a"); claimFx(false); }
+       }
+     });
+}
 let flashT;
 function flash(msg, col) {
   const f = $("flash"); f.textContent = msg; f.style.color = col;
@@ -931,6 +1068,8 @@ gridEl.addEventListener("touchmove", onMove, { passive: false });
 window.addEventListener("touchend", onUp);
 $("anaSubmit").onclick = submitAnagram;
 $("anaInput").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); submitAnagram(); } });
+$("wSubmit").onclick = submitWordle;
+$("wInput").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); submitWordle(); } });
 
 window.addEventListener("resize", () => { if (grid.length && !$("game").classList.contains("hidden")) buildGrid(); });
 
