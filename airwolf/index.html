@@ -51,6 +51,11 @@
   #btnTurbo { color:#ffe6a0; border-color:rgba(255,200,90,.5); }
   #btnMsl   { color:#ffd0c4; border-color:rgba(255,120,90,.5); }
   .tbtn:active { transform:scale(.92); filter:brightness(1.3); }
+  /* virtual joystick (floating, left thumb) */
+  #joy { position:absolute; width:120px; height:120px; border-radius:50%; display:none; z-index:14; pointer-events:none;
+    border:2px solid rgba(159,232,255,.35); background:radial-gradient(circle, rgba(159,232,255,.10), rgba(10,20,40,.35)); }
+  #joyKnob { position:absolute; left:33px; top:33px; width:54px; height:54px; border-radius:50%;
+    border:2px solid rgba(255,255,255,.5); background:radial-gradient(circle at 35% 30%, rgba(255,255,255,.5), rgba(70,150,205,.65)); }
   .toprt { position:absolute; top:10px; right:12px; z-index:16; display:flex; gap:8px; }
   .mini { pointer-events:auto; width:36px; height:36px; border-radius:9px; border:1px solid rgba(255,255,255,.2);
     background:rgba(10,20,40,.5); color:#bcd6ec; font-weight:700; cursor:pointer; }
@@ -77,6 +82,8 @@
     <div class="tbtn" id="btnMsl">MSL</div>
   </div>
 
+  <div id="joy"><div id="joyKnob"></div></div>
+
   <!-- MENU -->
   <div class="panel" id="menu">
     <h1>AIRWOLF<span class="sub">CODENAME · REDWOLF</span></h1>
@@ -89,7 +96,7 @@
       <span><b>P / M</b></span><span>Pause / Mute</span>
     </div>
     <button class="go" id="play">ENGAGE</button>
-    <div class="hint" id="touchHint">On phone: drag to fly · thumb buttons to turbo &amp; fire missiles</div>
+    <div class="hint" id="touchHint">On phone: left-thumb joystick to fly · buttons to turbo &amp; missiles</div>
   </div>
 
   <!-- PAUSE -->
@@ -115,7 +122,6 @@
 // ---------- tuning constants ----------
 const T = {
   timeScale: 0.62,                               // <1 = whole game runs slower (relaxed pace)
-  touchSens: 0.5,                                // mobile drag sensitivity (<1 = chopper moves less than finger)
   accel: 3000, drag: 6.0, maxSpd: 760,           // flight feel (bumped to stay nimble on the bigger field)
   turboMul: 2.15, turboMax: 100, turboDrain: 46, turboRegen: 17, turboMin: 18,
   boomRadius: 150, boomDmg: 60,
@@ -193,7 +199,7 @@ const Audio_ = {
 
 // ---------- input ----------
 const keys = {};
-const input = { up:0, down:0, left:0, right:0, turbo:false, missile:false, mx:0, my:0, touchMove:false };
+const input = { up:0, down:0, left:0, right:0, turbo:false, missile:false };
 window.addEventListener("keydown", e=>{
   const k=e.key.toLowerCase();
   if(["arrowup","arrowdown","arrowleft","arrowright"," "].includes(k)) e.preventDefault();
@@ -214,27 +220,35 @@ function readKeys(){
   if(tState.missile){ tryMissile(); tState.missile=false; }
 }
 
-// touch
+// touch — floating virtual joystick (spawns under the left thumb)
 const tState = { turbo:false, missile:false };
-let touchId=null, lastTX=0, lastTY=0;
+const joy = { id:null, baseX:0, baseY:0, dx:0, dy:0, active:false };
+const JOY_R = 54;   // px from base centre to full deflection
+const elJoy = document.getElementById("joy"), elJoyKnob = document.getElementById("joyKnob");
+function showJoy(x,y){ elJoy.style.left=(x-60)+"px"; elJoy.style.top=(y-60)+"px"; elJoy.style.display="block"; elJoyKnob.style.transform="translate(0px,0px)"; }
+function hideJoy(){ elJoy.style.display="none"; joy.id=null; joy.active=false; joy.dx=0; joy.dy=0; }
 canvas.addEventListener("touchstart", e=>{
   e.preventDefault(); Audio_.init(); Audio_.resume();
-  if(touchId===null && e.changedTouches.length){
-    const t=e.changedTouches[0]; touchId=t.identifier; lastTX=t.clientX; lastTY=t.clientY; input.touchMove=true;
+  if(joy.id===null && e.changedTouches.length){
+    const t=e.changedTouches[0]; joy.id=t.identifier; joy.baseX=t.clientX; joy.baseY=t.clientY;
+    joy.dx=0; joy.dy=0; joy.active=true; showJoy(t.clientX,t.clientY);
   }
 }, {passive:false});
 canvas.addEventListener("touchmove", e=>{
   e.preventDefault();
   for(const t of e.changedTouches){
-    if(t.identifier===touchId){
-      const dx=(t.clientX-lastTX)*T.touchSens/ZOOM, dy=(t.clientY-lastTY)*T.touchSens/ZOOM; lastTX=t.clientX; lastTY=t.clientY;
-      if(player){ player.x += dx; player.y += dy; clampPlayer(); }
+    if(t.identifier===joy.id){
+      let ox=t.clientX-joy.baseX, oy=t.clientY-joy.baseY;
+      const len=Math.hypot(ox,oy);
+      if(len>JOY_R){ ox*=JOY_R/len; oy*=JOY_R/len; }
+      elJoyKnob.style.transform="translate("+ox+"px,"+oy+"px)";
+      joy.dx=ox/JOY_R; joy.dy=oy/JOY_R;   // analog -1..1
     }
   }
 }, {passive:false});
-canvas.addEventListener("touchend", e=>{
-  for(const t of e.changedTouches){ if(t.identifier===touchId){ touchId=null; input.touchMove=false; } }
-}, {passive:false});
+function endJoy(e){ for(const t of e.changedTouches){ if(t.identifier===joy.id){ hideJoy(); } } }
+canvas.addEventListener("touchend", e=>{ e.preventDefault(); endJoy(e); }, {passive:false});
+canvas.addEventListener("touchcancel", e=>{ endJoy(e); }, {passive:false});
 
 function bindTouchBtn(el, set){
   el.addEventListener("touchstart", e=>{ e.preventDefault(); set(true); }, {passive:false});
@@ -364,20 +378,17 @@ function update(dt){
     player._wasTurbo = turbo;
     Audio_.setRotor(turbo);
 
-    if(!input.touchMove){
-      const ax=(input.right-input.left), ay=(input.down-input.up);
-      player.vx += ax*T.accel*dt; player.vy += ay*T.accel*dt;
-      player.vx -= player.vx*Math.min(1,T.drag*dt);
-      player.vy -= player.vy*Math.min(1,T.drag*dt);
-      const mul = turbo?T.turboMul:1;
-      const sp = Math.hypot(player.vx,player.vy), cap=T.maxSpd*mul;
-      if(sp>cap){ player.vx*=cap/sp; player.vy*=cap/sp; }
-      player.x += player.vx*dt; player.y += player.vy*dt;
-      player.bank += ((ay*14) - player.bank)*Math.min(1,dt*8);
-    } else {
-      if(turbo){ player.x += T.maxSpd*(T.turboMul-1)*dt; }
-      player.bank += (0 - player.bank)*Math.min(1,dt*8);
-    }
+    // movement vector: analog joystick on touch, else keyboard
+    let ax=(input.right-input.left), ay=(input.down-input.up);
+    if(joy.active){ ax=joy.dx; ay=joy.dy; }
+    player.vx += ax*T.accel*dt; player.vy += ay*T.accel*dt;
+    player.vx -= player.vx*Math.min(1,T.drag*dt);
+    player.vy -= player.vy*Math.min(1,T.drag*dt);
+    const mul = turbo?T.turboMul:1;
+    const sp = Math.hypot(player.vx,player.vy), cap=T.maxSpd*mul;
+    if(sp>cap){ player.vx*=cap/sp; player.vy*=cap/sp; }
+    player.x += player.vx*dt; player.y += player.vy*dt;
+    player.bank += ((ay*14) - player.bank)*Math.min(1,dt*8);
     clampPlayer();
     if(player.inv>0) player.inv-=dt;
     if(player._mslCD>0) player._mslCD-=dt;
@@ -845,7 +856,7 @@ function startGame(){
   Audio_.init(); Audio_.resume(); Audio_.startRotor();
   reset(); state="play";
   show(elMenu,false); show(elOver,false); show(elPause,false);
-  show(elHud,true); show(elTop,true);
+  show(elHud,true); show(elTop,true); hideJoy();
   if(isTouch){ elTbtns.style.display="flex"; }
 }
 function gameOver(){
@@ -859,7 +870,7 @@ function gameOver(){
   document.getElementById("overMsg").textContent = wonRedwolf
     ? "You brought down Redwolf and flew on — then the canyon finally caught the Lady. Legendary run."
     : "The Lady's down. Refuel, re-arm, and get back in the air.";
-  show(elOver,true); elTbtns.style.display="none"; show(elHud,false); show(elTop,false);
+  show(elOver,true); elTbtns.style.display="none"; show(elHud,false); show(elTop,false); hideJoy();
 }
 function togglePause(){
   if(state==="play"){ state="pause"; show(elPause,true); Audio_.stopRotor(); }
