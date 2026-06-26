@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#c75b1a">
+<title>Berm Burner — dirt bike</title>
+<style>
+  :root { --dirt:#c75b1a; --sky1:#7ec8e3; --sky2:#cdeefb; }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { height:100%; overflow:hidden; background:#1b2733; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+         touch-action:none; user-select:none; -webkit-user-select:none; }
+  #game { position:fixed; inset:0; display:block; }
+
+  /* on-screen controls */
+  .pedal { position:fixed; bottom:0; width:42%; height:34%; z-index:5;
+           display:flex; align-items:flex-end; justify-content:center;
+           padding-bottom:max(18px,env(safe-area-inset-bottom));
+           font-weight:800; font-size:15px; letter-spacing:.12em; color:#fff;
+           opacity:.85; transition:opacity .08s, transform .08s; }
+  #brake { left:0; background:linear-gradient(0deg, rgba(40,60,80,.34), transparent); }
+  #gas   { right:0; background:linear-gradient(0deg, rgba(199,91,26,.40), transparent); }
+  .pedal span { background:rgba(0,0,0,.30); padding:9px 16px; border-radius:999px;
+                backdrop-filter:blur(2px); }
+  .pedal.on { opacity:1; transform:scale(.97); }
+
+  .overlay { position:fixed; inset:0; z-index:10; display:flex; flex-direction:column;
+             align-items:center; justify-content:center; gap:14px; text-align:center;
+             color:#fff; padding:26px;
+             background:radial-gradient(120% 120% at 50% 30%, rgba(20,30,42,.55), rgba(12,18,26,.92)); }
+  .overlay.hide { display:none; }
+  h1 { font-size:54px; font-weight:900; letter-spacing:.02em;
+       color:#fff; text-shadow:0 3px 0 var(--dirt), 0 6px 18px rgba(0,0,0,.5); }
+  .tag { font-size:14px; opacity:.82; max-width:300px; line-height:1.5; }
+  .big { font-size:40px; font-weight:900; }
+  .stat { font-size:16px; opacity:.9; }
+  .stat b { color:#ffd07a; }
+  button.btn { margin-top:6px; font:inherit; font-weight:800; font-size:18px; color:#1b2733;
+       background:#ffd07a; border:0; border-radius:14px; padding:14px 34px; cursor:pointer;
+       box-shadow:0 5px 0 #b98429; }
+  button.btn:active { transform:translateY(3px); box-shadow:0 2px 0 #b98429; }
+  .hint { font-size:12.5px; opacity:.7; line-height:1.6; max-width:320px; }
+  .hint b { color:#ffd07a; }
+
+  #hud { position:fixed; top:0; left:0; right:0; z-index:6; pointer-events:none;
+         display:flex; justify-content:space-between; align-items:flex-start;
+         padding:max(12px,env(safe-area-inset-top)) 16px 0; color:#fff;
+         text-shadow:0 1px 3px rgba(0,0,0,.6); }
+  #dist { font-size:30px; font-weight:900; }
+  #dist small { font-size:14px; font-weight:700; opacity:.8; }
+  #flips { font-size:14px; font-weight:800; color:#ffd07a; min-height:18px; }
+  #right { text-align:right; }
+  #best { font-size:13px; opacity:.85; font-weight:700; }
+  #mute { pointer-events:auto; cursor:pointer; font-size:20px; opacity:.85;
+          background:rgba(0,0,0,.25); border-radius:10px; padding:4px 9px; margin-top:6px;
+          display:inline-block; }
+  .toast { position:fixed; top:24%; left:50%; transform:translateX(-50%); z-index:7;
+           font-size:34px; font-weight:900; color:#ffd07a; pointer-events:none;
+           text-shadow:0 2px 0 var(--dirt),0 4px 14px rgba(0,0,0,.6); opacity:0; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud">
+  <div>
+    <div id="dist">0<small> m</small></div>
+    <div id="flips"></div>
+  </div>
+  <div id="right">
+    <div id="best">best 0 m</div>
+    <div id="mute">🔊</div>
+  </div>
+</div>
+
+<div id="brake" class="pedal"><span>BRAKE</span></div>
+<div id="gas" class="pedal"><span>GAS</span></div>
+<div class="toast" id="toast"></div>
+
+<div class="overlay" id="menu">
+  <h1 style="line-height:.95">BERM<br>BURNER</h1>
+  <div class="tag">Pin the throttle, loft the front, send the jumps — and tuck the landings clean.</div>
+  <button class="btn" id="play">RIDE</button>
+  <div class="hint">
+    <b>GAS</b> (right) drives &amp; pops the front up · <b>BRAKE</b> (left) slows &amp; drops the nose<br>
+    In the air, gas spins you <b>back</b> (backflips), brake spins you <b>forward</b><br>
+    Keyboard: <b>→/↑</b> gas · <b>←/↓</b> brake · <b>R</b> restart
+  </div>
+</div>
+
+<div class="overlay hide" id="over">
+  <div class="big">WASHED OUT</div>
+  <div class="stat">distance <b id="oDist">0</b> m</div>
+  <div class="stat" id="oFlipsRow">flips <b id="oFlips">0</b> · airtime <b id="oAir">0.0</b>s</div>
+  <div class="stat" id="oRecord"></div>
+  <button class="btn" id="again">RIDE AGAIN</button>
+</div>
+
+<script>
+"use strict";
+(() => {
+const cv = document.getElementById('game');
+const ctx = cv.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+function resize(){
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = W * DPR; cv.height = H * DPR;
+  cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+window.addEventListener('resize', resize); resize();
+
+// ---------- tuning constants ----------
+const GRAV = 2000;        // px/s^2
+const ENGINE = 2600;      // forward drive force at rear wheel
+const BRAKE_K = 22;       // braking strength (per unit tangential vel)
+const AIR_TORQUE = 13;    // rad/s^2 in-air rotation from gas/brake
+const SPRING_K = 240;     // suspension stiffness
+const SPRING_C = 26;      // suspension damping
+const WHEELBASE = 64;     // distance between wheels
+const WHEEL_R = 18;       // wheel radius
+const MASS = 1;
+const INERTIA = MASS * (WHEELBASE*0.5)*(WHEELBASE*0.5) * 1.7;
+const PX_PER_M = 14;      // distance scoring scale
+const SEG = 26;           // terrain segment width (px)
+
+// ---------- terrain (procedural, scrolls forever) ----------
+let pts = [];   // world y per segment index
+function genTo(idx){
+  while (pts.length <= idx){
+    const i = pts.length;
+    const x = i;
+    // amplitude & jaggedness slowly grow with distance
+    const ramp = Math.min(1, i / 600);
+    const amp = 60 + 140 * ramp;
+    let y = 420
+      + Math.sin(i*0.045) * amp
+      + Math.sin(i*0.017 + 1.3) * (amp*0.7)
+      + Math.sin(i*0.11 + 0.6) * (18 + 26*ramp);
+    // occasional kicker ramps for big air
+    const j = (i % 95);
+    if (j < 10 && i > 40){ y -= (10 - j) * (6 + 10*ramp); }
+    pts[i] = y;
+  }
+}
+genTo(400);
+function groundY(wx){
+  const fi = wx / SEG;
+  let i = Math.floor(fi);
+  if (i < 0) i = 0;
+  genTo(i+2);
+  const t = fi - i;
+  return pts[i] * (1-t) + pts[i+1] * t;
+}
+function groundNormal(wx){
+  const h = 6;
+  const y1 = groundY(wx - h), y2 = groundY(wx + h);
+  // surface tangent (2h, dy); normal points up (-y)
+  let nx = (y1 - y2), ny = (2*h);
+  // make ny negative (pointing up in canvas coords)
+  nx = -nx; ny = -ny;
+  // wait: tangent = (2h, y2-y1); normal = (-(y2-y1), 2h) normalized, flip so y<0
+  let tx = 2*h, ty = (y2 - y1);
+  let n = { x: ty, y: -tx };
+  const L = Math.hypot(n.x, n.y) || 1;
+  n.x/=L; n.y/=L;
+  if (n.y > 0){ n.x=-n.x; n.y=-n.y; }  // ensure upward
+  return n;
+}
+
+// ---------- bike state ----------
+const bike = {};
+function reset(){
+  const x0 = 200;
+  bike.x = x0; bike.y = groundY(x0) - WHEEL_R - 30;
+  bike.vx = 0; bike.vy = 0;
+  bike.a = 0; bike.av = 0;
+  bike.wheelSpin = 0;
+  bike.startX = bike.x;
+  bike.airT = 0; bike.totalAir = 0; bike.airSpin = 0;
+  bike.flips = 0; bike.grounded = true;
+  state = 'play'; flipText=''; flipTextT=0;
+  dist = 0;
+}
+
+// ---------- input ----------
+let gas=false, brake=false;
+const gasEl=document.getElementById('gas'), brakeEl=document.getElementById('brake');
+function bind(el, set){
+  const on=(e)=>{ e.preventDefault(); set(true); el.classList.add('on'); audioStart(); };
+  const off=(e)=>{ e.preventDefault(); set(false); el.classList.remove('on'); };
+  el.addEventListener('touchstart',on,{passive:false});
+  el.addEventListener('touchend',off,{passive:false});
+  el.addEventListener('touchcancel',off,{passive:false});
+  el.addEventListener('mousedown',on); el.addEventListener('mouseup',off);
+  el.addEventListener('mouseleave',()=>{el.classList.remove('on');});
+}
+// mouse on pedals only sets while pressed; track globally for mouseup off-element
+bind(gasEl, v=>gas=v); bind(brakeEl, v=>brake=v);
+window.addEventListener('mouseup', ()=>{ gas=false; brake=false; gasEl.classList.remove('on'); brakeEl.classList.remove('on'); });
+window.addEventListener('keydown', e=>{
+  if(e.repeat) return;
+  if(e.key==='ArrowRight'||e.key==='ArrowUp'||e.key===' '){ gas=true; audioStart(); }
+  if(e.key==='ArrowLeft'||e.key==='ArrowDown'){ brake=true; }
+  if(e.key==='r'||e.key==='R'){ if(state!=='menu') startRun(); }
+  if(state==='menu' && (e.key==='Enter'||e.key===' ')) startRun();
+});
+window.addEventListener('keyup', e=>{
+  if(e.key==='ArrowRight'||e.key==='ArrowUp'||e.key===' ') gas=false;
+  if(e.key==='ArrowLeft'||e.key==='ArrowDown') brake=false;
+});
+
+// ---------- audio (lazy WebAudio) ----------
+let AC=null, eng=null, engGain=null, muted=false;
+function audioStart(){
+  if(muted) return;
+  if(!AC){
+    try{
+      AC = new (window.AudioContext||window.webkitAudioContext)();
+      eng = AC.createOscillator(); eng.type='sawtooth'; eng.frequency.value=60;
+      const lp = AC.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=900;
+      engGain = AC.createGain(); engGain.gain.value=0;
+      eng.connect(lp); lp.connect(engGain); engGain.connect(AC.destination);
+      eng.start();
+    }catch(e){ AC=null; }
+  }
+  if(AC && AC.state==='suspended') AC.resume();
+}
+function blip(freq, dur, type, vol){
+  if(!AC||muted) return;
+  const o=AC.createOscillator(), g=AC.createGain();
+  o.type=type||'square'; o.frequency.value=freq;
+  g.gain.value=vol||0.18; o.connect(g); g.connect(AC.destination);
+  const t=AC.currentTime; g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+  o.start(t); o.stop(t+dur);
+}
+function noise(dur, vol){
+  if(!AC||muted) return;
+  const n=AC.createBufferSource();
+  const buf=AC.createBuffer(1, AC.sampleRate*dur, AC.sampleRate);
+  const d=buf.getChannelData(0);
+  for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*(1-i/d.length);
+  n.buffer=buf;
+  const g=AC.createGain(); g.gain.value=vol||0.3; n.connect(g); g.connect(AC.destination);
+  n.start(); n.stop(AC.currentTime+dur);
+}
+document.getElementById('mute').addEventListener('click',()=>{
+  muted=!muted;
+  document.getElementById('mute').textContent = muted?'🔇':'🔊';
+  if(engGain) engGain.gain.value=0;
+});
+
+// ---------- game flow ----------
+let state='menu', dist=0, best=+(localStorage.getItem('bermburner_best')||0);
+let flipText='', flipTextT=0;
+document.getElementById('best').textContent = 'best '+best+' m';
+function startRun(){
+  pts=[]; genTo(400);
+  reset();
+  document.getElementById('menu').classList.add('hide');
+  document.getElementById('over').classList.add('hide');
+}
+document.getElementById('play').addEventListener('click', startRun);
+document.getElementById('again').addEventListener('click', startRun);
+
+function crash(){
+  if(state!=='play') return;
+  state='over';
+  if(engGain) engGain.gain.value=0;
+  noise(0.5,0.4); blip(90,0.4,'sawtooth',0.25);
+  const m = Math.max(0, Math.floor(dist));
+  document.getElementById('oDist').textContent = m;
+  document.getElementById('oFlips').textContent = bike.flips;
+  document.getElementById('oAir').textContent = bike.totalAir.toFixed(1);
+  let rec='';
+  if(m>best){ best=m; localStorage.setItem('bermburner_best',best); rec='🏆 new best!'; }
+  document.getElementById('oRecord').textContent = rec;
+  document.getElementById('best').textContent = 'best '+best+' m';
+  document.getElementById('over').classList.remove('hide');
+}
+
+// ---------- physics ----------
+function physics(dt){
+  let fx = 0, fy = GRAV*MASS, torque = 0;
+  const hb = WHEELBASE/2;
+  const ca = Math.cos(bike.a), sa = Math.sin(bike.a);
+  let anyGround=false, rearGround=false;
+  for(const sign of [-1, 1]){       // -1 rear, +1 front
+    const ox = sign*hb*ca, oy = sign*hb*sa;   // wheel offset in world
+    const wx = bike.x + ox, wy = bike.y + oy;
+    const gy = groundY(wx);
+    const pen = (wy + WHEEL_R) - gy;
+    if(pen > 0){
+      anyGround=true; if(sign<0) rearGround=true;
+      const n = groundNormal(wx);
+      // contact-point velocity = linear + angular
+      const vptx = bike.vx - bike.av*oy;
+      const vpty = bike.vy + bike.av*ox;
+      const relN = vptx*n.x + vpty*n.y;
+      let Fmag = pen*SPRING_K - relN*SPRING_C;
+      if(Fmag < 0) Fmag = 0;
+      let Fx = n.x*Fmag, Fy = n.y*Fmag;
+      // tangent pointing forward (+x)
+      let tx = -n.y, ty = n.x; if(tx < 0){ tx=-tx; ty=-ty; }
+      const vt = vptx*tx + vpty*ty;
+      let drive = 0;
+      if(sign<0 && gas) drive += ENGINE;
+      if(brake) drive += -vt*BRAKE_K;
+      else drive += -vt*1.2;          // light rolling resistance
+      Fx += tx*drive; Fy += ty*drive;
+      fx += Fx; fy += Fy;
+      torque += ox*Fy - oy*Fx;
+    }
+  }
+  // air control
+  if(!anyGround){
+    if(gas)  bike.av -= AIR_TORQUE*dt;
+    if(brake) bike.av += AIR_TORQUE*dt;
+  }
+  bike.grounded = anyGround;
+  // integrate
+  bike.vx += (fx/MASS)*dt;
+  bike.vy += (fy/MASS)*dt;
+  bike.av += (torque/INERTIA)*dt;
+  bike.av *= 0.992;
+  bike.vx *= 0.9995;
+  bike.x += bike.vx*dt;
+  bike.y += bike.vy*dt;
+  bike.a += bike.av*dt;
+  bike.wheelSpin += (bike.vx*dt)/WHEEL_R;
+
+  // flips / airtime tracking
+  if(!anyGround){
+    bike.airT += dt; bike.totalAir += dt;
+    bike.airSpin += bike.av*dt;
+    if(Math.abs(bike.airSpin) >= Math.PI*2){
+      bike.flips++; bike.airSpin -= Math.sign(bike.airSpin)*Math.PI*2;
+      flipText = bike.flips===1 ? 'BACKFLIP!' : bike.flips+'x FLIP!';
+      flipTextT = 1.1; blip(660,0.12,'triangle',0.2); blip(880,0.14,'triangle',0.18);
+    }
+  } else {
+    if(bike.airT > 0.35) noise(0.08,0.18); // landing thud
+    bike.airT = 0; bike.airSpin = 0;
+  }
+
+  // crash: chassis body slams into terrain
+  const gyC = groundY(bike.x);
+  if(bike.y > gyC - WHEEL_R*0.45){ crash(); }
+
+  // engine sound
+  if(eng && !muted){
+    const spd = Math.abs(bike.vx);
+    const target = 55 + Math.min(spd, 900)*0.22 + (gas?40:0);
+    eng.frequency.value += (target - eng.frequency.value)*0.2;
+    const g = (gas && anyGround?0.10:0.045) * (rearGround?1:0.6);
+    engGain.gain.value += (g - engGain.gain.value)*0.2;
+  }
+}
+
+// ---------- rendering ----------
+let cam = {x:0, y:0};
+function drawTerrain(){
+  const left = cam.x - 40, right = cam.x + W + 40;
+  let i0 = Math.floor(left/SEG)-1; if(i0<0) i0=0;
+  let i1 = Math.floor(right/SEG)+2; genTo(i1);
+  ctx.beginPath();
+  ctx.moveTo(i0*SEG - cam.x, H+60);
+  for(let i=i0;i<=i1;i++){ ctx.lineTo(i*SEG - cam.x, pts[i] - cam.y); }
+  ctx.lineTo(i1*SEG - cam.x, H+60);
+  ctx.closePath();
+  const g = ctx.createLinearGradient(0, 300-cam.y, 0, H);
+  g.addColorStop(0, '#d98b4a'); g.addColorStop(0.12,'#b9692c'); g.addColorStop(1,'#6e3d18');
+  ctx.fillStyle = g; ctx.fill();
+  // surface line
+  ctx.beginPath();
+  for(let i=i0;i<=i1;i++){ const X=i*SEG-cam.x, Y=pts[i]-cam.y; i===i0?ctx.moveTo(X,Y):ctx.lineTo(X,Y); }
+  ctx.lineWidth=4; ctx.strokeStyle='#e9b277'; ctx.stroke();
+}
+function drawBg(){
+  const g = ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#5aa7cf'); g.addColorStop(0.55,'#9fd4ea'); g.addColorStop(1,'#e7f4d8');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  // sun
+  ctx.fillStyle='rgba(255,247,214,.9)';
+  ctx.beginPath(); ctx.arc(W*0.78, H*0.2, 46, 0, 7); ctx.fill();
+  // parallax hills
+  ctx.fillStyle='#a9c98f';
+  const px = cam.x*0.25;
+  ctx.beginPath(); ctx.moveTo(0,H);
+  for(let x=-100;x<=W+100;x+=40){
+    const wy = H*0.62 + Math.sin((x+px)*0.006)*40 + Math.sin((x+px)*0.013)*20;
+    ctx.lineTo(x, wy);
+  }
+  ctx.lineTo(W,H); ctx.closePath(); ctx.fill();
+}
+function drawBike(){
+  ctx.save();
+  ctx.translate(bike.x - cam.x, bike.y - cam.y);
+  ctx.rotate(bike.a);
+  const hb = WHEELBASE/2;
+  // wheels
+  for(const s of [-1,1]){
+    ctx.save(); ctx.translate(s*hb, 0); ctx.rotate(bike.wheelSpin);
+    ctx.beginPath(); ctx.arc(0,0,WHEEL_R,0,7);
+    ctx.fillStyle='#1c1c20'; ctx.fill();
+    ctx.lineWidth=4; ctx.strokeStyle='#2c2c33'; ctx.stroke();
+    ctx.beginPath(); ctx.arc(0,0,WHEEL_R*0.45,0,7); ctx.fillStyle='#d7d7dd'; ctx.fill();
+    ctx.strokeStyle='#9a9aa2'; ctx.lineWidth=2;
+    for(let k=0;k<4;k++){ ctx.beginPath(); ctx.moveTo(0,0);
+      ctx.lineTo(Math.cos(k*1.57)*WHEEL_R*0.85, Math.sin(k*1.57)*WHEEL_R*0.85); ctx.stroke(); }
+    ctx.restore();
+  }
+  // frame / body
+  ctx.lineCap='round';
+  ctx.strokeStyle='#d63a2f'; ctx.lineWidth=7;
+  ctx.beginPath(); ctx.moveTo(-hb+3,-2); ctx.lineTo(-6,-14); ctx.lineTo(hb-6,-10); ctx.stroke();
+  ctx.strokeStyle='#2a2a30'; ctx.lineWidth=5;
+  ctx.beginPath(); ctx.moveTo(-hb+3,-2); ctx.lineTo(-2,-13); ctx.stroke();   // rear shock
+  ctx.beginPath(); ctx.moveTo(hb-6,2); ctx.lineTo(hb-2,-12); ctx.stroke();    // forks
+  // seat / tank
+  ctx.fillStyle='#222'; ctx.fillRect(-20,-19,26,7);
+  // handlebar
+  ctx.strokeStyle='#444'; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(hb-3,-12); ctx.lineTo(hb+4,-22); ctx.stroke();
+  // rider
+  ctx.strokeStyle='#26456b'; ctx.lineWidth=6;
+  ctx.beginPath(); ctx.moveTo(-10,-18); ctx.lineTo(2,-30); ctx.lineTo(hb+3,-21); ctx.stroke(); // torso+arm
+  ctx.beginPath(); ctx.moveTo(-10,-18); ctx.lineTo(-14,-6); ctx.stroke(); // leg
+  ctx.fillStyle='#e8e2d4'; ctx.beginPath(); ctx.arc(3,-34,7,0,7); ctx.fill(); // helmet
+  ctx.fillStyle='#d63a2f'; ctx.fillRect(-2,-36,9,3); // helmet stripe
+  ctx.restore();
+}
+let roostT=0;
+function drawRoost(){
+  // dirt spray off the rear wheel when gassing on ground
+  if(!(gas && bike.grounded && Math.abs(bike.vx)>40)) return;
+  const hb=WHEELBASE/2;
+  const rx = bike.x - hb*Math.cos(bike.a) - cam.x;
+  const ry = bike.y - hb*Math.sin(bike.a) + WHEEL_R - cam.y;
+  ctx.fillStyle='rgba(150,95,45,0.55)';
+  for(let i=0;i<6;i++){
+    const a=2.4+Math.random()*1.0, sp=30+Math.random()*70;
+    ctx.beginPath();
+    ctx.arc(rx+Math.cos(a)*sp*0.4, ry+Math.sin(a)*sp*0.3 - Math.random()*14,
+            2+Math.random()*3, 0, 7); ctx.fill();
+  }
+}
+
+function setToast(){
+  const el=document.getElementById('toast');
+  if(flipTextT>0){ el.textContent=flipText; el.style.opacity=Math.min(1,flipTextT); }
+  else el.style.opacity=0;
+}
+
+// ---------- main loop ----------
+let last=performance.now(), acc=0;
+function frame(now){
+  let dt=(now-last)/1000; last=now;
+  if(dt>0.05) dt=0.05;
+  if(state==='play'){
+    acc+=dt;
+    const step=1/120;
+    while(acc>=step){ physics(step); acc-=step; if(state!=='play') break; }
+    dist = Math.max(dist, (bike.x - bike.startX)/PX_PER_M);
+    if(flipTextT>0) flipTextT-=dt;
+  }
+  // camera
+  const tx = bike.x - W*0.34;
+  const ty = bike.y - H*0.58;
+  cam.x += (tx-cam.x)* (state==='play'?0.12:0.12);
+  cam.y += (ty-cam.y)*0.08;
+
+  drawBg(); drawTerrain(); drawRoost(); drawBike();
+
+  if(state==='play'){
+    document.getElementById('dist').innerHTML = Math.floor(dist)+'<small> m</small>';
+    document.getElementById('flips').textContent =
+      (bike.flips? '🔄 '+bike.flips+'  ':'') + (bike.airT>0.3? '✈ '+bike.airT.toFixed(1)+'s':'');
+  }
+  setToast();
+  requestAnimationFrame(frame);
+}
+reset(); state='menu';
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
