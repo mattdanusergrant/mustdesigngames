@@ -135,15 +135,17 @@ const T = {
 // ---------- canvas / dpr ----------
 const canvas = document.getElementById("c");
 const ctx = canvas.getContext("2d");
-const ZOOM = 0.70;   // <1 = zoomed out: see more of the field, everything smaller/calmer
-let W = 0, H = 0, DPR = 1;
+const ZOOM = 0.70;       // <1 = zoomed out: see more of the field, everything smaller/calmer
+const PLAY_FRAC = 2/3;   // gameplay fills the top 2/3 of the screen; cockpit fills the bottom third
+let W = 0, H = 0, DPR = 1, SW = 0, SH = 0, COCKPIT_Y = 0;
 function resize(){
   DPR = Math.min(window.devicePixelRatio || 1, 2);
-  const sw = window.innerWidth, sh = window.innerHeight;
-  W = sw / ZOOM; H = sh / ZOOM;                         // world is larger than the screen
-  canvas.width = Math.floor(sw*DPR); canvas.height = Math.floor(sh*DPR);
-  canvas.style.width = sw+"px"; canvas.style.height = sh+"px";
-  ctx.setTransform(DPR*ZOOM,0,0,DPR*ZOOM,0,0);          // scale the world down to fit
+  SW = window.innerWidth; SH = window.innerHeight;
+  COCKPIT_Y = Math.round(SH * PLAY_FRAC);              // screen y where the cockpit begins
+  W = SW / ZOOM; H = (SH * PLAY_FRAC) / ZOOM;          // world maps onto the top 2/3 only
+  canvas.width = Math.floor(SW*DPR); canvas.height = Math.floor(SH*DPR);
+  canvas.style.width = SW+"px"; canvas.style.height = SH+"px";
+  ctx.setTransform(DPR*ZOOM,0,0,DPR*ZOOM,0,0);         // scale the world down to fit
 }
 window.addEventListener("resize", resize); resize();
 
@@ -801,6 +803,8 @@ function render(dt){
   if(winFlash>0){ ctx.fillStyle=`rgba(255,255,255,${Math.max(0,winFlash-2)*0.6})`; ctx.fillRect(0,0,W,H);
     if(winFlash<2.4){ ctx.fillStyle="#ffd34d"; ctx.font="900 "+Math.min(64,W*0.09)+"px Trebuchet MS"; ctx.textAlign="center";
       ctx.globalAlpha=Math.min(1,winFlash); ctx.fillText("REDWOLF DOWN", W/2, H*0.4); ctx.globalAlpha=1; ctx.textAlign="left"; } }
+
+  drawCockpit();
 }
 
 function drawBoss(e){
@@ -817,6 +821,71 @@ function drawBoss(e){
   ctx.fillStyle="#ffd34d"; ctx.font="bold 12px Verdana"; ctx.textAlign="center";
   ctx.fillText("REDWOLF", W/2, by+9); ctx.textAlign="left";
   ctx.restore();
+}
+
+// ---------- cockpit dashboard (bottom third, screen-space) ----------
+function drawCockpit(){
+  const y0=COCKPIT_Y, h2=SH-y0, w=SW;
+  ctx.save();
+  ctx.setTransform(DPR,0,0,DPR,0,0);   // screen pixels (independent of world zoom)
+
+  // canopy struts framing the viewport corners
+  ctx.fillStyle="#0b0e15";
+  ctx.beginPath(); ctx.moveTo(0,y0); ctx.lineTo(0,y0-Math.min(64,h2*0.3)); ctx.lineTo(Math.min(90,w*0.2),y0); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(w,y0); ctx.lineTo(w,y0-Math.min(64,h2*0.3)); ctx.lineTo(w-Math.min(90,w*0.2),y0); ctx.closePath(); ctx.fill();
+
+  // dashboard base
+  const g=ctx.createLinearGradient(0,y0,0,SH);
+  g.addColorStop(0,"#222a39"); g.addColorStop(0.16,"#161c28"); g.addColorStop(1,"#070a11");
+  ctx.fillStyle=g; ctx.fillRect(0,y0,w,h2);
+  // glowing canopy seam
+  ctx.fillStyle="#3a4660"; ctx.fillRect(0,y0,w,5);
+  ctx.fillStyle="rgba(120,200,255,.55)"; ctx.fillRect(0,y0,w,2);
+  const vg=ctx.createLinearGradient(0,y0,0,y0+46);
+  vg.addColorStop(0,"rgba(0,0,0,.5)"); vg.addColorStop(1,"rgba(0,0,0,0)");
+  ctx.fillStyle=vg; ctx.fillRect(0,y0+5,w,46);
+
+  const px=player; // may be null on menu
+  // ---- left instrument cluster: shield + turbo gauges, missiles ----
+  const lx=w*0.05, lw=Math.max(110,w*0.30);
+  const gh=Math.max(20,h2*0.12), gsp=gh+Math.max(8,h2*0.05);
+  const gy=y0+h2*0.30;
+  drawGauge(lx,gy,lw,gh,"SHIELD", px?px.shield/T.shieldMax:0, "#39d98a", px?Math.round(px.shield):"—");
+  drawGauge(lx,gy+gsp,lw,gh,"TURBO", px?px.boost/T.turboMax:0, "#ffcf4d", px?Math.round(px.boost):"—");
+  ctx.fillStyle="#9fe8ff"; ctx.font="bold "+Math.round(Math.min(15,h2*0.075))+"px Verdana"; ctx.textAlign="left";
+  ctx.fillText("MSL  "+(px?px.missiles:"—"), lx, gy+gsp*2+gh*0.6);
+
+  // ---- centre: score + attitude indicator ----
+  const cx=w*0.5;
+  ctx.fillStyle="#7fd6ff"; ctx.font="bold "+Math.round(Math.min(34,h2*0.17))+"px 'Trebuchet MS'"; ctx.textAlign="center";
+  ctx.fillText(String(px?Math.floor(score):0), cx, y0+h2*0.26);
+  ctx.fillStyle="#5e7795"; ctx.font="9px Verdana"; ctx.fillText("SCORE", cx, y0+h2*0.345);
+  drawAttitude(cx, y0+h2*0.66, Math.min(h2*0.30, 54), px?px.bank:0);
+
+  ctx.textAlign="left";
+  ctx.restore();
+}
+function drawGauge(x,y,w,h,label,frac,col,val){
+  ctx.fillStyle="rgba(255,255,255,.05)"; ctx.fillRect(x,y,w,h);
+  ctx.strokeStyle="rgba(120,160,200,.25)"; ctx.lineWidth=1; ctx.strokeRect(x+.5,y+.5,w-1,h-1);
+  const bh=Math.max(6,h*0.34), by=y+h-bh-3;
+  ctx.fillStyle="rgba(0,0,0,.45)"; ctx.fillRect(x+3,by,w-6,bh);
+  ctx.fillStyle=col; ctx.fillRect(x+3,by,(w-6)*Math.max(0,Math.min(1,frac)),bh);
+  ctx.fillStyle="#8fb0c8"; ctx.font="9px Verdana"; ctx.textAlign="left"; ctx.fillText(label,x+4,y+11);
+  ctx.fillStyle="#dff3ff"; ctx.font="bold 11px Verdana"; ctx.textAlign="right"; ctx.fillText(String(val),x+w-4,y+11);
+  ctx.textAlign="left";
+}
+function drawAttitude(cx,cy,r,bank){
+  ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,r,0,7); ctx.clip();
+  ctx.translate(cx,cy); ctx.rotate((bank||0)*Math.PI/180*2.2);
+  ctx.fillStyle="#2c5d86"; ctx.fillRect(-r*2,-r*2,r*4,r*2);   // sky
+  ctx.fillStyle="#6b4a2a"; ctx.fillRect(-r*2,0,r*4,r*2);      // ground
+  ctx.strokeStyle="#eaf7ff"; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(-r*2,0); ctx.lineTo(r*2,0); ctx.stroke();
+  ctx.restore();
+  ctx.strokeStyle="#3a4660"; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(cx,cy,r,0,7); ctx.stroke();
+  ctx.strokeStyle="#ffd34d"; ctx.lineWidth=2;            // fixed aircraft reference
+  ctx.beginPath(); ctx.moveTo(cx-r*0.55,cy); ctx.lineTo(cx-r*0.18,cy); ctx.moveTo(cx+r*0.18,cy); ctx.lineTo(cx+r*0.55,cy); ctx.stroke();
+  ctx.fillStyle="#ffd34d"; ctx.beginPath(); ctx.arc(cx,cy,2.5,0,7); ctx.fill();
 }
 
 // ---------- HUD ----------
@@ -856,7 +925,7 @@ function startGame(){
   Audio_.init(); Audio_.resume(); Audio_.startRotor();
   reset(); state="play";
   show(elMenu,false); show(elOver,false); show(elPause,false);
-  show(elHud,true); show(elTop,true); hideJoy();
+  show(elHud,false); show(elTop,true); hideJoy();   // gauges now live in the cockpit
   if(isTouch){ elTbtns.style.display="flex"; }
 }
 function gameOver(){
