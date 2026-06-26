@@ -14,6 +14,7 @@ served at its own sub-path.
 | Baduk Blitz | [`/baduk-blitz/`](baduk-blitz/) |
 | Bloom Again | [`/bloom-again/`](bloom-again/) |
 | Eat, Monkey, Eat | [`/eat-monkey-eat/`](eat-monkey-eat/) |
+| Grand Theft Apples | [`/grand-theft-apples/`](grand-theft-apples/) |
 | Groundwork | [`/groundwork/`](groundwork/) |
 | Keep Ripping Packs | [`/ripping-packs/`](ripping-packs/) |
 | Matgo | [`/matgo/`](matgo/) |
@@ -36,4 +37,5 @@ served at its own sub-path.
 
 `.github/workflows/pages.yml` publishes the repo root to GitHub Pages on every
 push to `main`. `.nojekyll` tells Pages to serve files verbatim (no Jekyll).
-Static content only — every game here is vanilla HTML/JS/Canvas.
+Static content only — most games are vanilla HTML/JS/Canvas; the 3D entry
+(Grand Theft Apples) uses WebGL via a vendored, self-contained Three.js build.
