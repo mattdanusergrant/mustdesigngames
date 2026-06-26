@@ -114,7 +114,8 @@
 "use strict";
 // ---------- tuning constants ----------
 const T = {
-  accel: 2400, drag: 6.0, maxSpd: 560,           // flight feel
+  timeScale: 0.62,                               // <1 = whole game runs slower (relaxed pace)
+  accel: 3000, drag: 6.0, maxSpd: 760,           // flight feel (bumped to stay nimble on the bigger field)
   turboMul: 2.15, turboMax: 100, turboDrain: 46, turboRegen: 17, turboMin: 18,
   boomRadius: 150, boomDmg: 60,
   gunRate: 0.085, gunSpd: 760, gunDmg: 10, gunSpread: 0.05,
@@ -127,13 +128,15 @@ const T = {
 // ---------- canvas / dpr ----------
 const canvas = document.getElementById("c");
 const ctx = canvas.getContext("2d");
+const ZOOM = 0.70;   // <1 = zoomed out: see more of the field, everything smaller/calmer
 let W = 0, H = 0, DPR = 1;
 function resize(){
   DPR = Math.min(window.devicePixelRatio || 1, 2);
-  W = window.innerWidth; H = window.innerHeight;
-  canvas.width = Math.floor(W*DPR); canvas.height = Math.floor(H*DPR);
-  canvas.style.width = W+"px"; canvas.style.height = H+"px";
-  ctx.setTransform(DPR,0,0,DPR,0,0);
+  const sw = window.innerWidth, sh = window.innerHeight;
+  W = sw / ZOOM; H = sh / ZOOM;                         // world is larger than the screen
+  canvas.width = Math.floor(sw*DPR); canvas.height = Math.floor(sh*DPR);
+  canvas.style.width = sw+"px"; canvas.style.height = sh+"px";
+  ctx.setTransform(DPR*ZOOM,0,0,DPR*ZOOM,0,0);          // scale the world down to fit
 }
 window.addEventListener("resize", resize); resize();
 
@@ -223,7 +226,7 @@ canvas.addEventListener("touchmove", e=>{
   e.preventDefault();
   for(const t of e.changedTouches){
     if(t.identifier===touchId){
-      const dx=t.clientX-lastTX, dy=t.clientY-lastTY; lastTX=t.clientX; lastTY=t.clientY;
+      const dx=(t.clientX-lastTX)/ZOOM, dy=(t.clientY-lastTY)/ZOOM; lastTX=t.clientX; lastTY=t.clientY;
       if(player){ player.x += dx; player.y += dy; clampPlayer(); }
     }
   }
@@ -826,8 +829,8 @@ function frame(ts){
   if(!last) last=ts;
   let dt=(ts-last)/1000; last=ts;
   if(dt>0.05) dt=0.05;
-  if(state==="play"){ update(dt); }
-  render(state==="play"?dt: (state==="pause"?0:dt*0.25));
+  if(state==="play"){ const sdt=dt*T.timeScale; update(sdt); render(sdt); }
+  else { render(state==="pause"?0:dt*0.25); }
 }
 
 // ---------- state / UI ----------
