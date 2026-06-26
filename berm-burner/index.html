@@ -86,6 +86,14 @@
   <button class="btn" id="again">CLIMB AGAIN</button>
 </div>
 
+<div class="overlay hide" id="crash">
+  <div class="big">💥 WIPEOUT</div>
+  <div class="stat">you reached <b id="cAlt">0</b> m</div>
+  <div class="stat" id="cRecord"></div>
+  <div class="tag">Try again?</div>
+  <button class="btn" id="retry">TRY AGAIN</button>
+</div>
+
 <script>
 "use strict";
 (() => {
@@ -125,7 +133,8 @@ function surf(x){
   const s = Math.max(0, Math.min(1, (x-400)/(SUMMIT_X-400)));
   const smooth = s*s*(3-2*s);
   let h = PEAK_H*smooth;
-  const g = Math.min(1, Math.max(0, (x-500))/1500);   // ease the jagged features in past the start pad
+  // ease jagged features in past the start pad, and fade them out into a clean summit ramp
+  const g = Math.min(1, Math.max(0, (x-500))/1500) * Math.min(1, Math.max(0, (SUMMIT_X-x)/1100));
   h += Math.sin(x*0.00150)      * 140 * g;   // big steep pitches
   h += Math.sin(x*0.00420+1.0)  *  72 * g;   // mid rollers
   h += Math.sin(x*0.00950+0.5)  *  40 * g;   // jagged steps
@@ -177,13 +186,14 @@ document.getElementById('mute').addEventListener('click',()=>{ muted=!muted;
   document.getElementById('mute').textContent = muted?'🔇':'🔊'; });
 
 // ---------- flow ----------
-let state='menu', maxAlt=0, launches=0, flipText='', flipTextT=0;
+let state='menu', maxAlt=0, launches=0, flipText='', flipTextT=0, crashTimer=0;
 let best=+(localStorage.getItem('bermsummit_best')||0);
 document.getElementById('best').textContent = 'best '+best+' m';
 document.getElementById('sub').textContent = 'summit '+SUMMIT_M+' m';
-function startRun(){ reset(); state='play';
+function startRun(){ reset(); state='play'; crashTimer=0; touching=false; inThrottle=0; inLean=0;
   document.getElementById('menu').classList.add('hide');
   document.getElementById('win').classList.add('hide');
+  document.getElementById('crash').classList.add('hide');
   cam.x = bike.x; cam.y = bike.y; audioStart();
 }
 function saveBest(){
@@ -197,8 +207,21 @@ function win(){ if(state!=='play') return; state='win';
   document.getElementById('wRecord').textContent='🏔️ summit reached!';
   document.getElementById('win').classList.remove('hide');
 }
+function startCrash(){ if(state!=='play') return; state='crashing'; crashTimer=0;
+  touching=false; inThrottle=0; inLean=0;
+  bike.av *= 1.25;                       // let it keep tumbling
+  flipText='WIPEOUT!'; flipTextT=2.0;
+  noise(0.5,0.35); sweep(320,70,0.55,0.2);
+}
+function endCrash(){ state='crashed'; saveBest();
+  document.getElementById('cAlt').textContent = Math.round(maxAlt);
+  const m=Math.round(maxAlt);
+  document.getElementById('cRecord').textContent = (m>=best && m>0) ? '⛰️ your best yet' : 'best '+best+' m';
+  document.getElementById('crash').classList.remove('hide');
+}
 document.getElementById('play').addEventListener('click', startRun);
 document.getElementById('again').addEventListener('click', startRun);
+document.getElementById('retry').addEventListener('click', startRun);
 
 // ---------- input: one-thumb floating stick ----------
 // horizontal = throttle (right) / brake (left); vertical = lean back (up) / forward (down)
@@ -258,8 +281,8 @@ function physics(dt){
   if(rearGround && inThrottle>0) bike.av -= WHEELIE_K*inThrottle*dt;
   // rider lean (weight shift): up = lean back = front lifts (a decreases). Works on ground & in air.
   bike.av -= inLean*LEAN_TORQUE*dt;
-  // gentle auto-settle to the slope when the rider isn't actively leaning
-  if(anyGround && Math.abs(inLean)<0.12){
+  // gentle auto-settle to the slope when the rider isn't actively leaning (not while crashing)
+  if(state==='play' && anyGround && Math.abs(inLean)<0.12){
     let da=surfSlope(bike.x)-bike.a;
     while(da>Math.PI) da-=2*Math.PI; while(da<-Math.PI) da+=2*Math.PI;
     bike.av += da*STAB_K*dt;
@@ -275,18 +298,19 @@ function physics(dt){
   if(anyGround && bike.airT>0.35) noise(0.08,0.16);      // landing thud
   bike.airT = anyGround?0:bike.airT+dt;
 
-  // light wipeout: if it ends up basically inverted on the ground, right it in place (costs momentum)
-  if(anyGround){
+  // wipeout: loop out past the threshold on the ground -> crash sequence (tumble, then "try again")
+  if(state==='play' && anyGround){
     let ad=bike.a-surfSlope(bike.x);
     while(ad>Math.PI) ad-=2*Math.PI; while(ad<-Math.PI) ad+=2*Math.PI;
-    if(Math.abs(ad)>WIPE_ANGLE){
-      bike.a=surfSlope(bike.x); bike.av=0; bike.vx=-300; bike.vy=0;   // loop out -> slide back down
-      bike.y=surf(bike.x)-WHEEL_R-2; flipText='WIPEOUT'; flipTextT=0.9; noise(0.4,0.3);
-    }
+    if(Math.abs(ad)>WIPE_ANGLE) startCrash();
+  } else if(state==='crashing'){
+    crashTimer+=dt;                                        // let the tumble play out, then offer a retry
+    const settled = anyGround && Math.hypot(bike.vx,bike.vy)<24 && Math.abs(bike.av)<1.3;
+    if((crashTimer>1.0 && settled) || crashTimer>4.0) endCrash();
   }
 
-  const alt=-bike.y/PX_PER_M; if(alt>maxAlt) maxAlt=alt;
-  if(bike.x>=SUMMIT_X) win();
+  const alt=-bike.y/PX_PER_M; if(state==='play' && alt>maxAlt) maxAlt=alt;
+  if(state==='play' && bike.x>=SUMMIT_X) win();
 }
 
 // ---------- camera + render ----------
@@ -389,13 +413,13 @@ function setToast(){ const el=document.getElementById('toast');
 let last=performance.now(), acc=0;
 function frame(now){
   let dt=(now-last)/1000; last=now; if(dt>0.05) dt=0.05;
-  if(state==='play'){
+  if(state==='play' || state==='crashing'){
     acc+=dt; const stp=1/120;
-    while(acc>=stp){ physics(stp); acc-=stp; if(state!=='play') break; }
-    if(flipTextT>0) flipTextT-=dt;
+    while(acc>=stp){ physics(stp); acc-=stp; if(state==='win'||state==='crashed') break; }
   }
-  // camera: follow bike, bias the view up & ahead toward the climb
-  const tx=bike.x + 120, ty=bike.y - 140;
+  if(flipTextT>0) flipTextT-=dt;
+  // camera: follow bike; while crashing, just centre on it (no climb bias) to watch the tumble
+  const tx=bike.x + (state==='crashing'?0:120), ty=bike.y - (state==='crashing'?40:140);
   cam.x += (tx-cam.x)*0.08; cam.y += (ty-cam.y)*0.06;
 
   drawBg(); drawMountain(); drawBike(); drawControl();
