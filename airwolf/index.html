@@ -115,6 +115,7 @@
 // ---------- tuning constants ----------
 const T = {
   timeScale: 0.62,                               // <1 = whole game runs slower (relaxed pace)
+  touchSens: 0.5,                                // mobile drag sensitivity (<1 = chopper moves less than finger)
   accel: 3000, drag: 6.0, maxSpd: 760,           // flight feel (bumped to stay nimble on the bigger field)
   turboMul: 2.15, turboMax: 100, turboDrain: 46, turboRegen: 17, turboMin: 18,
   boomRadius: 150, boomDmg: 60,
@@ -226,7 +227,7 @@ canvas.addEventListener("touchmove", e=>{
   e.preventDefault();
   for(const t of e.changedTouches){
     if(t.identifier===touchId){
-      const dx=(t.clientX-lastTX)/ZOOM, dy=(t.clientY-lastTY)/ZOOM; lastTX=t.clientX; lastTY=t.clientY;
+      const dx=(t.clientX-lastTX)*T.touchSens/ZOOM, dy=(t.clientY-lastTY)*T.touchSens/ZOOM; lastTX=t.clientX; lastTY=t.clientY;
       if(player){ player.x += dx; player.y += dy; clampPlayer(); }
     }
   }
