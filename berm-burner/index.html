@@ -70,18 +70,18 @@
 
 <div class="overlay" id="menu">
   <h1>BERM BURNER<small>SUMMIT</small></h1>
-  <div class="tag">Fling your bike up the mountain. Land the ledges, dodge the slides, reach the flag.</div>
+  <div class="tag">Ride your bike up the mountain to the summit flag — one thumb does it all.</div>
   <button class="btn" id="play">CLIMB</button>
   <div class="hint">
-    <b>Touch &amp; drag</b> anywhere to pull back the launch — angle and power.<br>
-    The dotted arc shows where you'll fly. <b>Release</b> to send it.<br>
-    Land flat to keep your gains; steep faces slide you back down.
+    Hold <b>one thumb</b> anywhere — a control pad appears.<br>
+    Push <b>right = gas</b>, <b>left = brake</b>. Push <b>up = lean back</b>, <b>down = lean forward</b>.<br>
+    Keep the front up on steep climbs; lean forward so you don't loop out.
   </div>
 </div>
 
 <div class="overlay hide" id="win">
   <div class="big">🏔️ SUMMIT!</div>
-  <div class="stat">you topped out in <b id="wLaunches">0</b> launches</div>
+  <div class="stat">you rode all the way to the top</div>
   <div class="stat" id="wRecord"></div>
   <button class="btn" id="again">CLIMB AGAIN</button>
 </div>
@@ -104,27 +104,29 @@ window.addEventListener('resize', resize); resize();
 const GRAV = 2000;
 const MASS = 1;
 const WHEELBASE = 64, WHEEL_R = 18;
-const INERTIA = MASS*(WHEELBASE*0.5)*(WHEELBASE*0.5)*2.4;
+const INERTIA = MASS*(WHEELBASE*0.5)*(WHEELBASE*0.5)*2.0;
 const SPRING_K = 240, SPRING_C = 26;
-const STAB_K = 6, GROUND_DAMP = 0.99;     // settle flat to the slope on the ground
-const FRICTION_K = 15;                     // grip; high = holds gentle slopes, slides steep ones
-const STOP_V = 14, STOP_DAMP = 0.55;       // come to rest when slow
+const ENGINE = 2700;        // rear-wheel drive at full throttle
+const BRAKE_K = 26;         // braking / hold-on-slope strength
+const ROLL_K = 1.6;         // rolling resistance when coasting (so you roll back on grades)
+const LEAN_TORQUE = 14;     // rider weight-shift pitch control (rad/s^2 at full lean)
+const STAB_K = 3.5, GROUND_DAMP = 0.992;   // gentle settle-to-slope; lean overrides it
+const STOP_V = 10, STOP_DAMP = 0.6;        // creep to rest when nearly stopped
 const PX_PER_M = 12;
-const ZOOM = 0.52;                         // <1 = zoomed out a lot
-const POWER_K = 7.0;                       // drag pixels -> launch speed
-const MAX_LAUNCH = 1750, MIN_DRAG = 16;
-const PEAK_H = 4500, SUMMIT_X = 10000, BASE_Y = 0;
+const ZOOM = 0.55;                         // <1 = zoomed out a lot
+const STICK_R = 72;                        // thumb-stick radius (px) for full input
+const PEAK_H = 4000, SUMMIT_X = 11000, BASE_Y = 0;
 const SUMMIT_M = Math.round(PEAK_H/PX_PER_M);
 
-// ---------- mountain (analytic surface, y up = negative) ----------
+// ---------- mountain (analytic surface, y up = negative) — a rideable ascent ----------
 function surf(x){
   const s = Math.max(0, Math.min(1, (x-400)/(SUMMIT_X-400)));
   const smooth = s*s*(3-2*s);
   let h = PEAK_H*smooth;
-  const g1 = Math.min(1, Math.max(0, (x-600))/2000);
-  const g2 = Math.min(1, Math.max(0, (x-600))/1500);
-  h += Math.sin(x*0.00170) * 120 * g1;     // big ledges / faces
-  h += Math.sin(x*0.00520+1.3) * 48 * g2;  // smaller steps
+  const g1 = Math.min(1, Math.max(0, (x-600))/2200);
+  const g2 = Math.min(1, Math.max(0, (x-600))/1600);
+  h += Math.sin(x*0.00130) * 70 * g1;      // rolling pitches
+  h += Math.sin(x*0.00340+1.0) * 34 * g2;  // smaller rollers
   if(x >= SUMMIT_X) h = PEAK_H;            // top plateau
   return BASE_Y - h;
 }
@@ -189,43 +191,36 @@ function saveBest(){
 function win(){ if(state!=='play') return; state='win';
   blip(523,0.14,'triangle',0.2); blip(659,0.16,'triangle',0.2); setTimeout(()=>blip(784,0.3,'triangle',0.2),140);
   saveBest();
-  document.getElementById('wLaunches').textContent = launches;
   document.getElementById('wRecord').textContent='🏔️ summit reached!';
   document.getElementById('win').classList.remove('hide');
 }
 document.getElementById('play').addEventListener('click', startRun);
 document.getElementById('again').addEventListener('click', startRun);
 
-// ---------- input: tap & drag slingshot ----------
-let aiming=false, aStart=null, aCur=null;
-function pt(e){ const t=e.touches?e.touches[0]:e; return {x:t.clientX, y:t.clientY}; }
-function launchVec(){
-  // pull back: launch opposite to the drag
-  let dx=(aStart.x-aCur.x), dy=(aStart.y-aCur.y);
-  let vx=dx*POWER_K, vy=dy*POWER_K;
-  const sp=Math.hypot(vx,vy); if(sp>MAX_LAUNCH){ vx*=MAX_LAUNCH/sp; vy*=MAX_LAUNCH/sp; }
-  return {vx, vy, len:Math.hypot(dx,dy)};
+// ---------- input: one-thumb floating stick ----------
+// horizontal = throttle (right) / brake (left); vertical = lean back (up) / forward (down)
+let touching=false, oX=0, oY=0, kX=0, kY=0;     // stick origin + knob (screen px)
+let inThrottle=0, inLean=0;
+function pt(e){ const t=e.touches&&e.touches[0]?e.touches[0]:e; return {x:t.clientX, y:t.clientY}; }
+function applyStick(){
+  inThrottle = Math.max(-1, Math.min(1, (kX-oX)/STICK_R));
+  inLean     = Math.max(-1, Math.min(1, (oY-kY)/STICK_R));   // drag up => lean back (+)
 }
 function onDown(e){ e.preventDefault(); audioStart();
   if(state!=='play') return;
-  if(bike.grounded){ aiming=true; aStart=pt(e); aCur=pt(e); }
+  const p=pt(e); touching=true; oX=kX=p.x; oY=kY=p.y; applyStick();
 }
-function onMove(e){ if(aiming){ e.preventDefault(); aCur=pt(e); } }
-function onUp(e){ if(!aiming) return; e.preventDefault();
-  const L=launchVec();
-  if(L.len>=MIN_DRAG){
-    bike.vx+=L.vx; bike.vy+=L.vy;
-    bike.av += -L.vx*0.0016;       // a little style spin
-    bike.airT=0.001; bike.grounded=false; launches++;
-    sweep(180,520,0.22,0.2);
-  }
-  aiming=false;
+function onMove(e){ if(!touching) return; e.preventDefault();
+  const p=pt(e); kX=p.x; kY=p.y; applyStick();
+}
+function onUp(e){ if(!touching) return; if(e&&e.preventDefault) e.preventDefault();
+  touching=false; inThrottle=0; inLean=0;
 }
 cv.addEventListener('touchstart',onDown,{passive:false});
 cv.addEventListener('touchmove',onMove,{passive:false});
 cv.addEventListener('touchend',onUp,{passive:false});
-cv.addEventListener('touchcancel',()=>{aiming=false;},{passive:false});
-// mouse fallback (desktop testing only — game is built for touch)
+cv.addEventListener('touchcancel',onUp,{passive:false});
+// mouse fallback (desktop testing only — game is built for one-thumb touch)
 cv.addEventListener('mousedown',onDown);
 window.addEventListener('mousemove',onMove);
 window.addEventListener('mouseup',onUp);
@@ -234,39 +229,56 @@ window.addEventListener('mouseup',onUp);
 function physics(dt){
   let fx=0, fy=GRAV*MASS, torque=0;
   const hb=WHEELBASE/2, ca=Math.cos(bike.a), sa=Math.sin(bike.a);
-  let anyGround=false;
-  for(const sign of [-1,1]){
+  let anyGround=false, rearGround=false;
+  for(const sign of [-1,1]){                 // -1 rear (driven), +1 front
     const ox=sign*hb*ca, oy=sign*hb*sa;
     const wx=bike.x+ox, wy=bike.y+oy;
     const gy=surf(wx);
     const pen=(wy+WHEEL_R)-gy;
-    if(pen>0){ anyGround=true;
+    if(pen>0){ anyGround=true; if(sign<0) rearGround=true;
       const n=surfNormal(wx);
       const vptx=bike.vx-bike.av*oy, vpty=bike.vy+bike.av*ox;
       const relN=vptx*n.x+vpty*n.y;
       let Fmag=pen*SPRING_K - relN*SPRING_C; if(Fmag<0) Fmag=0;
       let Fx=n.x*Fmag, Fy=n.y*Fmag;
-      let tx=-n.y, ty=n.x; if(tx<0){ tx=-tx; ty=-ty; }
+      let tx=-n.y, ty=n.x; if(tx<0){ tx=-tx; ty=-ty; }     // tangent, points forward (+x)
       const vt=vptx*tx+vpty*ty;
-      const drive=-vt*FRICTION_K;            // friction / grip only (no engine)
+      let drive=0;
+      if(sign<0 && inThrottle>0) drive += ENGINE*inThrottle;       // gas drives the rear
+      if(inThrottle<0) drive += -vt*BRAKE_K*(-inThrottle);         // brake (both wheels) = hold
+      else drive += -vt*ROLL_K;                                    // light coasting drag
       Fx+=tx*drive; Fy+=ty*drive;
       fx+=Fx; fy+=Fy; torque+=ox*Fy-oy*Fx;
     }
   }
-  if(anyGround){
+  // rider lean (weight shift): up = lean back = front lifts (a decreases). Works on ground & in air.
+  bike.av -= inLean*LEAN_TORQUE*dt;
+  // gentle auto-settle to the slope when the rider isn't actively leaning
+  if(anyGround && Math.abs(inLean)<0.12){
     let da=surfSlope(bike.x)-bike.a;
     while(da>Math.PI) da-=2*Math.PI; while(da<-Math.PI) da+=2*Math.PI;
-    bike.av += da*STAB_K*dt; bike.av*=GROUND_DAMP;
+    bike.av += da*STAB_K*dt;
   }
+  if(anyGround) bike.av*=GROUND_DAMP;
   bike.vx+=fx/MASS*dt; bike.vy+=fy/MASS*dt; bike.av+=torque/INERTIA*dt;
   bike.av*=0.99;
   bike.x+=bike.vx*dt; bike.y+=bike.vy*dt; bike.a+=bike.av*dt;
   bike.wheelSpin+=bike.vx*dt/WHEEL_R;
   bike.grounded=anyGround;
-  if(anyGround && Math.hypot(bike.vx,bike.vy)<STOP_V){ bike.vx*=STOP_DAMP; bike.vy*=STOP_DAMP; }
+  if(anyGround && Math.hypot(bike.vx,bike.vy)<STOP_V && inThrottle<=0){ bike.vx*=STOP_DAMP; bike.vy*=STOP_DAMP; }
   if(bike.x<60){ bike.x=60; if(bike.vx<0) bike.vx=0; }   // soft wall at the base
   if(anyGround && bike.airT>0.35) noise(0.08,0.16);      // landing thud
   bike.airT = anyGround?0:bike.airT+dt;
+
+  // light wipeout: if it ends up basically inverted on the ground, right it in place (costs momentum)
+  if(anyGround){
+    let ad=bike.a-surfSlope(bike.x);
+    while(ad>Math.PI) ad-=2*Math.PI; while(ad<-Math.PI) ad+=2*Math.PI;
+    if(Math.abs(ad)>2.0){
+      bike.a=surfSlope(bike.x); bike.av=0; bike.vx*=0.15; bike.vy=0;
+      bike.y=surf(bike.x)-WHEEL_R-2; flipText='WIPEOUT'; flipTextT=0.9; noise(0.4,0.3);
+    }
+  }
 
   const alt=-bike.y/PX_PER_M; if(alt>maxAlt) maxAlt=alt;
   if(bike.x>=SUMMIT_X) win();
@@ -347,24 +359,23 @@ function drawBike(){
   ctx.fillStyle='#d63a2f'; ctx.fillRect(-2,-36,9,3);
   ctx.restore();
 }
-function drawAim(){
-  if(!aiming || !aStart) return;
-  const L=launchVec();
-  if(L.len<MIN_DRAG) return;
-  // dotted trajectory arc (ballistic preview)
-  let px=bike.x, py=bike.y, vx=L.vx, vy=L.vy;
-  ctx.fillStyle='rgba(255,255,255,.9)';
-  for(let k=0;k<26;k++){
-    vy+=GRAV*0.05; px+=vx*0.05; py+=vy*0.05;
-    if(py>surf(px)+4) break;            // stop arc at the ground
-    const r=2.6 - k*0.05;
-    ctx.beginPath(); ctx.arc(SX(px),SY(py),Math.max(1,r),0,7); ctx.fill();
-  }
-  // power band from the bike
-  const ang=Math.atan2(L.vy,L.vx), pw=Math.hypot(L.vx,L.vy)/MAX_LAUNCH;
-  ctx.strokeStyle='rgba(255,208,122,.95)'; ctx.lineWidth=4; ctx.lineCap='round';
-  ctx.beginPath(); ctx.moveTo(SX(bike.x),SY(bike.y));
-  ctx.lineTo(SX(bike.x)+Math.cos(ang)*60*pw, SY(bike.y)+Math.sin(ang)*60*pw); ctx.stroke();
+function drawControl(){
+  if(!touching) return;
+  // base ring + axis hints (screen space)
+  ctx.lineWidth=3; ctx.strokeStyle='rgba(255,255,255,.32)';
+  ctx.beginPath(); ctx.arc(oX,oY,STICK_R,0,7); ctx.stroke();
+  ctx.fillStyle='rgba(255,255,255,.5)'; ctx.font='600 11px system-ui'; ctx.textAlign='center';
+  ctx.fillText('GAS ▶', oX+STICK_R+24, oY+4);
+  ctx.fillText('◀ BRAKE', oX-STICK_R-26, oY+4);
+  ctx.fillText('LEAN BACK ▲', oX, oY-STICK_R-10);
+  ctx.fillText('▼ FORWARD', oX, oY+STICK_R+18);
+  // knob (clamped to ring), tinted by throttle
+  const dx=kX-oX, dy=kY-oY, d=Math.hypot(dx,dy)||1, cl=Math.min(d,STICK_R);
+  const nx=oX+dx/d*cl, ny=oY+dy/d*cl;
+  ctx.strokeStyle='rgba(255,208,122,.85)'; ctx.lineWidth=5; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(oX,oY); ctx.lineTo(nx,ny); ctx.stroke();
+  ctx.fillStyle = inThrottle>0.05?'#7ed957' : inThrottle<-0.05?'#e0594a' : '#ffd07a';
+  ctx.beginPath(); ctx.arc(nx,ny,18,0,7); ctx.fill();
 }
 function setToast(){ const el=document.getElementById('toast');
   if(flipTextT>0){ el.textContent=flipText; el.style.opacity=Math.min(1,flipTextT); } else el.style.opacity=0; }
@@ -382,7 +393,7 @@ function frame(now){
   const tx=bike.x + 120, ty=bike.y - 140;
   cam.x += (tx-cam.x)*0.08; cam.y += (ty-cam.y)*0.06;
 
-  drawBg(); drawMountain(); drawAim(); drawBike();
+  drawBg(); drawMountain(); drawBike(); drawControl();
 
   // HUD
   if(state==='play') saveBest();
@@ -398,10 +409,9 @@ requestAnimationFrame(frame);
 
 // debug hook for headless tuning — inert without ?dbg in the URL
 if(/[?&]dbg/.test(location.search)){
-  window.BB = { bike, start:startRun, surf,
-    get state(){return state}, get alt(){return maxAlt}, get launches(){return launches},
-    get summitM(){return SUMMIT_M},
-    launch(vx,vy){ bike.vx+=vx; bike.vy+=vy; bike.grounded=false; bike.airT=0.001; launches++; } };
+  window.BB = { bike, start:startRun, surf, surfSlope,
+    get state(){return state}, get alt(){return maxAlt}, get summitM(){return SUMMIT_M},
+    setInput(throttle, lean){ inThrottle=Math.max(-1,Math.min(1,throttle)); inLean=Math.max(-1,Math.min(1,lean)); } };
 }
 })();
 </script>
