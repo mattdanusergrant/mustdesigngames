@@ -114,15 +114,19 @@ window.addEventListener('resize', resize); resize();
 
 // ---------- tuning constants ----------
 const GRAV = 2000;        // px/s^2
-const ENGINE = 2600;      // forward drive force at rear wheel
+const ENGINE = 2300;      // forward drive force at rear wheel
 const BRAKE_K = 22;       // braking strength (per unit tangential vel)
-const AIR_TORQUE = 13;    // rad/s^2 in-air rotation from gas/brake
+const AIR_TORQUE = 16;    // rad/s^2 in-air rotation from gas/brake
+const AIR_MIN_T = 0.12;   // s airborne before air-rotation engages (kills bump-hop spin)
+const STAB_K = 6;         // ground self-righting toward the slope (planted feel)
+const GROUND_DAMP = 0.99; // extra per-substep angular damping while wheels are down
 const SPRING_K = 240;     // suspension stiffness
 const SPRING_C = 26;      // suspension damping
 const WHEELBASE = 64;     // distance between wheels
 const WHEEL_R = 18;       // wheel radius
 const MASS = 1;
-const INERTIA = MASS * (WHEELBASE*0.5)*(WHEELBASE*0.5) * 1.7;
+const INERTIA = MASS * (WHEELBASE*0.5)*(WHEELBASE*0.5) * 2.4;
+const CRASH_ANGLE = 1.55; // rad off the slope while grounded that counts as a wipeout (~89°)
 const PX_PER_M = 14;      // distance scoring scale
 const SEG = 26;           // terrain segment width (px)
 
@@ -139,9 +143,17 @@ function genTo(idx){
       + Math.sin(i*0.045) * amp
       + Math.sin(i*0.017 + 1.3) * (amp*0.7)
       + Math.sin(i*0.11 + 0.6) * (18 + 26*ramp);
-    // occasional kicker ramps for big air
-    const j = (i % 95);
-    if (j < 10 && i > 40){ y -= (10 - j) * (6 + 10*ramp); }
+    // smooth launch ramps for air — rounded humps you pop off (no walls, no gaps,
+    // so landings stay fair). Every 4th is a taller, slightly steeper "booter"
+    // that gives the hangtime + rotational kick to attempt a flip.
+    const period = 120, n = Math.floor(i / period), cyc = i % period;
+    const big = (n % 4 === 0);
+    const wid = big ? 18 : 24;
+    if (i > 60 && cyc < wid){
+      const u = cyc / wid;
+      const h = big ? (160 + 110*ramp) : (80 + 70*ramp);
+      y -= Math.sin(u * Math.PI) * h;
+    }
     pts[i] = y;
   }
 }
@@ -314,10 +326,20 @@ function physics(dt){
       torque += ox*Fy - oy*Fx;
     }
   }
-  // air control
+  // air control — only once truly airborne, so bump-hops don't spin you out
   if(!anyGround){
-    if(gas)  bike.av -= AIR_TORQUE*dt;
-    if(brake) bike.av += AIR_TORQUE*dt;
+    if(bike.airT > AIR_MIN_T){
+      if(gas)  bike.av -= AIR_TORQUE*dt;
+      if(brake) bike.av += AIR_TORQUE*dt;
+    }
+  } else {
+    // grounded: settle toward the terrain slope so the bike rides planted
+    const slope = Math.atan2(groundY(bike.x+8) - groundY(bike.x-8), 16);
+    let da = slope - bike.a;
+    while(da > Math.PI) da -= 2*Math.PI;
+    while(da < -Math.PI) da += 2*Math.PI;
+    bike.av += da * STAB_K * dt;
+    bike.av *= GROUND_DAMP;
   }
   bike.grounded = anyGround;
   // integrate
@@ -345,9 +367,14 @@ function physics(dt){
     bike.airT = 0; bike.airSpin = 0;
   }
 
-  // crash: chassis body slams into terrain
+  // crash: belly slammed into the dirt, or landed way off the slope angle
   const gyC = groundY(bike.x);
-  if(bike.y > gyC - WHEEL_R*0.45){ crash(); }
+  const slopeC = Math.atan2(groundY(bike.x+8) - groundY(bike.x-8), 16);
+  let adiff = bike.a - slopeC;
+  while(adiff > Math.PI) adiff -= 2*Math.PI;
+  while(adiff < -Math.PI) adiff += 2*Math.PI;
+  if(bike.y > gyC - WHEEL_R*0.05){ bike.crashCause='belly'; crash(); }
+  else if(anyGround && Math.abs(adiff) > CRASH_ANGLE){ bike.crashCause='angle'; crash(); }
 
   // engine sound
   if(eng && !muted){
@@ -484,6 +511,11 @@ function frame(now){
 }
 reset(); state='menu';
 requestAnimationFrame(frame);
+
+// debug hook for headless tuning — inert without ?dbg in the URL
+if(/[?&]dbg/.test(location.search)){
+  window.BB = { bike, start:startRun, get state(){return state}, get dist(){return dist} };
+}
 })();
 </script>
 </body>
