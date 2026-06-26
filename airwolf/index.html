@@ -51,6 +51,7 @@
   #btnTurbo { color:#ffe6a0; border-color:rgba(255,200,90,.5); }
   #btnMsl   { color:#ffd0c4; border-color:rgba(255,120,90,.5); }
   .tbtn:active { transform:scale(.92); filter:brightness(1.3); }
+  #btnTurbo.on { filter:brightness(1.5); border-color:#ffe6a0; box-shadow:0 0 18px rgba(255,210,90,.8), inset 0 0 14px rgba(255,210,90,.5); }
   /* virtual joystick (floating, left thumb) */
   #joy { position:absolute; width:120px; height:120px; border-radius:50%; display:none; z-index:14; pointer-events:none;
     border:2px solid rgba(159,232,255,.35); background:radial-gradient(circle, rgba(159,232,255,.10), rgba(10,20,40,.35)); }
@@ -91,7 +92,7 @@
     <div class="keys">
       <span><b>WASD / Arrows</b></span><span>Fly</span>
       <span><b>Guns</b></span><span>Auto-fire</span>
-      <span><b>Shift</b></span><span>Turbo (dash + boom)</span>
+      <span><b>Shift</b></span><span>Turbo — toggle on/off</span>
       <span><b>Space</b></span><span>Missile (homing)</span>
       <span><b>P / M</b></span><span>Pause / Mute</span>
     </div>
@@ -205,10 +206,12 @@ const input = { up:0, down:0, left:0, right:0, turbo:false, missile:false };
 window.addEventListener("keydown", e=>{
   const k=e.key.toLowerCase();
   if(["arrowup","arrowdown","arrowleft","arrowright"," "].includes(k)) e.preventDefault();
+  const wasDown=keys[k];
   keys[k]=true;
   if(k==="p") togglePause();
   if(k==="m") setMute(Audio_.toggleMute());
   if(k==="shift") keys["shift"]=true;
+  if((k==="shift"||k==="l") && !wasDown) toggleTurbo();   // press to toggle turbo on/off
 });
 window.addEventListener("keyup", e=>{ keys[e.key.toLowerCase()]=false; if(e.key==="Shift") keys["shift"]=false; });
 
@@ -217,13 +220,12 @@ function readKeys(){
   input.down = (keys["s"]||keys["arrowdown"])?1:0;
   input.left = (keys["a"]||keys["arrowleft"])?1:0;
   input.right = (keys["d"]||keys["arrowright"])?1:0;
-  input.turbo = !!(keys["shift"]||keys["l"]) || tState.turbo;
   if(keys[" "]||keys["j"]){ tryMissile(); }
   if(tState.missile){ tryMissile(); tState.missile=false; }
 }
 
 // touch — floating virtual joystick (spawns under the left thumb)
-const tState = { turbo:false, missile:false };
+const tState = { missile:false };
 const joy = { id:null, baseX:0, baseY:0, dx:0, dy:0, active:false };
 const JOY_R = 54;   // px from base centre to full deflection
 const elJoy = document.getElementById("joy"), elJoyKnob = document.getElementById("joyKnob");
@@ -252,13 +254,10 @@ function endJoy(e){ for(const t of e.changedTouches){ if(t.identifier===joy.id){
 canvas.addEventListener("touchend", e=>{ e.preventDefault(); endJoy(e); }, {passive:false});
 canvas.addEventListener("touchcancel", e=>{ endJoy(e); }, {passive:false});
 
-function bindTouchBtn(el, set){
-  el.addEventListener("touchstart", e=>{ e.preventDefault(); set(true); }, {passive:false});
-  el.addEventListener("touchend", e=>{ e.preventDefault(); set(false); }, {passive:false});
-  el.addEventListener("mousedown", e=>{ set(true); });
-  window.addEventListener("mouseup", ()=> set(false));
-}
-bindTouchBtn(document.getElementById("btnTurbo"), v=> tState.turbo=v);
+function toggleTurbo(){ if(player && !player.dead && state==="play") player.turboOn = !player.turboOn; }
+const elBtnTurbo=document.getElementById("btnTurbo");
+elBtnTurbo.addEventListener("touchstart", e=>{ e.preventDefault(); toggleTurbo(); }, {passive:false});
+elBtnTurbo.addEventListener("mousedown", e=>{ e.preventDefault(); toggleTurbo(); });
 document.getElementById("btnMsl").addEventListener("touchstart", e=>{ e.preventDefault(); tState.missile=true; }, {passive:false});
 document.getElementById("btnMsl").addEventListener("mousedown", ()=> tState.missile=true);
 
@@ -282,7 +281,7 @@ function groundY(){ return H - Math.max(60, H*0.12); }
 function reset(){
   bullets.length=ebullets.length=enemies.length=missiles.length=particles.length=pickups.length=booms.length=0;
   player = { x:W*0.22, y:H*0.5, vx:0, vy:0, w:64, h:30, shield:T.shieldMax, boost:T.turboMax,
-    missiles:T.mslStart, inv:0, turboT:0, rotor:0, dead:false, bank:0 };
+    missiles:T.mslStart, inv:0, turboT:0, rotor:0, dead:false, bank:0, turboOn:false };
   time=0; score=0; spawnTimer=0.8; difficulty=0; bossActive=false; boss=null; bossSpawned=false; shake=0;
 }
 
@@ -366,12 +365,13 @@ function update(dt){
   if(player && !player.dead){
     readKeys();
     player.rotor += dt*40;
-    // turbo
+    // turbo (toggled on/off; auto-disengages when the meter runs dry)
     let turbo=false;
-    if(input.turbo && player.boost>T.turboMin){
+    if(player.turboOn && player.boost>T.turboMin){
       turbo=true; player.boost -= T.turboDrain*dt; player.turboT += dt; player.inv = Math.max(player.inv, 0.12);
       if(player.turboT===dt||Math.floor((player.turboT-dt)*4)<Math.floor(player.turboT*4)){}
     } else {
+      if(player.turboOn) player.turboOn=false;   // ran dry → toggle off
       player.boost = Math.min(T.turboMax, player.boost + T.turboRegen*dt);
       player.turboT = 0;
     }
@@ -379,6 +379,7 @@ function update(dt){
     if(turbo && !player._wasTurbo){ doBoom(); }
     player._wasTurbo = turbo;
     Audio_.setRotor(turbo);
+    elBtnTurbo.classList.toggle("on", turbo);   // light the button while engaged
 
     // movement vector: analog joystick on touch, else keyboard
     let ax=(input.right-input.left), ay=(input.down-input.up);
