@@ -123,7 +123,7 @@
 // ---------- tuning constants ----------
 const T = {
   timeScale: 0.62,                               // <1 = whole game runs slower (relaxed pace)
-  accel: 3000, drag: 6.0, maxSpd: 760,           // flight feel (bumped to stay nimble on the bigger field)
+  accel: 3000, drag: 3.0, maxSpd: 760,           // flight feel; drag halved, and zeroed during turbo (afterburner)
   turboMul: 2.15, turboMax: 100, turboDrain: 46, turboRegen: 17, turboMin: 18,
   boomRadius: 150, boomDmg: 60,
   gunRate: 0.085, gunSpd: 760, gunDmg: 10, gunSpread: 0.05,
@@ -385,8 +385,9 @@ function update(dt){
     let ax=(input.right-input.left), ay=(input.down-input.up);
     if(joy.active){ ax=joy.dx; ay=joy.dy; }
     player.vx += ax*T.accel*dt; player.vy += ay*T.accel*dt;
-    player.vx -= player.vx*Math.min(1,T.drag*dt);
-    player.vy -= player.vy*Math.min(1,T.drag*dt);
+    const drag = turbo ? 0 : T.drag;   // afterburner: no drag while boosting
+    player.vx -= player.vx*Math.min(1,drag*dt);
+    player.vy -= player.vy*Math.min(1,drag*dt);
     const mul = turbo?T.turboMul:1;
     const sp = Math.hypot(player.vx,player.vy), cap=T.maxSpd*mul;
     if(sp>cap){ player.vx*=cap/sp; player.vy*=cap/sp; }
