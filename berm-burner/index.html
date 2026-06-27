@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#5a8bb0">
-<title>Berm Burner — Summit</title>
+<meta name="theme-color" content="#6f8f5a">
+<title>Berm Burner — Trail</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-  html,body { height:100%; overflow:hidden; background:#1b2733; }
+  html,body { height:100%; overflow:hidden; background:#0e1410; }
   body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
          touch-action:none; user-select:none; -webkit-user-select:none; }
   #game { position:fixed; inset:0; display:block; }
@@ -15,80 +15,58 @@
   .overlay { position:fixed; inset:0; z-index:10; display:flex; flex-direction:column;
              align-items:center; justify-content:center; gap:14px; text-align:center;
              color:#fff; padding:26px;
-             background:radial-gradient(120% 120% at 50% 28%, rgba(30,46,64,.5), rgba(12,18,26,.92)); }
+             background:radial-gradient(120% 120% at 50% 30%, rgba(30,42,26,.5), rgba(10,16,12,.92)); }
   .overlay.hide { display:none; }
-  h1 { font-size:clamp(40px,13vw,58px); font-weight:900; letter-spacing:.02em; line-height:.92;
-       text-shadow:0 3px 0 #6e3d18, 0 6px 18px rgba(0,0,0,.5); }
-  h1 small { display:block; font-size:.4em; letter-spacing:.42em; font-weight:800;
-             color:#ffd07a; margin-top:.5em; }
-  .tag { font-size:14px; opacity:.85; max-width:300px; line-height:1.5; }
-  .big { font-size:38px; font-weight:900; color:#ffd07a; }
-  .stat { font-size:16px; opacity:.92; } .stat b { color:#ffd07a; }
-  button.btn { margin-top:6px; font:inherit; font-weight:800; font-size:18px; color:#1b2733;
-       background:#ffd07a; border:0; border-radius:14px; padding:14px 36px; cursor:pointer;
-       box-shadow:0 5px 0 #b98429; }
-  button.btn:active { transform:translateY(3px); box-shadow:0 2px 0 #b98429; }
-  .hint { font-size:12.5px; opacity:.72; line-height:1.7; max-width:320px; } .hint b{color:#ffd07a;}
+  h1 { font-size:clamp(38px,12vw,56px); font-weight:900; letter-spacing:.01em; line-height:.95;
+       color:#f3ead4; text-shadow:0 3px 0 #5a3d22, 0 6px 18px rgba(0,0,0,.55); }
+  h1 small { display:block; font-size:.4em; letter-spacing:.42em; font-weight:800; color:#9ccb6e; margin-top:.5em; }
+  .tag { font-size:14px; opacity:.85; max-width:310px; line-height:1.5; }
+  .big { font-size:38px; font-weight:900; color:#9ccb6e; }
+  .stat { font-size:16px; opacity:.92; } .stat b { color:#e7d7a6; }
+  button.btn { margin-top:6px; font:inherit; font-weight:800; font-size:18px; color:#1c2417;
+       background:#9ccb6e; border:0; border-radius:14px; padding:14px 36px; cursor:pointer;
+       box-shadow:0 5px 0 #5f8a3e; }
+  button.btn:active { transform:translateY(3px); box-shadow:0 2px 0 #5f8a3e; }
+  .hint { font-size:12.5px; opacity:.74; line-height:1.7; max-width:330px; } .hint b{color:#e7d7a6;}
 
   #hud { position:fixed; top:0; left:0; right:0; z-index:6; pointer-events:none;
          display:flex; justify-content:space-between; align-items:flex-start;
          padding:max(12px,env(safe-area-inset-top)) 16px 0; color:#fff;
-         text-shadow:0 1px 3px rgba(0,0,0,.6); }
-  #alt { font-size:30px; font-weight:900; } #alt small{font-size:14px;font-weight:700;opacity:.8;}
-  #sub { font-size:12.5px; font-weight:700; opacity:.85; }
+         text-shadow:0 1px 4px rgba(0,0,0,.7); }
+  #dist { font-size:30px; font-weight:900; } #dist small{font-size:14px;font-weight:700;opacity:.8;}
+  #spd { font-size:12.5px; font-weight:700; opacity:.85; }
   #right { text-align:right; }
   #best { font-size:13px; opacity:.85; font-weight:700; }
   #mute { pointer-events:auto; cursor:pointer; font-size:20px; opacity:.85;
           background:rgba(0,0,0,.25); border-radius:10px; padding:4px 9px; margin-top:6px; display:inline-block; }
-  /* climb progress rail */
-  #rail { position:fixed; right:10px; top:18%; bottom:16%; width:8px; z-index:6; pointer-events:none;
-          background:rgba(255,255,255,.18); border-radius:6px; }
-  #fill { position:absolute; left:0; right:0; bottom:0; background:#ffd07a; border-radius:6px; }
-  #flagdot { position:absolute; left:-4px; top:-7px; font-size:15px; }
-  #marker { position:absolute; left:-5px; width:18px; height:18px; margin-left:-5px;
-            background:#d63a2f; border:2px solid #fff; border-radius:50%; transform:translateY(50%); }
-  .toast { position:fixed; top:22%; left:50%; transform:translateX(-50%); z-index:7;
-           font-size:30px; font-weight:900; color:#ffd07a; pointer-events:none;
-           text-shadow:0 2px 0 #6e3d18,0 4px 14px rgba(0,0,0,.6); opacity:0; }
+  .toast { position:fixed; top:26%; left:50%; transform:translateX(-50%); z-index:7;
+           font-size:30px; font-weight:900; color:#e7d7a6; pointer-events:none;
+           text-shadow:0 2px 0 #5a3d22,0 4px 14px rgba(0,0,0,.6); opacity:0; }
 </style>
 </head>
 <body>
 <canvas id="game"></canvas>
 
 <div id="hud">
-  <div>
-    <div id="alt">0<small> m</small></div>
-    <div id="sub">summit 0 m</div>
-  </div>
-  <div id="right">
-    <div id="best">best 0 m</div>
-    <div id="mute">🔊</div>
-  </div>
+  <div><div id="dist">0<small> m</small></div><div id="spd">—</div></div>
+  <div id="right"><div id="best">best 0 m</div><div id="mute">🔊</div></div>
 </div>
-<div id="rail"><div id="flagdot">🚩</div><div id="fill"></div><div id="marker"></div></div>
 <div class="toast" id="toast"></div>
 
 <div class="overlay" id="menu">
-  <h1>BERM BURNER<small>SUMMIT</small></h1>
-  <div class="tag">Ride your bike up the mountain to the summit flag — one thumb does it all.</div>
-  <button class="btn" id="play">CLIMB</button>
+  <h1>BERM BURNER<small>TRAIL</small></h1>
+  <div class="tag">A first-person ride down a Tahoe pine singletrack. Flow the berms, dodge the logs, see how far you get.</div>
+  <button class="btn" id="play">DROP IN</button>
   <div class="hint">
     Hold <b>one thumb</b> anywhere — a control pad appears.<br>
-    Push <b>right = gas</b>, <b>left = brake</b>. Push <b>up = lean back</b>, <b>down = lean forward</b>.<br>
-    Keep the front up on steep climbs; lean forward so you don't loop out.
+    <b>Left / right</b> = steer · <b>up</b> = pedal · <b>down</b> = brake.<br>
+    Stay on the dirt and off the trees.
   </div>
-</div>
-
-<div class="overlay hide" id="win">
-  <div class="big">🏔️ SUMMIT!</div>
-  <div class="stat">you rode all the way to the top</div>
-  <div class="stat" id="wRecord"></div>
-  <button class="btn" id="again">CLIMB AGAIN</button>
 </div>
 
 <div class="overlay hide" id="crash">
   <div class="big">💥 WIPEOUT</div>
-  <div class="stat">you reached <b id="cAlt">0</b> m</div>
+  <div class="stat">you trekked <b id="cDist">0</b> m</div>
   <div class="stat" id="cRecord"></div>
   <div class="tag">Try again?</div>
   <button class="btn" id="retry">TRY AGAIN</button>
@@ -97,350 +75,309 @@
 <script>
 "use strict";
 (() => {
-const cv = document.getElementById('game'), ctx = cv.getContext('2d');
-let W=0, H=0, DPR=1;
-function resize(){
-  DPR = Math.min(window.devicePixelRatio||1, 2);
-  W = window.innerWidth; H = window.innerHeight;
-  cv.width = W*DPR; cv.height = H*DPR;
-  cv.style.width = W+'px'; cv.style.height = H+'px';
-  ctx.setTransform(DPR,0,0,DPR,0,0);
-}
-window.addEventListener('resize', resize); resize();
+const cv=document.getElementById('game'), ctx=cv.getContext('2d');
+let W=0,H=0,DPR=1;
+function resize(){ DPR=Math.min(window.devicePixelRatio||1,2);
+  W=window.innerWidth; H=window.innerHeight; cv.width=W*DPR; cv.height=H*DPR;
+  cv.style.width=W+'px'; cv.style.height=H+'px'; ctx.setTransform(DPR,0,0,DPR,0,0); }
+window.addEventListener('resize',resize); resize();
 
 // ---------- tuning constants ----------
-const GRAV = 2000;
-const MASS = 1;
-const WHEELBASE = 64, WHEEL_R = 18;
-const INERTIA = MASS*(WHEELBASE*0.5)*(WHEELBASE*0.5)*2.0;
-const SPRING_K = 240, SPRING_C = 26;
-const ENGINE = 2000;        // climbs the grades, but the front comes up hard — lean forward to keep driving
-const BRAKE_K = 26;         // braking / hold-on-slope strength
-const ROLL_K = 1.6;         // rolling resistance when coasting (so you roll back on grades)
-const LEAN_TORQUE = 15;     // rider weight-shift pitch control (rad/s^2 at full lean)
-const WHEELIE_K = 16;       // throttle lifts the front (weight transfer) — lean forward to counter
-const WIPE_ANGLE = 1.4;     // rad off the slope (~80°) before the bike loops out and wipes
-const STAB_K = 1.1, GROUND_DAMP = 0.992;   // only a whisper of auto-settle — lean is the real control
-const STOP_V = 10, STOP_DAMP = 0.6;        // creep to rest when nearly stopped
-const PX_PER_M = 12;
-const ZOOM = 0.55;                         // <1 = zoomed out a lot
-const STICK_R = 72;                        // thumb-stick radius (px) for full input
-const PEAK_H = 5400, SUMMIT_X = 9000, BASE_Y = 0;   // taller + shorter = steeper avg grade
-const SUMMIT_M = Math.round(PEAK_H/PX_PER_M);
+const SEG=200;                 // world depth per segment
+const RW=1000;                 // road half-width (world units) — narrow singletrack
+const DRAW=150;                // segments drawn ahead
+const CAM_H=1150;              // camera height above the trail
+const FOV=108, CAM_DEPTH=1/Math.tan((FOV/2)*Math.PI/180);
+const MAXSPD=2700;             // top speed (units/s) — a flowy trek, not a racer
+const ACCEL=1500, BRAKE=4200, ROLL=520;   // pedal / brake / coast drag
+const OFF_MAX=1500, OFF_DECEL=3200;        // in the rough beside the trail
+const STEER=2.0, CENT=0.00055;             // steer rate / how curves push you out
+const DIST_M=200;             // world units per metre
+const STICK_R=72;
+const HAZE='#ccd8e0';
 
-// ---------- mountain (analytic surface, y up = negative) — a steep, jagged ascent ----------
-function surf(x){
-  const s = Math.max(0, Math.min(1, (x-400)/(SUMMIT_X-400)));
-  const smooth = s*s*(3-2*s);
-  let h = PEAK_H*smooth;
-  // ease jagged features in past the start pad, and fade them out into a clean summit ramp
-  const g = Math.min(1, Math.max(0, (x-500))/1500) * Math.min(1, Math.max(0, (SUMMIT_X-x)/1100));
-  h += Math.sin(x*0.00150)      * 140 * g;   // big steep pitches
-  h += Math.sin(x*0.00420+1.0)  *  72 * g;   // mid rollers
-  h += Math.sin(x*0.00950+0.5)  *  40 * g;   // jagged steps
-  h += Math.sin(x*0.01850+2.1)  *  20 * g;   // sharp chop
-  if(x >= SUMMIT_X) h = PEAK_H;             // top plateau
-  return BASE_Y - h;
+// ---------- deterministic trail ----------
+function rnd(n){ const x=Math.sin(n*127.1+31.7)*43758.5453; return x-Math.floor(x); }
+function curveAt(i){ return 3.4*Math.sin(i*0.0145) + 2.1*Math.sin(i*0.0065+1.3) + 1.2*Math.sin(i*0.028+0.6); }
+function hillAt(i){ return Math.sin(i*0.0125)*2000 + Math.sin(i*0.0046+2)*3400; }
+function hillElev(z){ const i=z/SEG, a=Math.floor(i), t=i-a; return hillAt(a)*(1-t)+hillAt(a+1)*t; }
+function treesAt(i){            // lining pines (visual only) — dense forest corridor
+  const out=[];
+  // near rows framing the trail, both sides
+  if(rnd(i*2.1)<0.8) out.push({off:-(1.3+rnd(i*4.3)*0.9), char:rnd(i*8.1)<0.32, h:1.0+rnd(i*1.7)*0.6});
+  if(rnd(i*2.1+1)<0.8) out.push({off:(1.3+rnd(i*4.7)*0.9), char:rnd(i*8.9)<0.32, h:1.0+rnd(i*1.9)*0.6});
+  // back rows for forest depth
+  if(rnd(i*3.7)<0.75) out.push({off:-(2.6+rnd(i*5.1)*3.0), char:rnd(i*9.3)<0.3, h:1.2+rnd(i*2.3)*0.8});
+  if(rnd(i*3.7+1)<0.75) out.push({off:(2.6+rnd(i*5.9)*3.0), char:rnd(i*9.7)<0.3, h:1.2+rnd(i*2.7)*0.8});
+  if(rnd(i*5.3)<0.08) out.push({off:(rnd(i*6)<0.5?-1:1)*(0.72+rnd(i*7)*0.25), cut:true, h:0.5});  // trailside cut log
+  return out;
 }
-function surfSlope(x){ return Math.atan2(surf(x+8)-surf(x-8), 16); }
-function surfNormal(x){
-  const sl = surfSlope(x);
-  let n = { x: Math.sin(sl), y: -Math.cos(sl) };  // points up out of the hill
-  return n;
+function obstacleAt(i){         // on-trail hazards — always offset to one side so there's a line through
+  if(i<20) return null;
+  if(rnd(i*9.7+5)>=0.028) return null;
+  const r=rnd(i*3.1), side=rnd(i*5.5)<0.5?-1:1, off=side*(0.34+rnd(i*6.2)*0.4);
+  if(r<0.42) return {type:'log',  off, w:0.42, bad:true};
+  if(r<0.82) return {type:'rock', off, w:0.17, bad:true};
+  return {type:'cone', off, w:0.18, bad:false};
 }
 
-// ---------- bike ----------
-const bike = {};
-function reset(){
-  bike.x = 320; bike.y = surf(320) - WHEEL_R - 4;
-  bike.vx = 0; bike.vy = 0; bike.a = surfSlope(bike.x); bike.av = 0;
-  bike.wheelSpin = 0; bike.airT = 0; bike.grounded = true;
-  maxAlt = 0; launches = 0; flipText=''; flipTextT=0;
-}
+// ---------- state ----------
+let state='menu', pos=0, playerX=0, speed=0, dist=0, lastSeg=0, crashTimer=0, shake=0, bob=0;
+let best=+(localStorage.getItem('bermtrail_best')||0);
+let flipText='', flipTextT=0;
+document.getElementById('best').textContent='best '+best+' m';
+function reset(){ pos=0; playerX=0; speed=0; dist=0; lastSeg=0; crashTimer=0; shake=0; bob=0; flipTextT=0; }
+function startRun(){ reset(); state='play'; touching=false; inSteer=0; inDrive=0;
+  document.getElementById('menu').classList.add('hide');
+  document.getElementById('crash').classList.add('hide'); audioStart(); }
+function saveBest(){ const m=Math.round(dist); if(m>best){ best=m; localStorage.setItem('bermtrail_best',best);
+  document.getElementById('best').textContent='best '+best+' m'; } }
+function startCrash(reason){ if(state!=='play') return; state='crashing'; crashTimer=0; shake=1;
+  inSteer=0; inDrive=0; touching=false; flipText=reason||'WIPEOUT!'; flipTextT=1.6;
+  noise(0.5,0.4); sweep(300,70,0.5,0.25); }
+function endCrash(){ state='crashed'; saveBest();
+  document.getElementById('cDist').textContent=Math.round(dist);
+  const m=Math.round(dist);
+  document.getElementById('cRecord').textContent=(m>=best&&m>0)?'🌲 your best yet':'best '+best+' m';
+  document.getElementById('crash').classList.remove('hide'); }
+document.getElementById('play').addEventListener('click',startRun);
+document.getElementById('retry').addEventListener('click',startRun);
 
 // ---------- audio ----------
-let AC=null, muted=false;
+let AC=null, muted=false, hum=null, humGain=null;
 function audioStart(){ if(muted) return;
-  if(!AC){ try{ AC=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ AC=null; } }
-  if(AC && AC.state==='suspended') AC.resume();
-}
-function blip(f,d,type,v){ if(!AC||muted) return;
-  const o=AC.createOscillator(), g=AC.createGain();
-  o.type=type||'square'; o.frequency.value=f; g.gain.value=v||0.18;
-  o.connect(g); g.connect(AC.destination);
-  const t=AC.currentTime; g.gain.exponentialRampToValueAtTime(0.0001,t+d); o.start(t); o.stop(t+d);
-}
-function sweep(f0,f1,d,v){ if(!AC||muted) return;
-  const o=AC.createOscillator(), g=AC.createGain();
-  o.type='sawtooth'; o.connect(g); g.connect(AC.destination);
-  const t=AC.currentTime; o.frequency.setValueAtTime(f0,t); o.frequency.exponentialRampToValueAtTime(f1,t+d);
-  g.gain.setValueAtTime(v||0.18,t); g.gain.exponentialRampToValueAtTime(0.0001,t+d); o.start(t); o.stop(t+d);
-}
-function noise(d,v){ if(!AC||muted) return;
-  const n=AC.createBufferSource(); const buf=AC.createBuffer(1,AC.sampleRate*d,AC.sampleRate);
-  const a=buf.getChannelData(0); for(let i=0;i<a.length;i++) a[i]=(Math.random()*2-1)*(1-i/a.length);
+  if(!AC){ try{ AC=new (window.AudioContext||window.webkitAudioContext)();
+    hum=AC.createOscillator(); hum.type='triangle'; hum.frequency.value=55;
+    const lp=AC.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=420;
+    humGain=AC.createGain(); humGain.gain.value=0;
+    hum.connect(lp); lp.connect(humGain); humGain.connect(AC.destination); hum.start();
+  }catch(e){ AC=null; } }
+  if(AC&&AC.state==='suspended') AC.resume(); }
+function sweep(f0,f1,d,v){ if(!AC||muted) return; const o=AC.createOscillator(),g=AC.createGain();
+  o.type='sawtooth'; o.connect(g); g.connect(AC.destination); const t=AC.currentTime;
+  o.frequency.setValueAtTime(f0,t); o.frequency.exponentialRampToValueAtTime(f1,t+d);
+  g.gain.setValueAtTime(v||0.2,t); g.gain.exponentialRampToValueAtTime(0.0001,t+d); o.start(t); o.stop(t+d); }
+function noise(d,v){ if(!AC||muted) return; const n=AC.createBufferSource();
+  const buf=AC.createBuffer(1,AC.sampleRate*d,AC.sampleRate); const a=buf.getChannelData(0);
+  for(let i=0;i<a.length;i++) a[i]=(Math.random()*2-1)*(1-i/a.length);
   n.buffer=buf; const g=AC.createGain(); g.gain.value=v||0.3; n.connect(g); g.connect(AC.destination);
-  n.start(); n.stop(AC.currentTime+d);
-}
+  n.start(); n.stop(AC.currentTime+d); }
 document.getElementById('mute').addEventListener('click',()=>{ muted=!muted;
-  document.getElementById('mute').textContent = muted?'🔇':'🔊'; });
+  document.getElementById('mute').textContent=muted?'🔇':'🔊'; if(humGain) humGain.gain.value=0; });
 
-// ---------- flow ----------
-let state='menu', maxAlt=0, launches=0, flipText='', flipTextT=0, crashTimer=0;
-let best=+(localStorage.getItem('bermsummit_best')||0);
-document.getElementById('best').textContent = 'best '+best+' m';
-document.getElementById('sub').textContent = 'summit '+SUMMIT_M+' m';
-function startRun(){ reset(); state='play'; crashTimer=0; touching=false; inThrottle=0; inLean=0;
-  document.getElementById('menu').classList.add('hide');
-  document.getElementById('win').classList.add('hide');
-  document.getElementById('crash').classList.add('hide');
-  cam.x = bike.x; cam.y = bike.y; audioStart();
-}
-function saveBest(){
-  const m=Math.round(maxAlt);
-  if(m>best){ best=m; localStorage.setItem('bermsummit_best',best);
-    document.getElementById('best').textContent='best '+best+' m'; }
-}
-function win(){ if(state!=='play') return; state='win';
-  blip(523,0.14,'triangle',0.2); blip(659,0.16,'triangle',0.2); setTimeout(()=>blip(784,0.3,'triangle',0.2),140);
-  saveBest();
-  document.getElementById('wRecord').textContent='🏔️ summit reached!';
-  document.getElementById('win').classList.remove('hide');
-}
-function startCrash(){ if(state!=='play') return; state='crashing'; crashTimer=0;
-  touching=false; inThrottle=0; inLean=0;
-  bike.av *= 1.25;                       // let it keep tumbling
-  flipText='WIPEOUT!'; flipTextT=2.0;
-  noise(0.5,0.35); sweep(320,70,0.55,0.2);
-}
-function endCrash(){ state='crashed'; saveBest();
-  document.getElementById('cAlt').textContent = Math.round(maxAlt);
-  const m=Math.round(maxAlt);
-  document.getElementById('cRecord').textContent = (m>=best && m>0) ? '⛰️ your best yet' : 'best '+best+' m';
-  document.getElementById('crash').classList.remove('hide');
-}
-document.getElementById('play').addEventListener('click', startRun);
-document.getElementById('again').addEventListener('click', startRun);
-document.getElementById('retry').addEventListener('click', startRun);
-
-// ---------- input: one-thumb floating stick ----------
-// horizontal = throttle (right) / brake (left); vertical = lean back (up) / forward (down)
-let touching=false, oX=0, oY=0, kX=0, kY=0;     // stick origin + knob (screen px)
-let inThrottle=0, inLean=0;
-function pt(e){ const t=e.touches&&e.touches[0]?e.touches[0]:e; return {x:t.clientX, y:t.clientY}; }
-function applyStick(){
-  inThrottle = Math.max(-1, Math.min(1, (kX-oX)/STICK_R));
-  inLean     = Math.max(-1, Math.min(1, (oY-kY)/STICK_R));   // drag up => lean back (+)
-}
-function onDown(e){ e.preventDefault(); audioStart();
-  if(state!=='play') return;
-  const p=pt(e); touching=true; oX=kX=p.x; oY=kY=p.y; applyStick();
-}
-function onMove(e){ if(!touching) return; e.preventDefault();
-  const p=pt(e); kX=p.x; kY=p.y; applyStick();
-}
-function onUp(e){ if(!touching) return; if(e&&e.preventDefault) e.preventDefault();
-  touching=false; inThrottle=0; inLean=0;
-}
+// ---------- one-thumb floating stick ----------
+let touching=false, oX=0,oY=0,kX=0,kY=0, inSteer=0, inDrive=0;
+function pt(e){ const t=e.touches&&e.touches[0]?e.touches[0]:e; return {x:t.clientX,y:t.clientY}; }
+function applyStick(){ inSteer=Math.max(-1,Math.min(1,(kX-oX)/STICK_R));
+  inDrive=Math.max(-1,Math.min(1,(oY-kY)/STICK_R)); }
+function onDown(e){ e.preventDefault(); audioStart(); if(state!=='play') return;
+  const p=pt(e); touching=true; oX=kX=p.x; oY=kY=p.y; applyStick(); }
+function onMove(e){ if(!touching) return; e.preventDefault(); const p=pt(e); kX=p.x; kY=p.y; applyStick(); }
+function onUp(e){ if(!touching) return; if(e&&e.preventDefault) e.preventDefault(); touching=false; inSteer=0; inDrive=0; }
 cv.addEventListener('touchstart',onDown,{passive:false});
 cv.addEventListener('touchmove',onMove,{passive:false});
 cv.addEventListener('touchend',onUp,{passive:false});
 cv.addEventListener('touchcancel',onUp,{passive:false});
-// mouse fallback (desktop testing only — game is built for one-thumb touch)
-cv.addEventListener('mousedown',onDown);
-window.addEventListener('mousemove',onMove);
-window.addEventListener('mouseup',onUp);
+cv.addEventListener('mousedown',onDown); window.addEventListener('mousemove',onMove); window.addEventListener('mouseup',onUp);
 
-// ---------- physics ----------
-function physics(dt){
-  let fx=0, fy=GRAV*MASS, torque=0;
-  const hb=WHEELBASE/2, ca=Math.cos(bike.a), sa=Math.sin(bike.a);
-  let anyGround=false, rearGround=false;
-  for(const sign of [-1,1]){                 // -1 rear (driven), +1 front
-    const ox=sign*hb*ca, oy=sign*hb*sa;
-    const wx=bike.x+ox, wy=bike.y+oy;
-    const gy=surf(wx);
-    const pen=(wy+WHEEL_R)-gy;
-    if(pen>0){ anyGround=true; if(sign<0) rearGround=true;
-      const n=surfNormal(wx);
-      const vptx=bike.vx-bike.av*oy, vpty=bike.vy+bike.av*ox;
-      const relN=vptx*n.x+vpty*n.y;
-      let Fmag=pen*SPRING_K - relN*SPRING_C; if(Fmag<0) Fmag=0;
-      let Fx=n.x*Fmag, Fy=n.y*Fmag;
-      let tx=-n.y, ty=n.x; if(tx<0){ tx=-tx; ty=-ty; }     // tangent, points forward (+x)
-      const vt=vptx*tx+vpty*ty;
-      let drive=0;
-      if(sign<0 && inThrottle>0) drive += ENGINE*inThrottle;       // gas drives the rear
-      if(inThrottle<0) drive += -vt*BRAKE_K*(-inThrottle);         // brake (both wheels) = hold
-      else drive += -vt*ROLL_K;                                    // light coasting drag
-      Fx+=tx*drive; Fy+=ty*drive;
-      fx+=Fx; fy+=Fy; torque+=ox*Fy-oy*Fx;
-    }
+// ---------- update ----------
+function update(dt){
+  if(state==='crashing'){ crashTimer+=dt; speed*=0.86; pos+=speed*dt; if(crashTimer>1.1) endCrash(); return; }
+  if(state!=='play') return;
+  const seg=Math.floor(pos/SEG);
+  const curve=curveAt(seg);
+  // speed
+  if(inDrive>0) speed += ACCEL*inDrive*dt;
+  else if(inDrive<0) speed += BRAKE*inDrive*dt;   // brake (inDrive negative)
+  else speed -= ROLL*dt;
+  const off = Math.abs(playerX)>1;
+  if(off){ if(speed>OFF_MAX) speed -= OFF_DECEL*dt; shake=Math.max(shake,0.25); }
+  speed=Math.max(0,Math.min(MAXSPD,speed));
+  // steer + curve push
+  const sf=0.35+0.65*(speed/MAXSPD);
+  playerX += inSteer*STEER*sf*dt;
+  playerX -= curve*(speed/MAXSPD)*CENT*SEG*dt;
+  playerX=Math.max(-2.2,Math.min(2.2,playerX));
+  // advance
+  pos += speed*dt; dist = pos/DIST_M;
+  bob += speed*dt*0.0011;
+  // collisions for each newly entered segment
+  const cur=Math.floor(pos/SEG);
+  for(let s=lastSeg+1;s<=cur;s++){
+    const ob=obstacleAt(s);
+    if(ob && ob.bad && Math.abs(playerX-ob.off) < (ob.w*0.5+0.16)){ startCrash('WIPEOUT!'); break; }
   }
-  // throttle weight-transfer: hard gas lifts the front (must be countered with lean-forward)
-  if(rearGround && inThrottle>0) bike.av -= WHEELIE_K*inThrottle*dt;
-  // rider lean (weight shift): up = lean back = front lifts (a decreases). Works on ground & in air.
-  bike.av -= inLean*LEAN_TORQUE*dt;
-  // gentle auto-settle to the slope when the rider isn't actively leaning (not while crashing)
-  if(state==='play' && anyGround && Math.abs(inLean)<0.12){
-    let da=surfSlope(bike.x)-bike.a;
-    while(da>Math.PI) da-=2*Math.PI; while(da<-Math.PI) da+=2*Math.PI;
-    bike.av += da*STAB_K*dt;
-  }
-  if(anyGround) bike.av*=GROUND_DAMP;
-  bike.vx+=fx/MASS*dt; bike.vy+=fy/MASS*dt; bike.av+=torque/INERTIA*dt;
-  bike.av*=0.99;
-  bike.x+=bike.vx*dt; bike.y+=bike.vy*dt; bike.a+=bike.av*dt;
-  bike.wheelSpin+=bike.vx*dt/WHEEL_R;
-  bike.grounded=anyGround;
-  if(anyGround && Math.hypot(bike.vx,bike.vy)<STOP_V && inThrottle<=0){ bike.vx*=STOP_DAMP; bike.vy*=STOP_DAMP; }
-  if(bike.x<60){ bike.x=60; if(bike.vx<0) bike.vx=0; }   // soft wall at the base
-  if(anyGround && bike.airT>0.35) noise(0.08,0.16);      // landing thud
-  bike.airT = anyGround?0:bike.airT+dt;
-
-  // wipeout: loop out past the threshold on the ground -> crash sequence (tumble, then "try again")
-  if(state==='play' && anyGround){
-    let ad=bike.a-surfSlope(bike.x);
-    while(ad>Math.PI) ad-=2*Math.PI; while(ad<-Math.PI) ad+=2*Math.PI;
-    if(Math.abs(ad)>WIPE_ANGLE) startCrash();
-  } else if(state==='crashing'){
-    crashTimer+=dt;                                        // let the tumble play out, then offer a retry
-    const settled = anyGround && Math.hypot(bike.vx,bike.vy)<24 && Math.abs(bike.av)<1.3;
-    if((crashTimer>1.0 && settled) || crashTimer>4.0) endCrash();
-  }
-
-  const alt=-bike.y/PX_PER_M; if(state==='play' && alt>maxAlt) maxAlt=alt;
-  if(state==='play' && bike.x>=SUMMIT_X) win();
+  lastSeg=cur;
+  if(Math.abs(playerX)>1.4){ startCrash('INTO THE TREES!'); }   // rode off into the forest
+  if(shake>0) shake=Math.max(0,shake-dt*1.6);
+  // engine-ish tire hum
+  if(hum&&!muted){ const sp=speed/MAXSPD; hum.frequency.value=70+sp*150;
+    humGain.gain.value += ((state==='play'?0.05+sp*0.06:0)-humGain.gain.value)*0.2; }
 }
 
-// ---------- camera + render ----------
-let cam={x:0,y:0};
-function SX(wx){ return (wx-cam.x)*ZOOM + W*0.36; }
-function SY(wy){ return (wy-cam.y)*ZOOM + H*0.60; }
-function drawBg(){
-  // higher you climb, deeper the sky
-  const climb=Math.max(0,Math.min(1, maxAlt/SUMMIT_M));
-  const top = `rgb(${Math.round(90-40*climb)},${Math.round(150-50*climb)},${Math.round(190-30*climb)})`;
-  const g=ctx.createLinearGradient(0,0,0,H);
-  g.addColorStop(0,top); g.addColorStop(0.6,'#bfe0ef'); g.addColorStop(1,'#e9f3df');
+// ---------- projection + render ----------
+function project(p, camX, camY, camZ){
+  const cz=Math.max(1, p.z-camZ); const scale=CAM_DEPTH/cz;
+  p.scale=scale; p.cz=cz;
+  p.sx=W/2 + scale*(p.wx - camX)*W/2;
+  p.sy=H/2 - scale*(p.wy - camY)*H/2 + shakeY;
+  p.sw=scale*RW*W/2;
+}
+let shakeY=0;
+function lerpC(a,b,t){ return [Math.round(a[0]+(b[0]-a[0])*t),Math.round(a[1]+(b[1]-a[1])*t),Math.round(a[2]+(b[2]-a[2])*t)]; }
+const C_DIRT1=[196,158,108], C_DIRT2=[178,140,92], C_GR1=[74,86,52], C_GR2=[64,76,46], C_RUM=[120,96,60], HZ=[204,216,224];
+function rgb(c){ return 'rgb('+c[0]+','+c[1]+','+c[2]+')'; }
+
+function drawSky(){
+  const g=ctx.createLinearGradient(0,0,0,H*0.72);
+  g.addColorStop(0,'#5b93c4'); g.addColorStop(0.6,'#9fc1da'); g.addColorStop(1,'#cdd9df');
   ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
-  ctx.fillStyle='rgba(255,250,224,.92)'; ctx.beginPath(); ctx.arc(W*0.18,H*0.16,40,0,7); ctx.fill();
-  // far ridgelines (parallax)
-  for(let layer=0;layer<2;layer++){
-    ctx.fillStyle = layer? 'rgba(150,178,150,.55)':'rgba(120,150,140,.45)';
-    const par = 0.18 + layer*0.12, baseY=H*(0.5+layer*0.13);
-    ctx.beginPath(); ctx.moveTo(0,H);
-    for(let sx=-50;sx<=W+50;sx+=44){
-      const wx=(sx)/ZOOM + cam.x*par;
-      const yy=baseY + Math.sin(wx*0.0009+layer)*70 + Math.sin(wx*0.0023)*30;
-      ctx.lineTo(sx,yy);
+  ctx.fillStyle='rgba(255,250,224,.85)'; ctx.beginPath(); ctx.arc(W*0.72,H*0.2,34,0,7); ctx.fill();
+  // distant ridge of pines on the horizon
+  ctx.fillStyle='#6a8358';
+  const hy=H*0.62 - hillElev(pos)*0.0008;
+  ctx.beginPath(); ctx.moveTo(0,H*0.72);
+  for(let x=0;x<=W;x+=18){ const t=Math.sin((x+pos*0.02)*0.03)+Math.sin((x+pos*0.02)*0.011); ctx.lineTo(x, hy + t*10); }
+  ctx.lineTo(W,H*0.72); ctx.closePath(); ctx.fill();
+}
+function pine(cx,baseY,scale,charred,hm){
+  const h=Math.max(8,scale*(H*0.5)*3400*(hm||1));
+  const tw=Math.max(1.5,h*0.045);                 // thin tapered trunk
+  if(cx<-h*0.2||cx>W+h*0.2) return;
+  ctx.fillStyle=charred?'#241c16':'#6b4a30';
+  ctx.beginPath(); ctx.moveTo(cx-tw,baseY); ctx.lineTo(cx-tw*0.45,baseY-h);
+  ctx.lineTo(cx+tw*0.45,baseY-h); ctx.lineTo(cx+tw,baseY); ctx.closePath(); ctx.fill();
+  ctx.fillStyle=charred?'#16100c':'rgba(60,40,26,.6)';                 // shaded side
+  ctx.fillRect(cx-tw, baseY-h, tw*0.5, h);
+  // small canopy only near the top
+  const cw=h*0.16, can=charred?['#36402b','#404e33']:['#3f6b3a','#4f8146','#5e9450'];
+  for(let k=0;k<3;k++){ const ty=baseY-h+k*h*0.11, ww=cw*(1.5-k*0.4);
+    ctx.fillStyle=can[k%can.length]; ctx.beginPath();
+    ctx.moveTo(cx,ty-h*0.16); ctx.lineTo(cx-ww,ty); ctx.lineTo(cx+ww,ty); ctx.closePath(); ctx.fill(); }
+}
+function cutlog(cx,baseY,scale){ const h=Math.max(4,scale*(H*0.5)*520), w=h*3.0;
+  ctx.fillStyle='#8a6a44'; ctx.fillRect(cx-w/2,baseY-h,w,h);
+  ctx.fillStyle='#caa86a'; ctx.beginPath(); ctx.ellipse(cx+w/2,baseY-h/2,h*0.5,h/2,0,0,7); ctx.fill(); }
+function obstacle(ob,cx,baseY,scale){
+  if(ob.type==='log'){ const w=Math.max(8,scale*RW*W/2*ob.w*2), h=Math.max(6,scale*(H*0.5)*620);
+    ctx.fillStyle='#7a5c3a'; ctx.fillRect(cx-w/2,baseY-h,w,h);
+    ctx.fillStyle='#caa86a'; ctx.beginPath(); ctx.ellipse(cx-w/2,baseY-h/2,h*0.55,h/2,0,0,7); ctx.fill();
+    ctx.strokeStyle='#5e4327'; ctx.lineWidth=Math.max(1,h*0.12); ctx.strokeRect(cx-w/2,baseY-h,w,h); }
+  else if(ob.type==='rock'){ const r=Math.max(4,scale*(H*0.5)*900);
+    ctx.fillStyle='#8d8a84'; ctx.beginPath(); ctx.ellipse(cx,baseY-r*0.7,r,r*0.8,0,0,7); ctx.fill();
+    ctx.fillStyle='#6f6c66'; ctx.beginPath(); ctx.ellipse(cx-r*0.3,baseY-r*0.5,r*0.5,r*0.4,0,0,7); ctx.fill(); }
+  else { const r=Math.max(2,scale*(H*0.5)*280); ctx.fillStyle='#5a432a';
+    for(let k=-1;k<2;k++){ ctx.beginPath(); ctx.ellipse(cx+k*r*1.3,baseY-r,r*0.7,r,0,0,7); ctx.fill(); } }
+}
+
+function render(){
+  shakeY = shake>0 ? (Math.sin(bob*90)*shake*10) : 0;
+  drawSky();
+  const base=Math.floor(pos/SEG);
+  const playerY=hillElev(pos)+CAM_H;
+  const camX=playerX*RW;
+  let x=0, dx=0, maxy=H;
+  const sprites=[];
+  for(let n=0;n<DRAW;n++){
+    const i=base+n, f=curveAt(i);
+    const p1={wx:0,wy:hillAt(i),z:i*SEG}, p2={wx:0,wy:hillAt(i+1),z:(i+1)*SEG};
+    project(p1, camX-x, playerY, pos);
+    project(p2, camX-x-dx, playerY, pos);
+    x+=dx; dx+=f;
+    if(p1.cz<CAM_DEPTH || p2.sy>=p1.sy || p1.sy>maxy){ /* still advance sprites cull */ }
+    else {
+      const fog=Math.min(1, n/DRAW*1.15);
+      const band=Math.floor(i/3)%2;
+      const dirt=lerpC(band?C_DIRT1:C_DIRT2, HZ, fog*0.85);
+      const gr=lerpC(band?C_GR1:C_GR2, HZ, fog*0.85);
+      const rum=lerpC(C_RUM, HZ, fog*0.85);
+      // forest floor (full strip)
+      ctx.fillStyle=rgb(gr); ctx.fillRect(0,p2.sy,W,p1.sy-p2.sy+1);
+      // trail trapezoid
+      poly(p1.sx-p1.sw,p1.sy,p1.sx+p1.sw,p1.sy,p2.sx+p2.sw,p2.sy,p2.sx-p2.sw,p2.sy,rgb(dirt));
+      // rumble edges
+      const r1=p1.sw*0.10, r2=p2.sw*0.10;
+      poly(p1.sx-p1.sw-r1,p1.sy,p1.sx-p1.sw,p1.sy,p2.sx-p2.sw,p2.sy,p2.sx-p2.sw-r2,p2.sy,rgb(rum));
+      poly(p1.sx+p1.sw,p1.sy,p1.sx+p1.sw+r1,p1.sy,p2.sx+p2.sw+r2,p2.sy,p2.sx+p2.sw,p2.sy,rgb(rum));
+      maxy=p2.sy;
     }
-    ctx.lineTo(W,H); ctx.closePath(); ctx.fill();
+    // queue sprites at this segment's near edge
+    const ts=treesAt(i);
+    for(const t of ts) sprites.push({n, sx:p1.sx+p1.sw*t.off, sy:p1.sy, scale:p1.scale, t});
+    const ob=obstacleAt(i);
+    if(ob) sprites.push({n, sx:p1.sx+p1.sw*ob.off, sy:p1.sy, scale:p1.scale, ob});
   }
-}
-function drawMountain(){
-  const wl = cam.x - W*0.36/ZOOM - 40, wr = cam.x + (W-W*0.36)/ZOOM + 40;
-  const step = 14/ZOOM;
-  ctx.beginPath(); ctx.moveTo(SX(wl), H+40);
-  for(let wx=wl; wx<=wr; wx+=step){ ctx.lineTo(SX(wx), SY(surf(wx))); }
-  ctx.lineTo(SX(wr), H+40); ctx.closePath();
-  const g=ctx.createLinearGradient(0,SY(surf(cam.x))-200,0,H);
-  g.addColorStop(0,'#cf8a4c'); g.addColorStop(0.12,'#b9692c'); g.addColorStop(1,'#6e3d18');
-  ctx.fillStyle=g; ctx.fill();
-  // surface line
-  ctx.beginPath();
-  let first=true;
-  for(let wx=wl; wx<=wr; wx+=step){ const X=SX(wx),Y=SY(surf(wx)); first?(ctx.moveTo(X,Y),first=false):ctx.lineTo(X,Y); }
-  ctx.lineWidth=3; ctx.strokeStyle='#e9b277'; ctx.stroke();
-  // summit flag
-  const fx=SX(SUMMIT_X), fy=SY(surf(SUMMIT_X));
-  if(fx>-40 && fx<W+40){
-    ctx.strokeStyle='#fff'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(fx,fy); ctx.lineTo(fx,fy-44); ctx.stroke();
-    ctx.fillStyle='#d63a2f'; ctx.beginPath(); ctx.moveTo(fx,fy-44); ctx.lineTo(fx+26,fy-37); ctx.lineTo(fx,fy-30); ctx.fill();
+  // draw sprites far -> near
+  sprites.sort((a,b)=>b.n-a.n);
+  for(const s of sprites){
+    if(s.ob) obstacle(s.ob, s.sx, s.sy, s.scale);
+    else if(s.t.cut) cutlog(s.sx, s.sy, s.scale);
+    else pine(s.sx, s.sy, s.scale, s.t.char, s.t.h);
   }
+  // dappled light
+  ctx.fillStyle='rgba(255,244,200,0.06)';
+  for(let k=0;k<5;k++){ const px=((k*W*0.27 - pos*0.05)% (W+200))-100; ctx.beginPath();
+    ctx.ellipse(px, H*0.5+Math.sin(k)*60, 140, 320, 0.5,0,7); ctx.fill(); }
+  drawBike();
+  if(state==='crashing'){ ctx.fillStyle='rgba(120,20,10,'+(0.45*(1-crashTimer/1.1))+')'; ctx.fillRect(0,0,W,H); }
+  drawControl();
 }
+function poly(x1,y1,x2,y2,x3,y3,x4,y4,fill){ ctx.fillStyle=fill; ctx.beginPath();
+  ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.lineTo(x3,y3); ctx.lineTo(x4,y4); ctx.closePath(); ctx.fill(); }
+
 function drawBike(){
-  ctx.save();
-  ctx.translate(SX(bike.x), SY(bike.y)); ctx.scale(ZOOM,ZOOM); ctx.rotate(bike.a);
-  const hb=WHEELBASE/2;
-  for(const s of [-1,1]){
-    ctx.save(); ctx.translate(s*hb,0); ctx.rotate(bike.wheelSpin);
-    ctx.beginPath(); ctx.arc(0,0,WHEEL_R,0,7); ctx.fillStyle='#1c1c20'; ctx.fill();
-    ctx.lineWidth=4; ctx.strokeStyle='#2c2c33'; ctx.stroke();
-    ctx.beginPath(); ctx.arc(0,0,WHEEL_R*0.45,0,7); ctx.fillStyle='#d7d7dd'; ctx.fill();
-    ctx.strokeStyle='#9a9aa2'; ctx.lineWidth=2;
-    for(let k=0;k<4;k++){ ctx.beginPath(); ctx.moveTo(0,0);
-      ctx.lineTo(Math.cos(k*1.57)*WHEEL_R*0.85,Math.sin(k*1.57)*WHEEL_R*0.85); ctx.stroke(); }
-    ctx.restore();
-  }
-  ctx.lineCap='round';
-  ctx.strokeStyle='#d63a2f'; ctx.lineWidth=7;
-  ctx.beginPath(); ctx.moveTo(-hb+3,-2); ctx.lineTo(-6,-14); ctx.lineTo(hb-6,-10); ctx.stroke();
-  ctx.strokeStyle='#2a2a30'; ctx.lineWidth=5;
-  ctx.beginPath(); ctx.moveTo(-hb+3,-2); ctx.lineTo(-2,-13); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(hb-6,2); ctx.lineTo(hb-2,-12); ctx.stroke();
-  ctx.fillStyle='#222'; ctx.fillRect(-20,-19,26,7);
-  ctx.strokeStyle='#444'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(hb-3,-12); ctx.lineTo(hb+4,-22); ctx.stroke();
-  ctx.strokeStyle='#26456b'; ctx.lineWidth=6;
-  ctx.beginPath(); ctx.moveTo(-10,-18); ctx.lineTo(2,-30); ctx.lineTo(hb+3,-21); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(-10,-18); ctx.lineTo(-14,-6); ctx.stroke();
-  ctx.fillStyle='#e8e2d4'; ctx.beginPath(); ctx.arc(3,-34,7,0,7); ctx.fill();
-  ctx.fillStyle='#d63a2f'; ctx.fillRect(-2,-36,9,3);
+  // first-person: handlebar + front wheel hint, swaying with steer/bob
+  const sway=inSteer*22 + Math.sin(bob*40)*4*(speed/MAXSPD);
+  const by=H - 8 + shakeY*0.5;
+  ctx.save(); ctx.translate(W/2+sway, by);
+  // front tire peeking up
+  ctx.fillStyle='#1c1c1e'; ctx.beginPath(); ctx.ellipse(0,18,46,30,0,Math.PI,2*Math.PI); ctx.fill();
+  ctx.fillStyle='#2c2c30'; ctx.beginPath(); ctx.ellipse(0,18,30,18,0,Math.PI,2*Math.PI); ctx.fill();
+  // handlebar
+  ctx.strokeStyle='#222'; ctx.lineWidth=10; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(-150,-26); ctx.quadraticCurveTo(0,-52,150,-26); ctx.stroke();
+  ctx.strokeStyle='#6e4a2e'; ctx.lineWidth=14;                       // grips
+  ctx.beginPath(); ctx.moveTo(-150,-26); ctx.lineTo(-118,-31); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(150,-26); ctx.lineTo(118,-31); ctx.stroke();
+  ctx.fillStyle='#9ccb6e'; ctx.fillRect(-10,-44,20,16);             // stem cap
   ctx.restore();
 }
-function drawControl(){
-  if(!touching) return;
-  // base ring + axis hints (screen space)
-  ctx.lineWidth=3; ctx.strokeStyle='rgba(255,255,255,.32)';
+function drawControl(){ if(!touching) return;
+  ctx.lineWidth=3; ctx.strokeStyle='rgba(255,255,255,.3)';
   ctx.beginPath(); ctx.arc(oX,oY,STICK_R,0,7); ctx.stroke();
   ctx.fillStyle='rgba(255,255,255,.5)'; ctx.font='600 11px system-ui'; ctx.textAlign='center';
-  ctx.fillText('GAS ▶', oX+STICK_R+24, oY+4);
-  ctx.fillText('◀ BRAKE', oX-STICK_R-26, oY+4);
-  ctx.fillText('LEAN BACK ▲', oX, oY-STICK_R-10);
-  ctx.fillText('▼ FORWARD', oX, oY+STICK_R+18);
-  // knob (clamped to ring), tinted by throttle
-  const dx=kX-oX, dy=kY-oY, d=Math.hypot(dx,dy)||1, cl=Math.min(d,STICK_R);
+  ctx.fillText('PEDAL ▲',oX,oY-STICK_R-10); ctx.fillText('▼ BRAKE',oX,oY+STICK_R+18);
+  ctx.fillText('◀',oX-STICK_R-14,oY+4); ctx.fillText('▶',oX+STICK_R+14,oY+4);
+  const dx=kX-oX,dy=kY-oY,d=Math.hypot(dx,dy)||1,cl=Math.min(d,STICK_R);
   const nx=oX+dx/d*cl, ny=oY+dy/d*cl;
-  ctx.strokeStyle='rgba(255,208,122,.85)'; ctx.lineWidth=5; ctx.lineCap='round';
+  ctx.strokeStyle='rgba(156,203,110,.85)'; ctx.lineWidth=5; ctx.lineCap='round';
   ctx.beginPath(); ctx.moveTo(oX,oY); ctx.lineTo(nx,ny); ctx.stroke();
-  ctx.fillStyle = inThrottle>0.05?'#7ed957' : inThrottle<-0.05?'#e0594a' : '#ffd07a';
+  ctx.fillStyle=inDrive>0.05?'#7ed957':inDrive<-0.05?'#e0594a':'#e7d7a6';
   ctx.beginPath(); ctx.arc(nx,ny,18,0,7); ctx.fill();
 }
 function setToast(){ const el=document.getElementById('toast');
   if(flipTextT>0){ el.textContent=flipText; el.style.opacity=Math.min(1,flipTextT); } else el.style.opacity=0; }
 
-// ---------- main loop ----------
+// ---------- loop ----------
 let last=performance.now(), acc=0;
-function frame(now){
-  let dt=(now-last)/1000; last=now; if(dt>0.05) dt=0.05;
-  if(state==='play' || state==='crashing'){
-    acc+=dt; const stp=1/120;
-    while(acc>=stp){ physics(stp); acc-=stp; if(state==='win'||state==='crashed') break; }
-  }
+function frame(now){ let dt=(now-last)/1000; last=now; if(dt>0.05) dt=0.05;
+  if(state==='play'||state==='crashing'){ acc+=dt; const stp=1/120;
+    while(acc>=stp){ update(stp); acc-=stp; if(state==='crashed') break; } }
   if(flipTextT>0) flipTextT-=dt;
-  // camera: follow bike; while crashing, just centre on it (no climb bias) to watch the tumble
-  const tx=bike.x + (state==='crashing'?0:120), ty=bike.y - (state==='crashing'?40:140);
-  cam.x += (tx-cam.x)*0.08; cam.y += (ty-cam.y)*0.06;
-
-  drawBg(); drawMountain(); drawBike(); drawControl();
-
-  // HUD
+  render();
   if(state==='play') saveBest();
-  document.getElementById('alt').innerHTML = Math.round(maxAlt)+'<small> m</small>';
-  const pct=Math.max(0,Math.min(1, maxAlt/SUMMIT_M));
-  document.getElementById('fill').style.height=(pct*100)+'%';
-  document.getElementById('marker').style.bottom=(pct*100)+'%';
+  document.getElementById('dist').innerHTML=Math.round(dist)+'<small> m</small>';
+  document.getElementById('spd').textContent=Math.round(speed/DIST_M*3.6)+' km/h';
   setToast();
   requestAnimationFrame(frame);
 }
-reset(); state='menu'; cam.x=bike.x; cam.y=bike.y;
-requestAnimationFrame(frame);
+state='menu'; requestAnimationFrame(frame);
 
-// debug hook for headless tuning — inert without ?dbg in the URL
+// debug hook — inert without ?dbg
 if(/[?&]dbg/.test(location.search)){
-  window.BB = { bike, start:startRun, surf, surfSlope,
-    get state(){return state}, get alt(){return maxAlt}, get summitM(){return SUMMIT_M},
-    setInput(throttle, lean){ inThrottle=Math.max(-1,Math.min(1,throttle)); inLean=Math.max(-1,Math.min(1,lean)); } };
+  window.BB={ start:startRun, get state(){return state}, get dist(){return dist},
+    get speed(){return speed}, get playerX(){return playerX},
+    setInput(steer,drive){ inSteer=Math.max(-1,Math.min(1,steer)); inDrive=Math.max(-1,Math.min(1,drive)); } };
 }
 })();
 </script>
