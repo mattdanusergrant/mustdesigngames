@@ -911,7 +911,12 @@ function frame(ts){
   if(!last) last=ts;
   let dt=(ts-last)/1000; last=ts;
   if(dt>0.05) dt=0.05;
-  if(state==="play"){ const sdt=dt*T.timeScale; update(sdt); render(sdt); }
+  if(state==="play"){
+    // turbo restores the original full-speed "snappy" feel; otherwise the relaxed pace
+    const turboActive = player && !player.dead && player.turboOn && player.boost>T.turboMin;
+    const sdt = dt * (turboActive ? 1 : T.timeScale);
+    update(sdt); render(sdt);
+  }
   else { render(state==="pause"?0:dt*0.25); }
 }
 
