@@ -123,7 +123,7 @@
 // ---------- tuning constants ----------
 const T = {
   timeScale: 0.62,                               // <1 = whole game runs slower (relaxed pace)
-  accel: 3000, drag: 3.0, maxSpd: 760,           // flight feel; drag halved, and zeroed during turbo (afterburner)
+  responsive: 18, maxSpd: 620,                   // flight feel: velocity-target control (snappy off-turbo; instant in turbo)
   turboMul: 2.15, turboMax: 100, turboDrain: 46, turboRegen: 17, turboMin: 18,
   boomRadius: 150, boomDmg: 60,
   gunRate: 0.085, gunSpd: 760, gunDmg: 10, gunSpread: 0.05,
@@ -384,18 +384,15 @@ function update(dt){
     // movement vector: analog joystick on touch, else keyboard
     let ax=(input.right-input.left), ay=(input.down-input.up);
     if(joy.active){ ax=joy.dx; ay=joy.dy; }
-    const moving = Math.hypot(ax,ay) > 0.08;
-    if(turbo && !moving){
-      player.vx=0; player.vy=0;          // turbo: instant stop the moment you let go
+    const im=Math.hypot(ax,ay); if(im>1){ ax/=im; ay/=im; }   // clamp diagonal magnitude
+    // velocity-target control: input picks the target velocity, the chopper snaps to it.
+    const tvx=ax*T.maxSpd*(turbo?T.turboMul:1), tvy=ay*T.maxSpd*(turbo?T.turboMul:1);
+    if(turbo){
+      player.vx=tvx; player.vy=tvy;       // turbo: direct control — turn on a dime, instant stop, nothing stops you
     } else {
-      player.vx += ax*T.accel*dt; player.vy += ay*T.accel*dt;
-      const drag = turbo ? 0 : T.drag;   // afterburner: no drag while pushing in turbo
-      player.vx -= player.vx*Math.min(1,drag*dt);
-      player.vy -= player.vy*Math.min(1,drag*dt);
+      const k=Math.min(1,T.responsive*dt);// off-turbo: clean & snappy approach (tiny weight)
+      player.vx+=(tvx-player.vx)*k; player.vy+=(tvy-player.vy)*k;
     }
-    const mul = turbo?T.turboMul:1;
-    const sp = Math.hypot(player.vx,player.vy), cap=T.maxSpd*mul;
-    if(sp>cap){ player.vx*=cap/sp; player.vy*=cap/sp; }
     player.x += player.vx*dt; player.y += player.vy*dt;
     player.bank += ((ay*14) - player.bank)*Math.min(1,dt*8);
     clampPlayer();
