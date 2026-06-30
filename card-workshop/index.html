@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<title>Card Game Workshop</title>
+<!--
+  CARD GAME WORKSHOP
+  A generic lab for prototyping card games — poker variants AND fully custom decks.
+  Self-contained static build (no build step). Lives at mustdesigngames/card-workshop/.
+
+  THE WORKSHOP PATTERN
+    - Shared ENGINE below: a real card model (standard 52 + jokers + custom subsets),
+      shuffle/deal helpers, a card renderer, and a 5-from-7 poker hand evaluator.
+    - A NET layer (host-authoritative) for testing with friends in the browser. Hotseat
+      always works; online uses PeerJS room codes (lazy-loaded, graceful fallback).
+    - Each game is a plain object pushed into GAMES:
+        { id, title, players, tag, blurb, mount(root, ctx) -> optional cleanup() }
+      Add a game = write one mount() and push it to GAMES. That's the framework.
+
+  DEV HATCH
+    window.__cw exposes the pure engine (makeDeck, score5, best7, evalName, GAMES)
+    for headless smoke tests. See test note at the bottom.
+-->
+<style>
+  :root{
+    --bg:#0b1020; --panel:#141a2e; --panel2:#1b2238; --ink:#e9ecf6; --muted:#98a0bd;
+    --line:#2a3252; --accent:#7c5cff; --accent2:#36d1c4; --good:#3ddc84; --bad:#ff6b6b;
+    --felt:#16603f; --felt2:#0f4a30; --cardface:#fbfaf5; --red:#d23b3b; --black:#23263a;
+    --gold:#e6c078;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; height:100%; background:var(--bg); color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; line-height:1.45; }
+  #app{ max-width:760px; margin:0 auto; min-height:100%; display:flex; flex-direction:column; }
+  header{ display:flex; align-items:center; gap:10px; padding:12px 16px; border-bottom:1px solid var(--line);
+    position:sticky; top:0; background:var(--bg); z-index:5; }
+  header .back{ font-size:22px; background:none; border:none; color:var(--ink); cursor:pointer; padding:2px 8px; display:none; }
+  header h1{ font-size:17px; margin:0; font-weight:800; letter-spacing:.04em; }
+  header .sub{ font-size:12px; color:var(--muted); margin-top:1px; }
+  #view{ flex:1; padding:16px; }
+
+  /* Home launcher */
+  .lede{ color:var(--muted); font-size:13.5px; margin:0 2px 16px; }
+  .grid{ display:grid; gap:12px; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); }
+  .tile{ background:linear-gradient(180deg,var(--panel),var(--panel2)); border:1px solid var(--line);
+    border-radius:14px; padding:14px; cursor:pointer; transition:transform .1s, border-color .12s; }
+  .tile:hover{ transform:translateY(-3px); border-color:var(--accent); }
+  .tile .nm{ font-weight:800; font-size:16px; }
+  .tile .bl{ font-size:12px; color:var(--muted); margin-top:6px; min-height:32px; }
+  .tile .meta{ display:flex; gap:6px; margin-top:10px; flex-wrap:wrap; }
+  .chip{ font-size:11px; font-weight:800; border-radius:20px; padding:2px 9px; background:#262e4a; color:#c7cde6; }
+  .chip.poker{ background:#3a2a55; color:#d8c4ff; }
+  .chip.custom{ background:#1f4a3a; color:#b9f1d6; }
+  .chip.net{ background:#143a4a; color:#a9e6f1; }
+
+  /* Buttons */
+  .btn{ background:var(--accent); color:#fff; border:none; border-radius:11px; font-weight:800; font-size:15px;
+    padding:11px 16px; cursor:pointer; }
+  .btn:hover{ filter:brightness(1.08); }
+  .btn:disabled{ background:#39406090; color:#8990ad; cursor:default; }
+  .btn.alt{ background:var(--panel2); border:1px solid var(--line); color:var(--ink); }
+  .btn.good{ background:var(--good); color:#07120b; }
+  .btn.bad{ background:var(--bad); color:#2a0a0a; }
+  .btn.sm{ padding:7px 11px; font-size:13px; border-radius:9px; }
+  .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .center{ text-align:center; }
+  .muted{ color:var(--muted); font-size:13px; }
+  .big{ font-size:22px; font-weight:800; }
+  .pill{ background:var(--panel2); border:1px solid var(--line); border-radius:20px; padding:6px 12px; font-weight:800; font-size:13px; }
+  .felt{ background:radial-gradient(circle at 50% 20%, var(--felt), var(--felt2)); border:1px solid #0a3a26;
+    border-radius:16px; padding:14px; }
+  .lane{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; min-height:78px; }
+  .slot{ width:52px; height:74px; border:2px dashed #ffffff33; border-radius:9px; display:flex; align-items:center; justify-content:center;
+    color:#ffffff55; font-size:11px; text-align:center; }
+  .toast{ position:fixed; left:50%; bottom:30px; transform:translateX(-50%); background:#000a; color:#fff;
+    padding:10px 18px; border-radius:20px; font-weight:800; opacity:0; transition:opacity .2s; pointer-events:none; z-index:20; }
+  .toast.show{ opacity:1; }
+  .h2{ font-weight:800; font-size:14px; margin:14px 0 6px; color:#cfd6f0; }
+  input.code{ background:#0c1124; color:var(--ink); border:1px solid var(--line); border-radius:9px;
+    padding:9px 11px; font-size:15px; font-weight:800; letter-spacing:.12em; width:140px; text-transform:uppercase; }
+
+  /* CARD (standard suited) */
+  .card{ width:54px; height:76px; border-radius:8px; background:var(--cardface); position:relative;
+    box-shadow:0 2px 5px #0006; user-select:none; flex:0 0 auto; }
+  .card.lg{ width:66px; height:94px; }
+  .card .corner{ position:absolute; font-weight:900; line-height:1; font-size:13px; text-align:center; }
+  .card .corner.tl{ top:5px; left:6px; }
+  .card .corner.br{ bottom:5px; right:6px; transform:rotate(180deg); }
+  .card .corner .s{ font-size:12px; display:block; margin-top:1px; }
+  .card .mid{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:30px; }
+  .card.lg .mid{ font-size:38px; }
+  .card.red{ color:var(--red); }
+  .card.black{ color:var(--black); }
+  .card.back{ background:
+      repeating-linear-gradient(45deg,#3550c0,#3550c0 6px,#2a40a0 6px,#2a40a0 12px); box-shadow:0 2px 5px #0006; }
+  .card.back::after{ content:""; position:absolute; inset:6px; border:2px solid #ffffff55; border-radius:5px; }
+  .card.sel{ outline:3px solid var(--gold); outline-offset:1px; }
+  .card.playable{ cursor:pointer; }
+  .card.playable:hover{ transform:translateY(-4px); transition:transform .08s; }
+  .card .jk{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:26px;
+    flex-direction:column; color:#7c5cff; font-weight:900; }
+  .card .jk small{ font-size:9px; letter-spacing:.1em; }
+  .hand{ display:flex; gap:6px; flex-wrap:wrap; }
+  .deckpile{ position:relative; width:54px; height:76px; }
+  .deckpile .count{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:900; }
+  .seatbox{ background:#0e1430; border:1px solid var(--line); border-radius:12px; padding:10px; }
+  .seatbox.me{ border-color:var(--accent); }
+  .seatname{ font-weight:800; font-size:13px; margin-bottom:6px; display:flex; justify-content:space-between; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <button class="back" id="back">‹</button>
+    <div>
+      <h1 id="title">Card Game Workshop</h1>
+      <div class="sub" id="sub">a generic lab for poker variants &amp; custom card games</div>
+    </div>
+  </header>
+  <div id="view"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   ENGINE — card model
+   ============================================================ */
+const SUITS = [
+  { id:'S', sym:'♠', color:'black' },
+  { id:'H', sym:'♥', color:'red'   },
+  { id:'D', sym:'♦', color:'red'   },
+  { id:'C', sym:'♣', color:'black' },
+];
+const SUIT = Object.fromEntries(SUITS.map(s=>[s.id,s]));
+// rank value: A high (14) for poker; A-low handled per-game where needed.
+const RANKS = [
+  {id:'A',v:14,t:'A'},{id:'2',v:2,t:'2'},{id:'3',v:3,t:'3'},{id:'4',v:4,t:'4'},
+  {id:'5',v:5,t:'5'},{id:'6',v:6,t:'6'},{id:'7',v:7,t:'7'},{id:'8',v:8,t:'8'},
+  {id:'9',v:9,t:'9'},{id:'10',v:10,t:'10'},{id:'J',v:11,t:'J'},{id:'Q',v:12,t:'Q'},{id:'K',v:13,t:'K'},
+];
+const RANK = Object.fromEntries(RANKS.map(r=>[r.id,r]));
+
+function mkCard(rid, sid){
+  const r=RANK[rid], s=SUIT[sid];
+  return { id:rid+sid, r:rid, s:sid, v:r.v, t:r.t, sym:s.sym, color:s.color };
+}
+function mkJoker(n){ return { id:'JK'+n, joker:true, t:'JOKER', color:'joker' }; }
+
+// makeDeck({ ranks:[ids]|'all', suits:[ids]|'all', jokers:0 })
+function makeDeck(opts={}){
+  const rids = (!opts.ranks || opts.ranks==='all') ? RANKS.map(r=>r.id) : opts.ranks;
+  const sids = (!opts.suits || opts.suits==='all') ? SUITS.map(s=>s.id) : opts.suits;
+  const d=[];
+  for(const sid of sids) for(const rid of rids) d.push(mkCard(rid,sid));
+  for(let i=0;i<(opts.jokers||0);i++) d.push(mkJoker(i+1));
+  return d;
+}
+function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+const rand = n => Math.floor(Math.random()*n);
+
+/* ============================================================
+   ENGINE — poker hand evaluator (best 5 of up to 7)
+   score5 -> comparable array [category, ...tiebreakers]; bigger = better.
+   categories: 8 SF, 7 Quads, 6 Full, 5 Flush, 4 Straight, 3 Trips, 2 TwoPair, 1 Pair, 0 High
+   ============================================================ */
+const CAT_NAME = ['High Card','Pair','Two Pair','Three of a Kind','Straight','Flush','Full House','Four of a Kind','Straight Flush'];
+
+function straightHigh(vals){ // vals: sorted-desc unique rank values; returns high card of best straight or 0
+  const u=[...new Set(vals)].sort((a,b)=>b-a);
+  // Ace-low wheel: treat A(14) also as 1
+  const w = u.includes(14) ? [...u,1] : u;
+  let run=1;
+  for(let i=0;i<w.length-1;i++){
+    if(w[i]-1===w[i+1]){ run++; if(run>=5) return w[i-3]; }
+    else run=1;
+  }
+  return 0;
+}
+function score5(cards){ // exactly 5 real (non-joker) cards
+  const vals = cards.map(c=>c.v).sort((a,b)=>b-a);
+  const suits = cards.map(c=>c.s);
+  const flush = suits.every(s=>s===suits[0]);
+  const sHigh = straightHigh(vals);
+  // rank multiplicity
+  const cnt={}; vals.forEach(v=>cnt[v]=(cnt[v]||0)+1);
+  // groups sorted by (count desc, value desc)
+  const groups = Object.keys(cnt).map(v=>({v:+v,n:cnt[v]}))
+    .sort((a,b)=> b.n-a.n || b.v-a.v);
+  const shape = groups.map(g=>g.n).join('');
+  const kick = groups.map(g=>g.v);
+  if(flush && sHigh) return [8, sHigh];
+  if(shape.startsWith('4')) return [7, kick[0], kick[1]];
+  if(shape==='32') return [6, kick[0], kick[1]];
+  if(flush) return [5, ...vals];
+  if(sHigh) return [4, sHigh];
+  if(shape.startsWith('3')) return [3, kick[0], kick[1], kick[2]];
+  if(shape.startsWith('22')) return [2, kick[0], kick[1], kick[2]];
+  if(shape.startsWith('2')) return [1, ...kick];
+  return [0, ...vals];
+}
+function cmpScore(a,b){ const n=Math.max(a.length,b.length); for(let i=0;i<n;i++){ const x=a[i]||0,y=b[i]||0; if(x!==y) return x-y; } return 0; }
+function combos(arr,k){ const res=[]; (function go(start,acc){ if(acc.length===k){ res.push(acc.slice()); return; }
+  for(let i=start;i<arr.length;i++){ acc.push(arr[i]); go(i+1,acc); acc.pop(); } })(0,[]); return res; }
+function best7(cards){ // up to 7 cards (ignores jokers); returns {score, cards, name}
+  const real = cards.filter(c=>!c.joker);
+  if(real.length<5) return { score:[-1], cards:[], name:'(incomplete)' };
+  let best=null, bestC=null;
+  for(const combo of combos(real,5)){ const s=score5(combo); if(!best || cmpScore(s,best)>0){ best=s; bestC=combo; } }
+  return { score:best, cards:bestC, name:CAT_NAME[best[0]] };
+}
+const evalName = cards => best7(cards).name;
+
+/* ============================================================
+   ENGINE — rendering
+   ============================================================ */
+function el(tag, cls, html){ const e=document.createElement(tag); if(cls) e.className=cls; if(html!=null) e.innerHTML=html; return e; }
+function cardEl(c, opts={}){
+  const d=el('div','card'+(opts.lg?' lg':''));
+  if(opts.faceUp===false || !c){ d.classList.add('back'); return d; }
+  if(c.joker){ d.classList.add('black'); d.innerHTML=`<div class="jk">★<small>JOKER</small></div>`; return d; }
+  d.classList.add(c.color);
+  d.innerHTML = `<div class="corner tl">${c.t}<span class="s">${c.sym}</span></div>
+                 <div class="mid">${c.sym}</div>
+                 <div class="corner br">${c.t}<span class="s">${c.sym}</span></div>`;
+  return d;
+}
+let toastTimer=null;
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),1300); }
+
+/* ============================================================
+   NET — host-authoritative transport (hotseat + online via PeerJS)
+   The shell wires this for the Free Table sandbox. Hotseat needs no network.
+   Online: host id = room code; clients connect; host broadcasts state, clients
+   send intents. PeerJS is lazy-loaded; if it fails, online degrades to a notice.
+   ============================================================ */
+const Net = {
+  mode:'hotseat', peer:null, conns:[], isHost:false, code:null,
+  onState:null, onIntent:null,
+  async loadPeer(){
+    if(window.Peer) return true;
+    return new Promise((res)=>{
+      const s=document.createElement('script');
+      s.src='https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js';
+      s.onload=()=>res(!!window.Peer); s.onerror=()=>res(false);
+      document.head.appendChild(s);
+    });
+  },
+  roomCode(){ const a='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s=''; for(let i=0;i<4;i++) s+=a[rand(a.length)]; return s; },
+  async host(){
+    if(!await this.loadPeer()) return { ok:false, err:'Could not load PeerJS (offline or blocked). Hotseat still works.' };
+    return new Promise((res)=>{
+      this.code=this.roomCode(); this.isHost=true; this.mode='online';
+      this.peer=new window.Peer('cwksp-'+this.code);
+      this.peer.on('open',()=>res({ ok:true, code:this.code }));
+      this.peer.on('error',e=>res({ ok:false, err:String(e.type||e) }));
+      this.peer.on('connection',conn=>{
+        conn.on('open',()=>{ this.conns.push(conn); if(this.onJoin) this.onJoin(conn); });
+        conn.on('data',d=>{ if(this.onIntent) this.onIntent(d, conn); });
+        conn.on('close',()=>{ this.conns=this.conns.filter(c=>c!==conn); if(this.onLeave) this.onLeave(conn); });
+      });
+    });
+  },
+  async join(code){
+    if(!await this.loadPeer()) return { ok:false, err:'Could not load PeerJS (offline or blocked).' };
+    return new Promise((res)=>{
+      this.isHost=false; this.mode='online'; this.code=code;
+      this.peer=new window.Peer();
+      this.peer.on('open',()=>{
+        const conn=this.peer.connect('cwksp-'+code,{reliable:true});
+        this.conns=[conn];
+        conn.on('open',()=>res({ ok:true }));
+        conn.on('data',d=>{ if(d.type==='state' && this.onState) this.onState(d.state); });
+        conn.on('error',e=>res({ ok:false, err:String(e) }));
+      });
+      this.peer.on('error',e=>res({ ok:false, err:String(e.type||e) }));
+      setTimeout(()=>res({ ok:false, err:'Timed out reaching room '+code }), 9000);
+    });
+  },
+  broadcastState(state){ this.conns.forEach(c=>{ try{ c.send({type:'state',state}); }catch(e){} }); },
+  sendIntent(intent){ const c=this.conns[0]; if(c){ try{ c.send(intent); }catch(e){} } },
+  teardown(){ try{ this.conns.forEach(c=>c.close()); }catch(e){} try{ this.peer&&this.peer.destroy(); }catch(e){}
+    this.peer=null; this.conns=[]; this.isHost=false; this.mode='hotseat'; this.code=null;
+    this.onState=this.onIntent=this.onJoin=this.onLeave=null; },
+};
+
+/* ============================================================
+   SHELL — launcher + mount/unmount
+   ============================================================ */
+const GAMES = [];
+const view = document.getElementById('view');
+const backBtn = document.getElementById('back');
+const titleEl = document.getElementById('title');
+const subEl = document.getElementById('sub');
+let cleanup = null;
+
+backBtn.addEventListener('click', goHome);
+function goHome(){
+  if(cleanup){ try{cleanup();}catch(e){} cleanup=null; }
+  Net.teardown();
+  backBtn.style.display='none';
+  titleEl.textContent='Card Game Workshop';
+  subEl.textContent='a generic lab for poker variants & custom card games';
+  renderHome();
+}
+function openGame(g){
+  if(cleanup){ try{cleanup();}catch(e){} cleanup=null; }
+  view.innerHTML='';
+  backBtn.style.display='block';
+  titleEl.textContent=g.title;
+  subEl.textContent=g.players+' · '+g.tag;
+  cleanup = g.mount(view, {}) || null;
+}
+function renderHome(){
+  view.innerHTML='';
+  view.appendChild(el('p','lede','A shared engine (real 52-card deck + jokers + custom subsets, a poker hand evaluator, and host-authoritative networking) with games plugged in on top. Tap one to play. Free Table lets you deal any deck to friends online.'));
+  const grid=el('div','grid');
+  GAMES.forEach(g=>{
+    const t=el('div','tile');
+    const chips = g.chips.map(c=>`<span class="chip ${c.k}">${c.t}</span>`).join('');
+    t.innerHTML=`<div class="nm">${g.title}</div><div class="bl">${g.blurb}</div>
+      <div class="meta">${chips}<span class="chip">${g.players}</span></div>`;
+    t.addEventListener('click',()=>openGame(g));
+    grid.appendChild(t);
+  });
+  view.appendChild(grid);
+}
+
+/* ============================================================
+   GAME — CATERPILLAR CLIMB  (solo, ages 4-6, 44-card A..J deck)
+   Build A(1)->10->J(butterfly) four times. Suits ignored. Reserve "leaves".
+   ============================================================ */
+GAMES.push({
+  id:'caterpillar', title:'Caterpillar Climb', players:'1 player', tag:'kids · A–J deck',
+  chips:[{k:'custom',t:'custom deck'}],
+  blurb:'Grow a caterpillar from A up to J (butterfly), four times. Counting-first solitaire for little kids.',
+  mount(root){
+    const cv = c => c.r==='A'?1 : c.r==='J'?11 : c.v; // A-low; J=11 = butterfly
+    let stock = shuffle(makeDeck({ ranks:['A','2','3','4','5','6','7','8','9','10','J'] })); // 44
+    const LEAVES=4;
+    let leaves=Array.from({length:LEAVES},()=>[]); // reserve piles (top is playable)
+    let climb=[]; let need=1; let done=0; let cur=null;
+
+    root.innerHTML=`
+      <p class="muted" id="msg">Flip the deck. Put A,2,3…10 on the Climb in order; the J is the butterfly!</p>
+      <div class="felt">
+        <div class="h2" style="color:#eaf6ee">🐛 The Climb <span class="muted" id="needlbl"></span></div>
+        <div class="lane" id="climb"></div>
+        <div class="h2" style="color:#eaf6ee">🍃 Leaf spots (tap a top card to use it)</div>
+        <div class="row" id="leaves" style="align-items:flex-start"></div>
+      </div>
+      <div class="row" style="margin-top:14px">
+        <div class="deckpile"><div class="card back" id="deck"></div><div class="count" id="dc"></div></div>
+        <div id="curwrap"></div>
+        <button class="btn" id="flip">Flip a card</button>
+        <span class="pill" id="prog">Butterflies 0/4</span>
+      </div>`;
+    const $=s=>root.querySelector(s);
+    const msg=$('#msg'), climbEl=$('#climb'), leavesEl=$('#leaves'), dc=$('#dc'),
+          flip=$('#flip'), prog=$('#prog'), curwrap=$('#curwrap'), needlbl=$('#needlbl');
+
+    function placeOnClimb(c){
+      climb.push(c); cur=null;
+      if(cv(c)===11){ done++; toast('🦋 Butterfly! Caterpillar complete!'); climb=[]; need=1;
+        if(done>=4){ return finish(); } }
+      else need=cv(c)+1;
+      render();
+    }
+    function tryFromLeaves(i){
+      const pile=leaves[i]; if(!pile.length) return;
+      const top=pile[pile.length-1];
+      if(cv(top)===need){ pile.pop(); placeOnClimb(top); } else toast('That leaf card isn’t next yet.');
+    }
+    function flipCard(){
+      if(cur){ toast('Place the flipped card first.'); return; }
+      if(!stock.length) return;
+      cur=stock.pop();
+      if(cv(cur)===need){ placeOnClimb(cur); }
+      else { render(); checkStuck(); }
+    }
+    function toLeaf(i){
+      if(!cur) return;
+      leaves[i].push(cur); cur=null; render();
+    }
+    function checkStuck(){
+      const anyEmpty = leaves.some(p=>p.length===0);
+      if(cur && cv(cur)!==need && !anyEmpty){
+        msg.textContent='No room and not the next number — but in Cuddle mode you can always reset. (Tip: fewer caterpillars left wins!)';
+      }
+    }
+    function finish(){
+      root.innerHTML=`<div class="center"><div class="big">🦋🦋🦋🦋 All four butterflies flew away!</div>
+        <p class="muted">You counted all the way up four times. Great job!</p></div>`;
+      const again=el('button','btn','Play again'); again.onclick=()=>openGame(GAMES.find(g=>g.id==='caterpillar'));
+      const r=el('div','row center'); r.style.justifyContent='center'; r.appendChild(again); root.querySelector('.center').appendChild(r);
+    }
+    function render(){
+      dc.textContent=stock.length; prog.textContent=`Butterflies ${done}/4`;
+      needlbl.textContent = need<=10 ? `— needs ${need===1?'A':need}` : '— needs J (butterfly!)';
+      flip.disabled = !!cur || stock.length===0;
+      climbEl.innerHTML=''; climb.forEach(c=>climbEl.appendChild(cardEl(c)));
+      if(climb.length===0) climbEl.appendChild(el('div','slot','start with A'));
+      curwrap.innerHTML='';
+      if(cur){ const w=el('div','card sel'); w.replaceWith(); const ce=cardEl(cur); ce.classList.add('sel'); curwrap.appendChild(ce); }
+      leavesEl.innerHTML='';
+      leaves.forEach((pile,i)=>{
+        const col=el('div'); col.style.cssText='display:flex;flex-direction:column;align-items:center;gap:4px';
+        const top = pile.length ? cardEl(pile[pile.length-1]) : el('div','slot','leaf '+(i+1));
+        if(pile.length){ top.classList.add('playable'); top.onclick=()=>tryFromLeaves(i); }
+        else if(cur){ top.style.cursor='pointer'; top.onclick=()=>toLeaf(i); top.classList.add('playable'); }
+        col.appendChild(top);
+        const drop=el('button','btn alt sm', cur ? 'put here' : 'leaf '+(i+1));
+        drop.disabled=!cur; drop.onclick=()=>toLeaf(i);
+        col.appendChild(drop);
+        col.appendChild(el('div','muted', pile.length+' cards'));
+        leavesEl.appendChild(col);
+      });
+    }
+    flip.addEventListener('click',flipCard);
+    render();
+  }
+});
+
+/* ============================================================
+   GAME — KINGMAKER  (solo, hardcore, 10-card royal+jokers deck)
+   Build one strict descending Procession: KS KH KD KC QS QH QD QC.
+   3 antechambers buffer. Jokers are wild but orphan their real counterpart.
+   ============================================================ */
+GAMES.push({
+  id:'kingmaker', title:'Kingmaker', players:'1 player', tag:'hardcore · 10-card deck',
+  chips:[{k:'custom',t:'custom deck'}],
+  blurb:'Seat the royal succession in strict order with only 3 buffers. Each Joker is a Faustian wildcard.',
+  mount(root){
+    const ORDER=['KS','KH','KD','KC','QS','QH','QD','QC'];
+    const ANTE=3;
+    let stock = shuffle([ ...makeDeck({ranks:['K','Q']}), mkJoker(1), mkJoker(2) ]); // 8 court + 2 jokers
+    let proc=[]; let need=0; let ante=Array(ANTE).fill(null); let dungeon=[]; let cur=null; let over=false;
+    const orderIdx = c => c.joker ? -2 : ORDER.indexOf(c.id);
+
+    root.innerHTML=`
+      <p class="muted" id="msg">Build the Procession in order: K♠ K♥ K♦ K♣ then Q♠ Q♥ Q♦ Q♣. Flip a claimant.</p>
+      <div class="felt">
+        <div class="h2" style="color:#eaf6ee">👑 Procession <span class="muted" id="needlbl"></span></div>
+        <div class="lane" id="proc"></div>
+        <div class="h2" style="color:#eaf6ee">🚪 Antechamber (3 buffers)</div>
+        <div class="row" id="ante" style="align-items:flex-start"></div>
+        <div class="h2" style="color:#eaf6ee">🗝️ Dungeon (dead cards) <span class="muted" id="dgn"></span></div>
+      </div>
+      <div class="row" style="margin-top:14px">
+        <div class="deckpile"><div class="card back"></div><div class="count" id="dc"></div></div>
+        <div id="curwrap"></div>
+        <button class="btn" id="flip">Flip claimant</button>
+        <span class="pill" id="score">Seated 0/8</span>
+      </div>
+      <div class="row" id="actions" style="margin-top:10px"></div>`;
+    const $=s=>root.querySelector(s);
+    const msg=$('#msg'), procEl=$('#proc'), anteEl=$('#ante'), dc=$('#dc'),
+          flip=$('#flip'), score=$('#score'), curwrap=$('#curwrap'), actions=$('#actions'),
+          needlbl=$('#needlbl'), dgn=$('#dgn');
+
+    function needCardLabel(){ if(need>=8) return '— complete'; const id=ORDER[need];
+      const c=mkCard(id[0]==='1'?'10':id[0], id[1]); return '— needs '+c.t+c.sym; }
+    function placeProc(card){ // card may be joker (wild fill) or exact next
+      proc.push({ filled:ORDER[need], by:card }); need++; cur=null;
+      if(need>=8){ return finish(true); }
+      render();
+    }
+    function flipCard(){
+      if(over||cur||!stock.length) return;
+      cur=stock.pop();
+      // auto-place if exact next
+      if(!cur.joker && orderIdx(cur)===need){ placeProc(cur); return; }
+      render(); evalStuck();
+    }
+    function curOptions(){ // what can the current card do?
+      if(!cur) return [];
+      const o=[]; const idx=orderIdx(cur);
+      if(cur.joker) o.push({t:'Crown as '+needCardLabel().replace('— needs ',''),fn:()=>placeProc(cur),cls:'good'});
+      else if(idx===need) o.push({t:'Seat on Procession',fn:()=>placeProc(cur),cls:'good'});
+      if(!cur.joker && idx>-1 && idx<need) o.push({t:'Send to Dungeon (dead)',fn:()=>{ dungeon.push(cur); cur=null; render(); },cls:'bad'});
+      ante.forEach((slot,i)=>{ if(slot===null) o.push({t:'Park in buffer '+(i+1),fn:()=>{ ante[i]=cur; cur=null; render(); },cls:'alt'}); });
+      return o;
+    }
+    function fromAnte(i){
+      const card=ante[i]; if(!card||over) return; const idx=orderIdx(card);
+      if(card.joker || idx===need){ ante[i]=null; placeProc(card); }
+      else if(idx>-1 && idx<need){ ante[i]=null; dungeon.push(card); render(); toast('Banished to the Dungeon.'); }
+      else toast('Not its turn — and its slot hasn’t passed.');
+    }
+    function evalStuck(){
+      if(!cur) return;
+      const opts=curOptions();
+      if(opts.length===0){ over=true; msg.innerHTML='<b>The court collapses.</b> No legal placement for this claimant.'; render(); }
+    }
+    function finish(win){
+      over=true;
+      root.innerHTML=`<div class="center"><div class="big">${win?'👑 Coronation complete — the succession holds!':'The court collapsed.'}</div>
+        <p class="muted">Seated ${need}/8.${win?'':' A friendlier shuffle awaits.'}</p></div>`;
+      const again=el('button','btn','Deal again'); again.onclick=()=>openGame(GAMES.find(g=>g.id==='kingmaker'));
+      const r=el('div','row'); r.style.justifyContent='center'; r.appendChild(again); root.querySelector('.center').appendChild(r);
+    }
+    function render(){
+      dc.textContent=stock.length; score.textContent=`Seated ${need}/8`;
+      needlbl.textContent=needCardLabel(); dgn.textContent='('+dungeon.length+')';
+      flip.disabled = over || !!cur || stock.length===0;
+      procEl.innerHTML='';
+      proc.forEach(p=>{ const ce=cardEl(p.by); if(p.by.joker){ ce.title='wild → '+p.filled; } procEl.appendChild(ce); });
+      if(!proc.length) procEl.appendChild(el('div','slot','K♠ first'));
+      anteEl.innerHTML='';
+      ante.forEach((slot,i)=>{ const col=el('div'); col.style.cssText='display:flex;flex-direction:column;gap:4px;align-items:center';
+        const c = slot ? cardEl(slot) : el('div','slot','buffer '+(i+1));
+        if(slot){ c.classList.add('playable'); c.onclick=()=>fromAnte(i); }
+        col.appendChild(c); anteEl.appendChild(col); });
+      curwrap.innerHTML=''; if(cur){ const ce=cardEl(cur); ce.classList.add('sel'); curwrap.appendChild(ce); }
+      actions.innerHTML='';
+      curOptions().forEach(o=>{ const b=el('button','btn sm '+(o.cls||'alt'),o.t); b.onclick=o.fn; actions.appendChild(b); });
+    }
+    flip.addEventListener('click',flipCard);
+    render();
+  }
+});
+
+/* ============================================================
+   GAME — TEXAS HOLD'EM (showdown)  (1 player vs CPU, exercises evaluator)
+   Heads-up, simplified: deal holes, reveal flop/turn/river, fold option,
+   showdown via best7(). Chips + blinds; betting rounds are a later pass.
+   ============================================================ */
+GAMES.push({
+  id:'holdem', title:"Texas Hold'em", players:'1 vs CPU', tag:'poker · standard 52',
+  chips:[{k:'poker',t:'poker'},{k:'net',t:'online soon'}],
+  blurb:'Heads-up showdown hand. Proves the shared 5-of-7 hand evaluator. Online seats are the next pass.',
+  mount(root){
+    let you=100, cpu=100;
+    let deck, hole=[], opp=[], board=[], stage=0, over=false; // stage 0 pre,1 flop,2 turn,3 river,4 done
+    const POT=4;
+    root.innerHTML=`
+      <div class="row" style="justify-content:space-between"><span class="pill" id="chips"></span><span class="pill" id="potlbl"></span></div>
+      <div class="felt" style="margin-top:10px">
+        <div class="h2" style="color:#eaf6ee">CPU</div><div class="hand lg" id="opp"></div>
+        <div class="h2" style="color:#eaf6ee">Board</div><div class="hand lg" id="board" style="min-height:96px"></div>
+        <div class="h2" style="color:#eaf6ee">You <span class="muted" id="youeval"></span></div><div class="hand lg" id="you"></div>
+      </div>
+      <div class="center" id="msg" style="min-height:26px;margin:12px 0;font-weight:800"></div>
+      <div class="row" id="ctl" style="justify-content:center"></div>`;
+    const $=s=>root.querySelector(s);
+    const oppEl=$('#opp'), boardEl=$('#board'), youEl=$('#you'), msg=$('#msg'), ctl=$('#ctl'),
+          chips=$('#chips'), potlbl=$('#potlbl'), youeval=$('#youeval');
+
+    function deal(){
+      deck=shuffle(makeDeck()); hole=[deck.pop(),deck.pop()]; opp=[deck.pop(),deck.pop()];
+      board=[]; stage=0; over=false; msg.textContent='Your hole cards are dealt.'; render();
+    }
+    function next(){
+      if(stage===0){ board=[deck.pop(),deck.pop(),deck.pop()]; stage=1; msg.textContent='The flop.'; }
+      else if(stage===1){ board.push(deck.pop()); stage=2; msg.textContent='The turn.'; }
+      else if(stage===2){ board.push(deck.pop()); stage=3; msg.textContent='The river.'; }
+      else if(stage===3){ showdown(); return; }
+      render();
+    }
+    function showdown(){
+      stage=4; over=true;
+      const y=best7([...hole,...board]), o=best7([...opp,...board]);
+      const c=cmpScore(y.score,o.score);
+      if(c>0){ you+=POT/2; cpu-=POT/2; msg.innerHTML=`You win with <b>${y.name}</b> vs ${o.name} 🏆`; }
+      else if(c<0){ you-=POT/2; cpu+=POT/2; msg.innerHTML=`CPU wins with <b>${o.name}</b> vs your ${y.name}`; }
+      else msg.innerHTML=`Split pot — both ${y.name}`;
+      render();
+    }
+    function fold(){ over=true; stage=4; you-=POT/2; cpu+=POT/2; msg.textContent='You folded. CPU takes the pot.'; render(); }
+    function render(){
+      chips.textContent=`You ${you} · CPU ${cpu}`; potlbl.textContent=`Pot ${POT}`;
+      oppEl.innerHTML=''; opp.forEach(c=>oppEl.appendChild(cardEl(c,{lg:true,faceUp:over})));
+      boardEl.innerHTML=''; board.forEach(c=>boardEl.appendChild(cardEl(c,{lg:true})));
+      for(let i=board.length;i<5;i++) boardEl.appendChild(el('div','slot',''));
+      youEl.innerHTML=''; hole.forEach(c=>youEl.appendChild(cardEl(c,{lg:true})));
+      youeval.textContent = (hole.length&&board.length)?('— '+best7([...hole,...board]).name):'';
+      ctl.innerHTML='';
+      if(over){ const b=el('button','btn good','Next hand'); b.onclick=deal; ctl.appendChild(b); }
+      else {
+        const labels=['Deal flop','Deal turn','Deal river','Showdown'];
+        const go=el('button','btn',labels[stage]); go.onclick=next; ctl.appendChild(go);
+        const f=el('button','btn bad','Fold'); f.onclick=fold; ctl.appendChild(f);
+      }
+    }
+    deal();
+  }
+});
+
+/* ============================================================
+   GAME — FREE TABLE  (sandbox; hotseat + ONLINE via room codes)
+   No coded rules — a networked surface for playtesting ANY card game:
+   choose a deck, deal to seats, draw, flip to center, play cards. Host is
+   authoritative; online uses Net (PeerJS). Open hands (everyone sees all) —
+   hidden-hand mode is a later pass. This is the workhorse for testing designs.
+   ============================================================ */
+GAMES.push({
+  id:'freetable', title:'Free Table', players:'2–6 · online', tag:'sandbox · any deck',
+  chips:[{k:'net',t:'online'},{k:'custom',t:'any deck'}],
+  blurb:'A networked card surface with no fixed rules — deal any deck to friends by room code and play out a prototype live.',
+  mount(root){
+    // ---- shared state (host-authoritative) ----
+    const DECKS={
+      standard:{ label:'Standard 52', opts:{} },
+      withjokers:{ label:'52 + 2 Jokers', opts:{jokers:2} },
+      aToJ:{ label:'A–J (44, kids)', opts:{ranks:['A','2','3','4','5','6','7','8','9','10','J']} },
+      royals:{ label:'Royals+Jokers (10)', opts:{ranks:['K','Q'],jokers:2} },
+    };
+    let state=null; // { deck:[], center:[], seats:[{name,hand:[]}], deckKind }
+    let mySeat=0;   // which seat this client controls
+    let role='hotseat'; // hotseat | host | client
+
+    function freshState(kind, seats){
+      return { deckKind:kind, deck:shuffle(makeDeck(DECKS[kind].opts)), center:[],
+        seats:Array.from({length:seats},(_,i)=>({ name:'Seat '+(i+1), hand:[] })) };
+    }
+    // ---- intents (host applies; hotseat applies locally) ----
+    function apply(intent){
+      const s=state; if(!s) return;
+      if(intent.t==='deal'){ const n=intent.n; for(let r=0;r<n;r++) for(const seat of s.seats){ if(s.deck.length) seat.hand.push(s.deck.pop()); } }
+      else if(intent.t==='draw'){ if(s.deck.length) s.seats[intent.seat].hand.push(s.deck.pop()); }
+      else if(intent.t==='flip'){ if(s.deck.length) s.center.push(s.deck.pop()); }
+      else if(intent.t==='play'){ const h=s.seats[intent.seat].hand; if(h[intent.idx]) s.center.push(h.splice(intent.idx,1)[0]); }
+      else if(intent.t==='shuffle'){ s.deck=shuffle(s.deck.concat(s.center)); s.center=[]; }
+      else if(intent.t==='gather'){ s.seats.forEach(seat=>{ s.deck=s.deck.concat(seat.hand); seat.hand=[]; }); s.deck=shuffle(s.deck.concat(s.center)); s.center=[]; }
+      else if(intent.t==='newdeck'){ state=freshState(intent.kind, s.seats.length); return; }
+      else if(intent.t==='rename'){ s.seats[intent.seat].name=intent.name; }
+    }
+    function dispatch(intent){
+      if(role==='client'){ Net.sendIntent(intent); return; } // host echoes new state back
+      apply(intent); pushState();
+    }
+    function pushState(){ if(role==='host') Net.broadcastState(state); render(); }
+
+    // ---- UI ----
+    function lobby(){
+      root.innerHTML=`
+        <p class="muted">Test any card game with friends. Pick a mode. <b>Hotseat</b> = one screen (pass the device). <b>Online</b> = each player on their own browser via a 4-letter room code (peer-to-peer; works best on home networks).</p>
+        <div class="grid">
+          <div class="tile"><div class="nm">🎲 Hotseat</div><div class="bl">One screen, switch seats with a tap. Always works.</div>
+            <div class="row" style="margin-top:8px"><label class="muted">Seats</label>
+            <select id="hsSeats" class="btn alt sm">${[2,3,4,5,6].map(n=>`<option>${n}</option>`).join('')}</select>
+            <select id="hsDeck" class="btn alt sm">${Object.entries(DECKS).map(([k,v])=>`<option value="${k}">${v.label}</option>`).join('')}</select></div>
+            <button class="btn" id="startHs" style="margin-top:10px">Start hotseat</button></div>
+          <div class="tile"><div class="nm">🌐 Host online</div><div class="bl">Create a room; friends join by code. You hold the deck.</div>
+            <div class="row" style="margin-top:8px">
+            <select id="hoSeats" class="btn alt sm">${[2,3,4,5,6].map(n=>`<option>${n}</option>`).join('')}</select>
+            <select id="hoDeck" class="btn alt sm">${Object.entries(DECKS).map(([k,v])=>`<option value="${k}">${v.label}</option>`).join('')}</select></div>
+            <button class="btn" id="startHo" style="margin-top:10px">Create room</button></div>
+          <div class="tile"><div class="nm">🔑 Join online</div><div class="bl">Enter a room code a friend shared with you.</div>
+            <div class="row" style="margin-top:8px"><input class="code" id="joinCode" placeholder="CODE" maxlength="4"></div>
+            <button class="btn" id="startJoin" style="margin-top:10px">Join room</button>
+            <div class="muted" id="joinMsg" style="margin-top:6px"></div></div>
+        </div>`;
+      const $=s=>root.querySelector(s);
+      $('#startHs').onclick=()=>{ role='hotseat'; state=freshState($('#hsDeck').value, +$('#hsSeats').value); mySeat=0; render(); };
+      $('#startHo').onclick=async()=>{
+        const btn=$('#startHo'); btn.disabled=true; btn.textContent='Opening room…';
+        const seats=+$('#hoSeats').value, kind=$('#hoDeck').value;
+        const res=await Net.host();
+        if(!res.ok){ btn.disabled=false; btn.textContent='Create room'; toast(res.err); return; }
+        role='host'; mySeat=0; state=freshState(kind, seats);
+        Net.onIntent=(intent)=>{ apply(intent); pushState(); };
+        Net.onJoin=()=>{ Net.broadcastState(state); toast('A player joined.'); };
+        render();
+      };
+      $('#startJoin').onclick=async()=>{
+        const code=($('#joinCode').value||'').toUpperCase().trim(); if(code.length!==4){ toast('Enter the 4-letter code.'); return; }
+        const jm=$('#joinMsg'); jm.textContent='Connecting…';
+        const res=await Net.join(code);
+        if(!res.ok){ jm.textContent=res.err; return; }
+        role='client'; mySeat=1; // host is seat 0; first joiner takes seat 1 (adjustable in UI)
+        Net.onState=(st)=>{ state=st; render(); };
+        jm.textContent='Connected!';
+      };
+    }
+
+    function render(){
+      if(!state){ lobby(); return; }
+      const online = role!=='hotseat';
+      const codeBadge = online ? `<span class="pill" style="background:#143a4a">Room ${Net.code||'—'} · ${role}</span>` : `<span class="pill">Hotseat</span>`;
+      root.innerHTML=`
+        <div class="row" style="justify-content:space-between;margin-bottom:10px">
+          ${codeBadge}
+          <span class="pill" id="deckpill"></span>
+        </div>
+        <div class="felt">
+          <div class="h2" style="color:#eaf6ee">Center</div>
+          <div class="lane" id="center"></div>
+          <div class="row" style="margin-top:8px">
+            <div class="deckpile"><div class="card back"></div><div class="count" id="dc"></div></div>
+            <button class="btn sm" id="flip">Flip top → center</button>
+            <button class="btn alt sm" id="shuf">Shuffle center back</button>
+            <button class="btn alt sm" id="gather">Gather all & reshuffle</button>
+          </div>
+        </div>
+        <div class="row" id="dealrow" style="margin-top:12px"></div>
+        <div id="seats" style="display:grid;gap:10px;margin-top:12px"></div>`;
+      const $=s=>root.querySelector(s);
+      $('#deckpill').textContent=DECKS[state.deckKind].label;
+      $('#dc').textContent=state.deck.length;
+      const center=$('#center'); state.center.forEach(c=>center.appendChild(cardEl(c)));
+      if(!state.center.length) center.appendChild(el('div','slot','center'));
+      $('#flip').onclick=()=>dispatch({t:'flip'});
+      $('#shuf').onclick=()=>dispatch({t:'shuffle'});
+      $('#gather').onclick=()=>dispatch({t:'gather'});
+
+      // deal controls (host/hotseat only)
+      const dealrow=$('#dealrow');
+      if(role!=='client'){
+        [1,2,3,5].forEach(n=>{ const b=el('button','btn sm','Deal '+n+' each'); b.onclick=()=>dispatch({t:'deal',n}); dealrow.appendChild(b); });
+        const nd=el('select','btn alt sm', Object.entries(DECKS).map(([k,v])=>`<option value="${k}">${v.label}</option>`).join(''));
+        nd.value=state.deckKind; nd.onchange=()=>dispatch({t:'newdeck',kind:nd.value});
+        dealrow.appendChild(nd);
+      } else dealrow.appendChild(el('div','muted','The host controls dealing. Play from your hand below.'));
+
+      const seatsEl=$('#seats');
+      state.seats.forEach((seat,i)=>{
+        const box=el('div','seatbox'+(i===mySeat?' me':''));
+        const ctrl = (role==='hotseat') || (i===mySeat);
+        box.innerHTML=`<div class="seatname"><span>${seat.name}${i===mySeat?' (you)':''}</span><span class="muted">${seat.hand.length} cards</span></div>`;
+        const hand=el('div','hand');
+        seat.hand.forEach((c,idx)=>{
+          // hotseat: show current seat's hand; online open-hands: show all
+          const faceUp = (role!=='hotseat') ? true : (i===mySeat);
+          const ce=cardEl(c,{faceUp});
+          if(ctrl){ ce.classList.add('playable'); ce.onclick=()=>dispatch({t:'play',seat:i,idx}); }
+          hand.appendChild(ce);
+        });
+        if(!seat.hand.length) hand.appendChild(el('div','slot','empty'));
+        box.appendChild(hand);
+        if(ctrl){ const dr=el('button','btn alt sm','Draw to '+(i===mySeat?'me':seat.name)); dr.onclick=()=>dispatch({t:'draw',seat:i}); box.appendChild(dr);
+          if(role==='hotseat'){ const sw=el('button','btn alt sm','Sit here'); sw.style.marginLeft='6px'; sw.onclick=()=>{ mySeat=i; render(); }; box.appendChild(sw); } }
+        seatsEl.appendChild(box);
+      });
+    }
+
+    render();
+    return ()=>Net.teardown();
+  }
+});
+
+/* ============================================================ */
+goHome();
+
+/* Dev hatch for headless smoke tests. */
+window.__cw = { makeDeck, shuffle, score5, best7, evalName, cmpScore, mkCard, mkJoker, GAMES };
+</script>
+</body>
+</html>
