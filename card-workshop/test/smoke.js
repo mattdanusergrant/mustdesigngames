@@ -98,6 +98,20 @@ test('higher pair wins, kickers break ties', ()=>{
   assert(cw.cmpScore(hiKick,loKick)>0, 'kicker fail');
 });
 
+// ---- Kingmaker duel: the King ▸ Queen ▸ Wyld ▸ King cycle ----------------
+test('fae duel cycle resolves correctly', ()=>{
+  const fb=cw.faeBeats, K=s=>C('K',s), Q=s=>C('Q',s), W=()=>cw.mkJoker(1), W2=()=>cw.mkJoker(2);
+  assert(fb(K('S'),Q('S'))>0, 'King should fell Queen');
+  assert(fb(Q('S'),W())>0, 'Queen should bind the Wyld');
+  assert(fb(W(),K('S'))>0, 'Wyld should topple King');
+  // same rank → higher suit S>H>D>C
+  assert(fb(K('S'),K('H'))>0 && fb(K('D'),K('C'))>0 && fb(Q('C'),Q('S'))<0, 'suit tiebreak');
+  // two Wylds clash → tie
+  assert(fb(W(),W2())===0, 'Wyld vs Wyld should tie');
+  // antisymmetry across the cycle
+  assert(fb(Q('S'),K('S'))<0 && fb(W(),Q('S'))<0 && fb(K('S'),W())<0, 'cycle antisymmetry');
+});
+
 // ---- games: mount every game without throwing -------------------------
 test('every game has required fields', ()=>{
   assert(Array.isArray(cw.GAMES) && cw.GAMES.length>=4, 'GAMES count');
