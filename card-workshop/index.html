@@ -438,10 +438,10 @@ GAMES.push({
 /* ============================================================
    GAME — BRAMBLEWAKE  (solo pairing/excavation solitaire, 44-card A..J deck)
    Match pairs of the SAME animal (same colour + same rank — the two same-colour
-   suits of a creature). Unmatchable cards go in burrows; each burrow buries one
-   face-down deck card that must be excavated by pairing the card above it.
-   Clear all 22 pairs to win; no legal move = stuck. (~37% winnable by greedy
-   play — tuned from an escalating-cost variant that proved unwinnable.)
+   suits of a creature). Starts with 3 pre-dealt burrows (2 buried + 1 face-up
+   each). Unmatchable cards open a new burrow that buries one face-down deck card,
+   excavated by pairing the card above it. Clear all 22 pairs to win; no legal
+   move = stuck. (~29% winnable by greedy play with the starting burrows.)
    ============================================================ */
 GAMES.push({
   id:'bramblewake', title:'Bramblewake', players:'1 player', tag:'solitaire · pairs · A–J',
@@ -477,10 +477,11 @@ GAMES.push({
     const match = (a,b) => a.color===b.color && a.r===b.r;   // same animal = same colour + same rank
     let deck = shuffle(makeDeck({ ranks:['A','2','3','4','5','6','7','8','9','10','J'] })); // 44 = 22 pairs
     let burrows=[];      // each = pile array; last element is the face-up top, earlier are buried face-down
+    for(let i=0;i<3;i++) burrows.push([deck.pop(),deck.pop(),deck.pop()]); // start: 3 burrows, each 2 buried + 1 face-up
     let cur=null, pairs=0, sel=null, over=false;  // sel: 'current' | a pile reference; over: false|true(win)|'stuck'
 
     root.innerHTML=`
-      <p class="muted" id="msg">Flip cards and match <b>pairs of the same animal</b> (same colour + number). A card that matches nothing goes in a <b>burrow</b>, which buries one deck card beneath it — dig it back out by pairing the card on top.</p>
+      <p class="muted" id="msg">You start with <b>three burrows</b> already dug (2 buried, 1 critter showing). Flip cards and match <b>pairs of the same animal</b> (same colour + number). A card that matches nothing opens a new <b>burrow</b>, burying one deck card beneath it — dig it back out by pairing the card on top.</p>
       <div class="felt" style="background:radial-gradient(circle at 50% 10%, #1c4f33, #0c2a1b)">
         <div class="h2" style="color:#dffbe9">🕳️ Burrows <span class="muted" id="binfo"></span></div>
         <div class="row" id="burrows" style="align-items:flex-start;min-height:104px"></div>
