@@ -444,20 +444,25 @@ GAMES.push({
 GAMES.push({
   id:'bramblewake', title:'Bramblewake', players:'1 player', tag:'kids · fae forest · A–J',
   chips:[{k:'custom',t:'fae deck'}],
-  blurb:'Wake the sleepy fae forest creatures, sprout (A) to full bloom (J), four times. Counting-first solitaire dressed in moss and moonlight.',
+  blurb:'A whole forest of fae creatures — a different critter for every number, from the wee Snail (A) up to the great Bear (J). Wake each one in counting order, four times.',
   mount(root){
-    const cv = c => c.r==='A'?1 : c.r==='J'?11 : c.v;            // A-low; J=11 = full bloom
-    const CRIT = { S:{e:'🦔',n:'Hedgehog'}, H:{e:'🦊',n:'Fox'}, D:{e:'🦉',n:'Owl'}, C:{e:'🐇',n:'Rabbit'} };
-    // themed creature card: green-lit face, big number for counting, family critter
+    const cv = c => c.r==='A'?1 : c.r==='J'?11 : c.v;            // A-low; J=11 = the great Bear
+    // each NUMBER is its own forest creature; suits stay the standard four.
+    const CREAT = {
+      A:{e:'🐌',n:'Snail'}, '2':{e:'🐛',n:'Caterpillar'}, '3':{e:'🐸',n:'Frog'}, '4':{e:'🐇',n:'Rabbit'},
+      '5':{e:'🦔',n:'Hedgehog'}, '6':{e:'🦊',n:'Fox'}, '7':{e:'🦡',n:'Badger'}, '8':{e:'🦉',n:'Owl'},
+      '9':{e:'🦌',n:'Deer'}, '10':{e:'🐗',n:'Boar'}, J:{e:'🐻',n:'Bear'},
+    };
+    // creature comes from the rank; the suit shows as a normal ♠♥♦♣ pip (red/black).
     function critEl(c, sel){
-      const d=el('div','card'); if(sel) d.classList.add('sel');
-      d.style.cssText='background:linear-gradient(165deg,#1f5132,#123a24);color:#eafff0;border:1px solid #2f7a4d';
-      const stage = c.r==='A' ? '🌱' : c.r==='J' ? '✨' : CRIT[c.s].e;
-      d.innerHTML=`<div class="corner tl" style="color:#d9ffe6">${c.t}</div>
+      const cr=CREAT[c.r]; const d=el('div','card'); if(sel) d.classList.add('sel');
+      const col = c.color==='red' ? '#c62b2b' : '#26344a';
+      d.style.cssText='background:linear-gradient(165deg,#f5fbf0,#e0f0e3);border:1px solid #b7d9c2';
+      d.innerHTML=`<div class="corner tl" style="color:${col}">${c.t}<span class="s">${c.sym}</span></div>
         <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
-          <div style="font-size:26px">${stage}</div>
-          <div style="font-size:18px;font-weight:900;margin-top:2px">${c.r==='A'?'A':c.r==='J'?'J':cv(c)}</div></div>
-        <div class="corner br" style="color:#d9ffe6">${c.t}</div>`;
+          <div style="font-size:27px">${cr.e}</div>
+          <div style="font-size:8.5px;font-weight:800;color:#2f5d40;margin-top:1px">${cr.n}</div></div>
+        <div class="corner br" style="color:${col}">${c.t}<span class="s">${c.sym}</span></div>`;
       return d;
     }
     let stock = shuffle(makeDeck({ ranks:['A','2','3','4','5','6','7','8','9','10','J'] })); // 44
@@ -466,7 +471,7 @@ GAMES.push({
     let trail=[]; let need=1; let woke=0; let cur=null;
 
     root.innerHTML=`
-      <p class="muted" id="msg">Wake the creatures in order: sprout 🌱(A), then 2,3…10, then their bloom ✨(J)!</p>
+      <p class="muted" id="msg">Wake the creatures in counting order — the 🐌 Snail (A), then 2, 3 … 10, up to the great 🐻 Bear (J)!</p>
       <div class="felt" style="background:radial-gradient(circle at 50% 10%, #1c4f33, #0c2a1b)">
         <div class="h2" style="color:#dffbe9">🌿 The Trail <span class="muted" id="needlbl"></span></div>
         <div class="lane" id="trail"></div>
@@ -485,7 +490,7 @@ GAMES.push({
 
     function placeOnTrail(c){
       trail.push(c); cur=null;
-      if(cv(c)===11){ woke++; toast('✨ A fae creature wakes and skips into the Heart of the Wood!'); trail=[]; need=1;
+      if(cv(c)===11){ woke++; toast('🐻 The great Bear wakes — a whole family is up and into the Heart of the Wood!'); trail=[]; need=1;
         if(woke>=4) return finish(); }
       else need=cv(c)+1;
       render();
@@ -503,17 +508,19 @@ GAMES.push({
     }
     function toBurrow(i){ if(!cur) return; burrows[i].push(cur); cur=null; render(); }
     function finish(){
-      root.innerHTML=`<div class="center"><div class="big">✨🦊🦉🐇🦔 The whole wood is awake!</div>
-        <p class="muted">Every family counted up from sprout to bloom. The Bramblewake glows.</p></div>`;
+      root.innerHTML=`<div class="center"><div class="big">🐌🐸🦊🦉🐻 The whole wood is awake!</div>
+        <p class="muted">You counted every creature up from Snail to Bear, four times over. The Bramblewake glows.</p></div>`;
       const again=el('button','btn','Wake them again'); again.onclick=()=>openGame(GAMES.find(g=>g.id==='bramblewake'));
       const r=el('div','row'); r.style.justifyContent='center'; r.appendChild(again); root.querySelector('.center').appendChild(r);
     }
+    const ridOf = n => n===1?'A' : n===11?'J' : String(n);
     function render(){
       dc.textContent=stock.length; prog.textContent=`Awakened ${woke}/4`;
-      needlbl.textContent = need<=10 ? `— needs ${need===1?'sprout (A)':need}` : '— needs the bloom (J)!';
+      const cr=CREAT[ridOf(need)];
+      needlbl.textContent = `— needs the ${cr.e} ${cr.n} (${ridOf(need)})`;
       flip.disabled = !!cur || stock.length===0;
       trailEl.innerHTML=''; trail.forEach(c=>trailEl.appendChild(critEl(c)));
-      if(!trail.length) trailEl.appendChild(el('div','slot','start with A 🌱'));
+      if(!trail.length) trailEl.appendChild(el('div','slot','start with the Snail (A)'));
       curwrap.innerHTML=''; if(cur) curwrap.appendChild(critEl(cur,true));
       burrowsEl.innerHTML='';
       burrows.forEach((pile,i)=>{
