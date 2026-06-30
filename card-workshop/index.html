@@ -214,6 +214,16 @@ function best7(cards){ // up to 7 cards (ignores jokers); returns {score, cards,
 }
 const evalName = cards => best7(cards).name;
 
+/* Fae duel resolution (Kingmaker): the cycle King ▸ Queen ▸ Wyld ▸ King.
+   Same rank breaks by suit ♠>♥>♦>♣. Returns 1 (a wins), -1 (b wins), 0 (tie). */
+function faeBeats(a,b){
+  const cat = c => c.joker ? 'J' : c.r;       // 'K' | 'Q' | 'J'(wyld)
+  const ca=cat(a), cb=cat(b);
+  if(ca===cb){ if(ca==='J') return 0; const ord={S:4,H:3,D:2,C:1}; return Math.sign(ord[a.s]-ord[b.s]); }
+  const tri={ K:'Q', Q:'J', J:'K' };          // X beats tri[X]
+  return tri[ca]===cb ? 1 : -1;
+}
+
 /* ============================================================
    ENGINE — rendering
    ============================================================ */
@@ -426,101 +436,276 @@ GAMES.push({
 });
 
 /* ============================================================
-   GAME — KINGMAKER  (solo, hardcore, 10-card royal+jokers deck)
-   Build one strict descending Procession: KS KH KD KC QS QH QD QC.
-   3 antechambers buffer. Jokers are wild but orphan their real counterpart.
+   GAME — BRAMBLEWAKE  (solo, ages 4-6, 44-card A..J deck)
+   Same counting-climb as Caterpillar Climb, re-themed: wake sleepy fae
+   forest creatures from a sprout (A) to their full bloom (J). Suits are
+   four creature families (hedgehog/fox/owl/rabbit). 4 burrows as reserves.
    ============================================================ */
 GAMES.push({
-  id:'kingmaker', title:'Kingmaker', players:'1 player', tag:'hardcore · 10-card deck',
-  chips:[{k:'custom',t:'custom deck'}],
-  blurb:'Seat the royal succession in strict order with only 3 buffers. Each Joker is a Faustian wildcard.',
+  id:'bramblewake', title:'Bramblewake', players:'1 player', tag:'kids · fae forest · A–J',
+  chips:[{k:'custom',t:'fae deck'}],
+  blurb:'Wake the sleepy fae forest creatures, sprout (A) to full bloom (J), four times. Counting-first solitaire dressed in moss and moonlight.',
   mount(root){
-    const ORDER=['KS','KH','KD','KC','QS','QH','QD','QC'];
-    const ANTE=3;
-    let stock = shuffle([ ...makeDeck({ranks:['K','Q']}), mkJoker(1), mkJoker(2) ]); // 8 court + 2 jokers
-    let proc=[]; let need=0; let ante=Array(ANTE).fill(null); let dungeon=[]; let cur=null; let over=false;
-    const orderIdx = c => c.joker ? -2 : ORDER.indexOf(c.id);
+    const cv = c => c.r==='A'?1 : c.r==='J'?11 : c.v;            // A-low; J=11 = full bloom
+    const CRIT = { S:{e:'🦔',n:'Hedgehog'}, H:{e:'🦊',n:'Fox'}, D:{e:'🦉',n:'Owl'}, C:{e:'🐇',n:'Rabbit'} };
+    // themed creature card: green-lit face, big number for counting, family critter
+    function critEl(c, sel){
+      const d=el('div','card'); if(sel) d.classList.add('sel');
+      d.style.cssText='background:linear-gradient(165deg,#1f5132,#123a24);color:#eafff0;border:1px solid #2f7a4d';
+      const stage = c.r==='A' ? '🌱' : c.r==='J' ? '✨' : CRIT[c.s].e;
+      d.innerHTML=`<div class="corner tl" style="color:#d9ffe6">${c.t}</div>
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+          <div style="font-size:26px">${stage}</div>
+          <div style="font-size:18px;font-weight:900;margin-top:2px">${c.r==='A'?'A':c.r==='J'?'J':cv(c)}</div></div>
+        <div class="corner br" style="color:#d9ffe6">${c.t}</div>`;
+      return d;
+    }
+    let stock = shuffle(makeDeck({ ranks:['A','2','3','4','5','6','7','8','9','10','J'] })); // 44
+    const BURROWS=4;
+    let burrows=Array.from({length:BURROWS},()=>[]);
+    let trail=[]; let need=1; let woke=0; let cur=null;
 
     root.innerHTML=`
-      <p class="muted" id="msg">Build the Procession in order: K♠ K♥ K♦ K♣ then Q♠ Q♥ Q♦ Q♣. Flip a claimant.</p>
-      <div class="felt">
-        <div class="h2" style="color:#eaf6ee">👑 Procession <span class="muted" id="needlbl"></span></div>
-        <div class="lane" id="proc"></div>
-        <div class="h2" style="color:#eaf6ee">🚪 Antechamber (3 buffers)</div>
-        <div class="row" id="ante" style="align-items:flex-start"></div>
-        <div class="h2" style="color:#eaf6ee">🗝️ Dungeon (dead cards) <span class="muted" id="dgn"></span></div>
+      <p class="muted" id="msg">Wake the creatures in order: sprout 🌱(A), then 2,3…10, then their bloom ✨(J)!</p>
+      <div class="felt" style="background:radial-gradient(circle at 50% 10%, #1c4f33, #0c2a1b)">
+        <div class="h2" style="color:#dffbe9">🌿 The Trail <span class="muted" id="needlbl"></span></div>
+        <div class="lane" id="trail"></div>
+        <div class="h2" style="color:#dffbe9">🕳️ Burrows (tap a sleepy critter to wake it when it’s next)</div>
+        <div class="row" id="burrows" style="align-items:flex-start"></div>
       </div>
       <div class="row" style="margin-top:14px">
         <div class="deckpile"><div class="card back"></div><div class="count" id="dc"></div></div>
         <div id="curwrap"></div>
-        <button class="btn" id="flip">Flip claimant</button>
-        <span class="pill" id="score">Seated 0/8</span>
-      </div>
-      <div class="row" id="actions" style="margin-top:10px"></div>`;
+        <button class="btn" id="flip">Peek under a leaf</button>
+        <span class="pill" id="prog">Awakened 0/4</span>
+      </div>`;
     const $=s=>root.querySelector(s);
-    const msg=$('#msg'), procEl=$('#proc'), anteEl=$('#ante'), dc=$('#dc'),
-          flip=$('#flip'), score=$('#score'), curwrap=$('#curwrap'), actions=$('#actions'),
-          needlbl=$('#needlbl'), dgn=$('#dgn');
+    const msg=$('#msg'), trailEl=$('#trail'), burrowsEl=$('#burrows'), dc=$('#dc'),
+          flip=$('#flip'), prog=$('#prog'), curwrap=$('#curwrap'), needlbl=$('#needlbl');
 
-    function needCardLabel(){ if(need>=8) return '— complete'; const id=ORDER[need];
-      const c=mkCard(id[0]==='1'?'10':id[0], id[1]); return '— needs '+c.t+c.sym; }
-    function placeProc(card){ // card may be joker (wild fill) or exact next
-      proc.push({ filled:ORDER[need], by:card }); need++; cur=null;
-      if(need>=8){ return finish(true); }
+    function placeOnTrail(c){
+      trail.push(c); cur=null;
+      if(cv(c)===11){ woke++; toast('✨ A fae creature wakes and skips into the Heart of the Wood!'); trail=[]; need=1;
+        if(woke>=4) return finish(); }
+      else need=cv(c)+1;
       render();
     }
+    function fromBurrow(i){
+      const pile=burrows[i]; if(!pile.length) return;
+      const top=pile[pile.length-1];
+      if(cv(top)===need){ pile.pop(); placeOnTrail(top); } else toast('That sleepy one isn’t next yet.');
+    }
     function flipCard(){
-      if(over||cur||!stock.length) return;
+      if(cur){ toast('Tuck the peeked critter into the trail or a burrow first.'); return; }
+      if(!stock.length) return;
       cur=stock.pop();
-      // auto-place if exact next
-      if(!cur.joker && orderIdx(cur)===need){ placeProc(cur); return; }
-      render(); evalStuck();
+      if(cv(cur)===need) placeOnTrail(cur); else render();
     }
-    function curOptions(){ // what can the current card do?
-      if(!cur) return [];
-      const o=[]; const idx=orderIdx(cur);
-      if(cur.joker) o.push({t:'Crown as '+needCardLabel().replace('— needs ',''),fn:()=>placeProc(cur),cls:'good'});
-      else if(idx===need) o.push({t:'Seat on Procession',fn:()=>placeProc(cur),cls:'good'});
-      if(!cur.joker && idx>-1 && idx<need) o.push({t:'Send to Dungeon (dead)',fn:()=>{ dungeon.push(cur); cur=null; render(); },cls:'bad'});
-      ante.forEach((slot,i)=>{ if(slot===null) o.push({t:'Park in buffer '+(i+1),fn:()=>{ ante[i]=cur; cur=null; render(); },cls:'alt'}); });
-      return o;
-    }
-    function fromAnte(i){
-      const card=ante[i]; if(!card||over) return; const idx=orderIdx(card);
-      if(card.joker || idx===need){ ante[i]=null; placeProc(card); }
-      else if(idx>-1 && idx<need){ ante[i]=null; dungeon.push(card); render(); toast('Banished to the Dungeon.'); }
-      else toast('Not its turn — and its slot hasn’t passed.');
-    }
-    function evalStuck(){
-      if(!cur) return;
-      const opts=curOptions();
-      if(opts.length===0){ over=true; msg.innerHTML='<b>The court collapses.</b> No legal placement for this claimant.'; render(); }
-    }
-    function finish(win){
-      over=true;
-      root.innerHTML=`<div class="center"><div class="big">${win?'👑 Coronation complete — the succession holds!':'The court collapsed.'}</div>
-        <p class="muted">Seated ${need}/8.${win?'':' A friendlier shuffle awaits.'}</p></div>`;
-      const again=el('button','btn','Deal again'); again.onclick=()=>openGame(GAMES.find(g=>g.id==='kingmaker'));
+    function toBurrow(i){ if(!cur) return; burrows[i].push(cur); cur=null; render(); }
+    function finish(){
+      root.innerHTML=`<div class="center"><div class="big">✨🦊🦉🐇🦔 The whole wood is awake!</div>
+        <p class="muted">Every family counted up from sprout to bloom. The Bramblewake glows.</p></div>`;
+      const again=el('button','btn','Wake them again'); again.onclick=()=>openGame(GAMES.find(g=>g.id==='bramblewake'));
       const r=el('div','row'); r.style.justifyContent='center'; r.appendChild(again); root.querySelector('.center').appendChild(r);
     }
     function render(){
-      dc.textContent=stock.length; score.textContent=`Seated ${need}/8`;
-      needlbl.textContent=needCardLabel(); dgn.textContent='('+dungeon.length+')';
-      flip.disabled = over || !!cur || stock.length===0;
-      procEl.innerHTML='';
-      proc.forEach(p=>{ const ce=cardEl(p.by); if(p.by.joker){ ce.title='wild → '+p.filled; } procEl.appendChild(ce); });
-      if(!proc.length) procEl.appendChild(el('div','slot','K♠ first'));
-      anteEl.innerHTML='';
-      ante.forEach((slot,i)=>{ const col=el('div'); col.style.cssText='display:flex;flex-direction:column;gap:4px;align-items:center';
-        const c = slot ? cardEl(slot) : el('div','slot','buffer '+(i+1));
-        if(slot){ c.classList.add('playable'); c.onclick=()=>fromAnte(i); }
-        col.appendChild(c); anteEl.appendChild(col); });
-      curwrap.innerHTML=''; if(cur){ const ce=cardEl(cur); ce.classList.add('sel'); curwrap.appendChild(ce); }
-      actions.innerHTML='';
-      curOptions().forEach(o=>{ const b=el('button','btn sm '+(o.cls||'alt'),o.t); b.onclick=o.fn; actions.appendChild(b); });
+      dc.textContent=stock.length; prog.textContent=`Awakened ${woke}/4`;
+      needlbl.textContent = need<=10 ? `— needs ${need===1?'sprout (A)':need}` : '— needs the bloom (J)!';
+      flip.disabled = !!cur || stock.length===0;
+      trailEl.innerHTML=''; trail.forEach(c=>trailEl.appendChild(critEl(c)));
+      if(!trail.length) trailEl.appendChild(el('div','slot','start with A 🌱'));
+      curwrap.innerHTML=''; if(cur) curwrap.appendChild(critEl(cur,true));
+      burrowsEl.innerHTML='';
+      burrows.forEach((pile,i)=>{
+        const col=el('div'); col.style.cssText='display:flex;flex-direction:column;align-items:center;gap:4px';
+        let top;
+        if(pile.length){ top=critEl(pile[pile.length-1]); top.classList.add('playable'); top.onclick=()=>fromBurrow(i); }
+        else { top=el('div','slot','burrow '+(i+1)); if(cur){ top.classList.add('playable'); top.onclick=()=>toBurrow(i); } }
+        col.appendChild(top);
+        const drop=el('button','btn alt sm', cur?'tuck here':'burrow '+(i+1)); drop.disabled=!cur; drop.onclick=()=>toBurrow(i);
+        col.appendChild(drop);
+        col.appendChild(el('div','muted', pile.length+' asleep'));
+        burrowsEl.appendChild(col);
+      });
     }
     flip.addEventListener('click',flipCard);
     render();
+  }
+});
+
+/* ============================================================
+   GAME — KINGMAKER  (1v1 hotseat fae duel, 10-card royals+wyld deck)
+   A betting duel on a 3-way cycle: King ▸ Queen ▸ Wyld ▸ King (same rank
+   breaks by suit). Deal 5 each; 5 tricks; ante + one bet/call round of Favor
+   per trick; secret simultaneous commit (pass-the-device curtains). Most
+   Favor after 5 tricks wins; bust your rival's Favor for an early kill.
+   Online (hidden-hand) networking is the next pass.
+   ============================================================ */
+GAMES.push({
+  id:'kingmaker', title:'Kingmaker', players:'2 players · hotseat', tag:'hardcore duel · 10-card deck',
+  chips:[{k:'custom',t:'fae deck'},{k:'net',t:'online soon'}],
+  blurb:'A 1v1 fae duel of nerve and bluff. King fells Queen, Queen binds the Wyld, the Wyld topples King. Wager your Favor and read your rival.',
+  mount(root){
+    const NAME={ KS:'The Standing Stone', KH:'The Wild Hunt', KD:'The Frost Crown', KC:'The Bog Father',
+      QS:'The Thorn Queen', QH:'The Bloodmoon', QD:'The Hoarfrost Maiden', QC:'The Mire Witch' };
+    const GLYPH={ S:'🌲', H:'🦌', D:'❄️', C:'🍄' };
+    const nameOf = c => c.joker ? 'The Wyld' : NAME[c.id];
+    function faeCardEl(c, faceUp){
+      const d=el('div','card lg');
+      if(!faceUp || !c){ d.classList.add('back'); return d; }
+      d.style.cssText='background:linear-gradient(160deg,#241b3a,#0e1430);border:1px solid #4a3f6b';
+      if(c.joker){ d.innerHTML=`<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#c9b3ff">
+        <div style="font-size:30px">🌀</div><div style="font-size:9px;font-weight:900;letter-spacing:.08em">WYLD</div></div>`; return d; }
+      const accent = c.r==='K' ? '#ffd86b' : '#c9b3ff';
+      d.innerHTML=`<div class="corner tl" style="color:${accent}">${c.t}<span class="s">${c.sym}</span></div>
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:3px;color:#e8e0ff">
+          <div style="font-size:24px">${GLYPH[c.s]}</div>
+          <div style="font-size:8px;font-weight:800;line-height:1.15;margin-top:3px">${NAME[c.id]}</div></div>
+        <div class="corner br" style="color:${accent}">${c.t}<span class="s">${c.sym}</span></div>`;
+      return d;
+    }
+
+    const START=10, ANTE=1, BETS=[1,2,3];
+    let favor=[START,START], hands=[[],[]], tricksWon=[0,0];
+    let trick=0, starter=0, pot=0, carry=0, committed=[null,null];
+    let betSize=0, betBy=-1, phase='intro', active=0, actor=0, foldHidden=false, msg='';
+
+    function deal(){
+      const d=shuffle([ ...makeDeck({ranks:['K','Q']}), mkJoker(1), mkJoker(2) ]); // 4K 4Q 2 wyld
+      hands=[ d.slice(0,5), d.slice(5,10) ];
+      favor=[START,START]; tricksWon=[0,0]; trick=0; starter=0; startTrick();
+    }
+    function startTrick(){
+      committed=[null,null]; betSize=0; betBy=-1; foldHidden=false;
+      pot=carry; carry=0;
+      [0,1].forEach(p=>{ const a=Math.min(ANTE,favor[p]); favor[p]-=a; pot+=a; });
+      active=starter; phase='handoff'; msg=`Trick ${trick+1} of 5 — ante paid.`; render();
+    }
+    function commit(idx){
+      committed[active]=hands[active].splice(idx,1)[0];
+      const other=1-active;
+      if(committed[other]===null){ active=other; phase='handoff'; }
+      else { actor=starter; phase='bet1'; }                 // both committed → betting
+      render();
+    }
+    function affordableBets(p){ return BETS.filter(b=>b<=favor[p]); }
+    function doBet(n){
+      betSize=n; betBy=actor; favor[actor]-=n; pot+=n;
+      actor=1-actor; phase = (phase==='bet1') ? 'bet2call' : 'bet3'; // bet1→responder call; bet2→starter call
+      render();
+    }
+    function doCall(){
+      const pay=Math.min(betSize,favor[actor]); favor[actor]-=pay; pot+=pay; reveal();
+    }
+    function doFold(){
+      const w=1-actor; favor[w]+=pot; tricksWon[w]++; foldHidden=true; pot=0;
+      msg=`Player ${actor+1} yields. Player ${w+1} takes the ley-line uncontested.`; phase='trickend'; render();
+    }
+    function reveal(){
+      const a=committed[0], b=committed[1]; const r=faeBeats(a,b);
+      if(r===0){ const half=Math.floor(pot/2); favor[0]+=half; favor[1]+=half; carry=pot-half*2;
+        msg='Clash! Wyld answers Wyld — the pot carries.'; }
+      else { const w=r>0?0:1; favor[w]+=pot; tricksWon[w]++;
+        msg=`${nameOf(committed[w])} overcomes ${nameOf(committed[1-w])} — Player ${w+1} wins the trick.`; }
+      pot=0; phase='trickend'; render();
+    }
+    function nextTrick(){
+      // early kill: a player with no Favor cannot ante
+      if(favor[0]<=0 || favor[1]<=0) return gameover();
+      trick++; if(trick>=5) return gameover();
+      starter=1-starter; startTrick();
+    }
+    function gameover(){
+      let winner;
+      if(favor[0]<=0 && favor[1]>0) winner=1;
+      else if(favor[1]<=0 && favor[0]>0) winner=0;
+      else if(favor[0]!==favor[1]) winner=favor[0]>favor[1]?0:1;
+      else winner = tricksWon[0]!==tricksWon[1] ? (tricksWon[0]>tricksWon[1]?0:1) : -1;
+      root.innerHTML=`<div class="center" style="padding-top:10px">
+        <div class="big">${winner<0?'A drawn duel — the wood keeps its throne.':'👑 Player '+(winner+1)+' is the Kingmaker!'}</div>
+        <p class="muted">Favor — P1 ${favor[0]} · P2 ${favor[1]} &nbsp;|&nbsp; Tricks — P1 ${tricksWon[0]} · P2 ${tricksWon[1]}</p></div>`;
+      const again=el('button','btn','Duel again'); again.onclick=()=>openGame(GAMES.find(g=>g.id==='kingmaker'));
+      const r=el('div','row'); r.style.justifyContent='center'; r.appendChild(again); root.querySelector('.center').appendChild(r);
+    }
+
+    function scoreboard(){
+      return `<div class="row" style="justify-content:space-between;margin-bottom:8px">
+        <span class="pill">P1 Favor ${favor[0]}</span>
+        <span class="pill" style="background:#143a4a">Pot ${pot}${carry?(' (+'+carry+' carry)'):''}</span>
+        <span class="pill">P2 Favor ${favor[1]}</span></div>`;
+    }
+    function boardRow(){
+      return `<div class="felt" style="background:radial-gradient(circle at 50% 0%, #2a1f47, #0c1024)">
+        <div class="row" style="justify-content:space-around;align-items:center">
+          <div class="center"><div class="muted">Player 1</div><div id="slot0"></div></div>
+          <div class="big" style="opacity:.5">⚔️</div>
+          <div class="center"><div class="muted">Player 2</div><div id="slot1"></div></div>
+        </div></div>`;
+    }
+
+    function render(){
+      // curtain for secret commit
+      if(phase==='handoff'){
+        root.innerHTML=`${scoreboard()}
+          <div class="felt center" style="padding:34px 14px;background:radial-gradient(circle at 50% 0%, #2a1f47, #0c1024)">
+            <div class="big">Pass the device to Player ${active+1}</div>
+            <p class="muted">${msg}<br>Your rival shouldn’t see your hand.</p>
+            <button class="btn" id="ready">I’m Player ${active+1} — show my hand</button>
+          </div>`;
+        root.querySelector('#ready').onclick=()=>{ phase='commit'; render(); };
+        return;
+      }
+      if(phase==='commit'){
+        root.innerHTML=`${scoreboard()}
+          <p class="muted">Player ${active+1}: choose a card to commit face-down. ${active===starter?'You lead this trick.':'You answer the lead.'}</p>
+          <div class="hand" id="hand" style="margin-top:8px"></div>
+          <p class="muted" style="margin-top:10px">Cycle: 👑 King fells Queen · Queen binds 🌀 Wyld · Wyld topples King. Same rank → higher suit ♠♥♦♣.</p>`;
+        const hand=root.querySelector('#hand');
+        hands[active].forEach((c,i)=>{ const ce=faeCardEl(c,true); ce.classList.add('playable'); ce.onclick=()=>commit(i); hand.appendChild(ce); });
+        return;
+      }
+      // betting + reveal share the board
+      const revealNow = (phase==='trickend');
+      root.innerHTML=`${scoreboard()}${boardRow()}
+        <div class="center" id="msg" style="min-height:24px;margin:12px 0;font-weight:800">${msg}</div>
+        <div class="row" id="ctl" style="justify-content:center"></div>
+        <div class="muted center" id="hint" style="margin-top:8px"></div>`;
+      const s0=root.querySelector('#slot0'), s1=root.querySelector('#slot1');
+      const showCards = revealNow && !foldHidden;  // a fold keeps both cards hidden (bluff preserved)
+      s0.appendChild(faeCardEl(committed[0], showCards));
+      s1.appendChild(faeCardEl(committed[1], showCards));
+      const ctl=root.querySelector('#ctl'), hint=root.querySelector('#hint');
+
+      if(phase==='bet1' || phase==='bet2'){
+        const who=actor; hint.textContent=`Player ${who+1}: open bets (cards stay hidden).`;
+        const check=el('button','btn alt',phase==='bet1'?'Check (lead)':'Check → reveal'); check.onclick=()=>{
+          if(phase==='bet1'){ actor=1-actor; phase='bet2'; render(); }
+          else reveal();
+        };
+        ctl.appendChild(check);
+        affordableBets(who).forEach(n=>{ const b=el('button','btn',`Bet ${n}`); b.onclick=()=>doBet(n); ctl.appendChild(b); });
+      }
+      else if(phase==='bet2call' || phase==='bet3'){
+        hint.textContent=`Player ${actor+1}: Player ${betBy+1} wagered ${betSize}. Call to reveal, or fold the trick.`;
+        const call=el('button','btn good',`Call ${Math.min(betSize,favor[actor])}`); call.onclick=doCall; ctl.appendChild(call);
+        const fold=el('button','btn bad','Fold'); fold.onclick=doFold; ctl.appendChild(fold);
+      }
+      else if(phase==='trickend'){
+        const go=el('button','btn good', (trick>=4||favor[0]<=0||favor[1]<=0)?'See result':'Next trick'); go.onclick=nextTrick; ctl.appendChild(go);
+      }
+    }
+
+    // intro screen
+    root.innerHTML=`<div class="felt" style="background:radial-gradient(circle at 50% 0%, #2a1f47, #0c1024)">
+      <div class="big center">⚔️ Kingmaker — a Fae Duel</div>
+      <p class="muted" style="margin-top:8px">Two courts vie to crown the wood's sovereign with ten imposing powers: four Kings, four Queens, two Wylds.</p>
+      <ul class="muted" style="line-height:1.7">
+        <li><b>The cycle:</b> 👑 King fells Queen · Queen binds 🌀 Wyld · Wyld topples King. Same rank → higher suit ♠♥♦♣.</li>
+        <li><b>Each trick:</b> both ante 1 Favor, secretly commit a card, then one open bet/call round. Higher card by the cycle takes the pot.</li>
+        <li><b>Win:</b> most Favor after 5 tricks — or bankrupt your rival for an early kill. Pass the device for secret commits.</li>
+      </ul>
+      <div class="center"><button class="btn" id="begin">Deal the duel</button></div></div>`;
+    root.querySelector('#begin').onclick=deal;
   }
 });
 
@@ -747,7 +932,7 @@ GAMES.push({
 goHome();
 
 /* Dev hatch for headless smoke tests. */
-window.__cw = { makeDeck, shuffle, score5, best7, evalName, cmpScore, mkCard, mkJoker, GAMES };
+window.__cw = { makeDeck, shuffle, score5, best7, evalName, cmpScore, faeBeats, mkCard, mkJoker, GAMES };
 </script>
 </body>
 </html>
