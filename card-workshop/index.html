@@ -436,17 +436,18 @@ GAMES.push({
 });
 
 /* ============================================================
-   GAME — BRAMBLEWAKE  (solo, ages 4-6, 44-card A..J deck)
-   Same counting-climb as Caterpillar Climb, re-themed: wake sleepy fae
-   forest creatures from a sprout (A) to their full bloom (J). Suits are
-   four creature families (hedgehog/fox/owl/rabbit). 4 burrows as reserves.
+   GAME — BRAMBLEWAKE  (solo pairing/excavation solitaire, 44-card A..J deck)
+   Match pairs of the SAME animal (same colour + same rank — the two same-colour
+   suits of a creature). Unmatchable cards go in burrows; each burrow buries one
+   face-down deck card that must be excavated by pairing the card above it.
+   Clear all 22 pairs to win; no legal move = stuck. (~37% winnable by greedy
+   play — tuned from an escalating-cost variant that proved unwinnable.)
    ============================================================ */
 GAMES.push({
-  id:'bramblewake', title:'Bramblewake', players:'1 player', tag:'kids · fae forest · A–J',
+  id:'bramblewake', title:'Bramblewake', players:'1 player', tag:'solitaire · pairs · A–J',
   chips:[{k:'custom',t:'fae deck'}],
-  blurb:'A fae bestiary in two halves — red animals (Pegasus→Horse) and black animals (Unicorn→Seal), a different creature for every number. Wake each one in counting order, four times.',
+  blurb:'Match pairs of the same fae animal (same colour + number) across a two-part bestiary — red (Pegasus→Horse) and black (Unicorn→Seal). Stash mismatches in burrows — each buries a card you must dig back out by pairing the one on top.',
   mount(root){
-    const cv = c => c.r==='A'?1 : c.r==='J'?11 : c.v;            // A-low; J=11
     // creature depends on COLOUR × RANK: red suits (♥♦) and black suits (♠♣) are
     // two parallel families of eleven. Suits render as the normal four pips.
     const CREAT = {
@@ -473,77 +474,98 @@ GAMES.push({
         <div class="corner br" style="color:${col}">${c.t}<span class="s">${c.sym}</span></div>`;
       return d;
     }
-    let stock = shuffle(makeDeck({ ranks:['A','2','3','4','5','6','7','8','9','10','J'] })); // 44
-    const BURROWS=4;
-    let burrows=Array.from({length:BURROWS},()=>[]);
-    let trail=[]; let need=1; let woke=0; let cur=null;
+    const match = (a,b) => a.color===b.color && a.r===b.r;   // same animal = same colour + same rank
+    let deck = shuffle(makeDeck({ ranks:['A','2','3','4','5','6','7','8','9','10','J'] })); // 44 = 22 pairs
+    let burrows=[];      // each = pile array; last element is the face-up top, earlier are buried face-down
+    let cur=null, pairs=0, sel=null, over=false;  // sel: 'current' | a pile reference; over: false|true(win)|'stuck'
 
     root.innerHTML=`
-      <p class="muted" id="msg">Wake the creatures in counting order — A, 2, 3 … 10, J. Red animals and black animals both count; any suit of the right number is next!</p>
+      <p class="muted" id="msg">Flip cards and match <b>pairs of the same animal</b> (same colour + number). A card that matches nothing goes in a <b>burrow</b>, which buries one deck card beneath it — dig it back out by pairing the card on top.</p>
       <div class="felt" style="background:radial-gradient(circle at 50% 10%, #1c4f33, #0c2a1b)">
-        <div class="h2" style="color:#dffbe9">🌿 The Trail <span class="muted" id="needlbl"></span></div>
-        <div class="lane" id="trail"></div>
-        <div class="h2" style="color:#dffbe9">🕳️ Burrows (tap a sleepy critter to wake it when it’s next)</div>
-        <div class="row" id="burrows" style="align-items:flex-start"></div>
+        <div class="h2" style="color:#dffbe9">🕳️ Burrows <span class="muted" id="binfo"></span></div>
+        <div class="row" id="burrows" style="align-items:flex-start;min-height:104px"></div>
       </div>
       <div class="row" style="margin-top:14px">
         <div class="deckpile"><div class="card back"></div><div class="count" id="dc"></div></div>
         <div id="curwrap"></div>
-        <button class="btn" id="flip">Peek under a leaf</button>
-        <span class="pill" id="prog">Awakened 0/4</span>
-      </div>`;
+        <button class="btn" id="flip">Flip a card</button>
+        <button class="btn alt" id="bury"></button>
+        <span class="pill" id="prog">Pairs 0/22</span>
+      </div>
+      <p class="muted" id="hint" style="margin-top:8px;min-height:18px"></p>`;
     const $=s=>root.querySelector(s);
-    const msg=$('#msg'), trailEl=$('#trail'), burrowsEl=$('#burrows'), dc=$('#dc'),
-          flip=$('#flip'), prog=$('#prog'), curwrap=$('#curwrap'), needlbl=$('#needlbl');
+    const burrowsEl=$('#burrows'), dc=$('#dc'), flip=$('#flip'), bury=$('#bury'),
+          prog=$('#prog'), curwrap=$('#curwrap'), binfo=$('#binfo'), hint=$('#hint');
 
-    function placeOnTrail(c){
-      trail.push(c); cur=null;
-      if(cv(c)===11){ woke++; toast('🐎🦭 The eleventh creature wakes — a whole trail is up and into the Heart of the Wood!'); trail=[]; need=1;
-        if(woke>=4) return finish(); }
-      else need=cv(c)+1;
-      render();
+    const topOf = pile => pile[pile.length-1];
+    const cardOf = ref => ref==='current' ? cur : topOf(ref);
+    function exposed(){ const e=[]; if(cur) e.push(cur); burrows.forEach(p=>e.push(topOf(p))); return e; }
+    const anyMatch = () => { const e=exposed(); return e.some((a,i)=>e.some((b,j)=>j>i && match(a,b))); };
+    function burrowCost(){ return 1; }   // each burrow buries exactly one deck card (excavate by pairing the top)
+
+    function selectRef(ref){
+      if(over) return;
+      if(sel===null){ sel=ref; render(); return; }
+      if(sel===ref){ sel=null; render(); return; }            // tap again to deselect
+      const a=cardOf(sel), b=cardOf(ref);
+      if(a && b && match(a,b)) pairUp(sel,ref);
+      else { sel=ref; render(); }                             // not a match → switch selection
     }
-    function fromBurrow(i){
-      const pile=burrows[i]; if(!pile.length) return;
-      const top=pile[pile.length-1];
-      if(cv(top)===need){ pile.pop(); placeOnTrail(top); } else toast('That sleepy one isn’t next yet.');
+    function removeRef(ref){ if(ref==='current') cur=null; else ref.pop(); }
+    function pairUp(rA,rB){
+      removeRef(rA); removeRef(rB);
+      burrows=burrows.filter(p=>p.length>0);                  // an emptied burrow is gone
+      pairs++; sel=null; toast('Pair! ✨'); checkEnd(); render();
     }
-    function flipCard(){
-      if(cur){ toast('Tuck the peeked critter into the trail or a burrow first.'); return; }
-      if(!stock.length) return;
-      cur=stock.pop();
-      if(cv(cur)===need) placeOnTrail(cur); else render();
+    function flipCard(){ if(over||cur||!deck.length) return; cur=deck.pop(); sel=null; checkEnd(); render(); }
+    function makeBurrow(){
+      if(over||!cur) return; const cost=burrowCost(); if(deck.length<cost) return;
+      const buried=deck.splice(deck.length-cost,cost);        // X face-down off the deck
+      burrows.push(buried.concat([cur]));                     // the unmatchable card sits face-up on top
+      cur=null; sel=null; checkEnd(); render();
     }
-    function toBurrow(i){ if(!cur) return; burrows[i].push(cur); cur=null; render(); }
-    function finish(){
-      root.innerHTML=`<div class="center"><div class="big">🦄🐴🦊🦉🦭 The whole wood is awake!</div>
-        <p class="muted">Both bestiaries — red and black, Pegasus to Seal — counted all the way up, four times over. The Bramblewake glows.</p></div>`;
-      const again=el('button','btn','Wake them again'); again.onclick=()=>openGame(GAMES.find(g=>g.id==='bramblewake'));
+    function checkEnd(){
+      if(pairs===22){ over=true; return; }
+      const canFlip=!cur && deck.length>0, canBurrow=!!cur && deck.length>=burrowCost();
+      if(!anyMatch() && !canFlip && !canBurrow) over='stuck';
+    }
+    function finish(win){
+      root.innerHTML = win
+        ? `<div class="center"><div class="big">🦄🐴🦊🦉🦭 Every animal is paired!</div>
+           <p class="muted">You matched all 22 pairs and dug every burrow clean. The Bramblewake glows.</p></div>`
+        : `<div class="center"><div class="big">🌙 The wood goes quiet…</div>
+           <p class="muted">No moves left — ${pairs}/22 pairs found. A kinder shuffle awaits.</p></div>`;
+      const again=el('button','btn',win?'Play again':'Try again'); again.onclick=()=>openGame(GAMES.find(g=>g.id==='bramblewake'));
       const r=el('div','row'); r.style.justifyContent='center'; r.appendChild(again); root.querySelector('.center').appendChild(r);
     }
-    const ridOf = n => n===1?'A' : n===11?'J' : String(n);
     function render(){
-      dc.textContent=stock.length; prog.textContent=`Awakened ${woke}/4`;
-      const rid=ridOf(need), cr=CREAT.red[rid], cb=CREAT.black[rid];
-      needlbl.textContent = `— needs ${rid}: ${cr.e} ${cr.n} or ${cb.e} ${cb.n}`;
-      flip.disabled = !!cur || stock.length===0;
-      trailEl.innerHTML=''; trail.forEach(c=>trailEl.appendChild(critEl(c)));
-      if(!trail.length) trailEl.appendChild(el('div','slot','start with an A'));
-      curwrap.innerHTML=''; if(cur) curwrap.appendChild(critEl(cur,true));
+      if(over===true) return finish(true);
+      if(over==='stuck') return finish(false);
+      dc.textContent=deck.length; prog.textContent=`Pairs ${pairs}/22`;
+      binfo.textContent = burrows.length ? `(${burrows.length} open)` : '(none yet)';
+      flip.disabled = !!cur || !deck.length;
+      const cost=burrowCost();
+      bury.textContent=`New burrow (bury ${cost})`; bury.disabled = !cur || deck.length<cost;
+      hint.textContent = cur
+        ? (anyMatch() ? 'A match is on the table — tap two cards of the same animal to pair them.'
+                      : `No match for the ${creatOf(cur).n}. Bury it (costs ${cost}) to keep digging.`)
+        : (deck.length ? 'Flip a card, or pair any two exposed animals that match.'
+                       : 'Deck empty — clear the burrows by pairing their top cards.');
+      curwrap.innerHTML='';
+      if(cur){ const ce=critEl(cur, sel==='current'); ce.classList.add('playable'); ce.onclick=()=>selectRef('current'); curwrap.appendChild(ce); }
       burrowsEl.innerHTML='';
-      burrows.forEach((pile,i)=>{
+      if(!burrows.length) burrowsEl.appendChild(el('div','slot','no burrows'));
+      burrows.forEach(pile=>{
         const col=el('div'); col.style.cssText='display:flex;flex-direction:column;align-items:center;gap:4px';
-        let top;
-        if(pile.length){ top=critEl(pile[pile.length-1]); top.classList.add('playable'); top.onclick=()=>fromBurrow(i); }
-        else { top=el('div','slot','burrow '+(i+1)); if(cur){ top.classList.add('playable'); top.onclick=()=>toBurrow(i); } }
+        const buriedN=pile.length-1;
+        const top=critEl(topOf(pile), sel===pile); top.classList.add('playable'); top.onclick=()=>selectRef(pile);
         col.appendChild(top);
-        const drop=el('button','btn alt sm', cur?'tuck here':'burrow '+(i+1)); drop.disabled=!cur; drop.onclick=()=>toBurrow(i);
-        col.appendChild(drop);
-        col.appendChild(el('div','muted', pile.length+' asleep'));
+        col.appendChild(el('div','muted', buriedN?(buriedN+' buried'):'nothing below'));
         burrowsEl.appendChild(col);
       });
     }
     flip.addEventListener('click',flipCard);
+    bury.addEventListener('click',makeBurrow);
     render();
   }
 });
