@@ -437,8 +437,9 @@ GAMES.push({
 
 /* ============================================================
    GAME — BRAMBLEWAKE  (matching solitaire w/ hidden cards + stacking, 44-card deck)
-   Deal 10 burrows of 4 (3 face-DOWN, 1 face-up) = 40; the remaining 4 cards seed
-   the hollows. 10 hollows, NO draw pile — every card is on the table at the start.
+   Deal 5 burrows of 8 (7 face-DOWN, 1 face-up) = 40; the remaining 4 cards seed 4
+   of the 5 hollows (1 empty). NO draw pile. Hollows sit aligned directly above
+   their burrows in 5 columns.
    The Drawn slot holds ONE card: you can only draw when it's empty AND there's room
    to place a card — an empty hollow or empty burrow (rule 1). 5 hollows are stacks:
    a card can be added to a hollow if it's the SAME SUIT and one rank higher/lower
@@ -446,14 +447,13 @@ GAMES.push({
    front, the drawn card, or a hollow top: pair two of the SAME animal (colour +
    rank), stack onto a hollow, or drop into an empty hollow/burrow. Clearing a
    burrow front UNCOVERS the sleeper behind it. Clear all 22 pairs to win.
-   Unlimited undo. Any exposed card (burrow front or hollow top) can go to an empty
-   hollow, so with 10 hollows you can dig every burrow — ~99.9% winnable with good
-   play (simulated).
+   Unlimited undo. HARD layout: deep 7-down burrows with only 5 hollows (1 empty)
+   choke digging — a greedy bot wins ~4% (avg ~4/22). Playable but punishing.
    ============================================================ */
 GAMES.push({
   id:'bramblewake', title:'Bramblewake', players:'1 player', tag:'solitaire · pairs · stacking',
   chips:[{k:'custom',t:'fae deck'}],
-  blurb:'A fae matching solitaire: pair every animal across a two-part bestiary — red (Pegasus→Horse) and black (Unicorn→Seal). Every card is dealt across 10 burrows and 10 hollows; dig the burrows to uncover critters, stack same-suit runs in the hollows to free space, and undo freely.',
+  blurb:'A tough fae matching solitaire: pair every animal across a two-part bestiary — red (Pegasus→Horse) and black (Unicorn→Seal). All 44 cards deal into 5 deep burrows with a hollow above each; dig to uncover critters, stack same-suit runs in the hollows to free space, and undo freely.',
   mount(root){
     // creature depends on COLOUR × RANK: red suits (♥♦) and black suits (♠♣) are
     // two parallel families of eleven. Suits render as the normal four pips.
@@ -492,7 +492,7 @@ GAMES.push({
     const match = (a,b) => a.color===b.color && a.r===b.r;   // pair = same animal (colour + rank)
     const rv = c => c.r==='A'?1 : c.r==='J'?11 : +c.r;        // sequence value A=1 … J=11
     const canStack = (top,card) => !!top && top.s===card.s && Math.abs(rv(top)-rv(card))===1; // same suit, ±1 rank
-    const HOLL=10, TOTAL=22, PILES=10, PILE_N=4, DOWN=3;      // 10 burrows of 4 (3 down, 1 up)=40, 10 hollows seed 4, no deck
+    const HOLL=5, TOTAL=22, PILES=5, PILE_N=8, DOWN=7;        // 5 burrows of 8 (7 down, 1 up)=40, 5 hollows (4 seeded, 1 empty), no deck
 
     // ---- state ----
     // pile = {arr,down} (front=arr[last], face-up; idx<down face-down). hollows[i]=stack, top accessible.
@@ -573,10 +573,8 @@ GAMES.push({
           </div>
           <span class="pill" id="prog">Pairs 0/${TOTAL}</span>
         </div>
-        <div class="h2" style="color:#dffbe9;margin-top:8px">🕳️ Hollows</div>
-        <div class="row" id="hollows" style="min-height:80px"></div>
-        <div class="h2" style="color:#dffbe9">🌲 Burrows</div>
-        <div id="tableau" style="display:flex;gap:8px;align-items:flex-start;overflow-x:auto;padding-bottom:6px"></div>
+        <div class="h2" style="color:#dffbe9;margin-top:8px">🕳️ Hollows &amp; 🌲 Burrows</div>
+        <div id="board" style="display:flex;gap:10px;align-items:flex-start;justify-content:center;overflow-x:auto;padding-bottom:6px"></div>
       </div>
       <div class="row" style="margin-top:12px">
         <button class="btn alt" id="undo">↶ Undo</button>
@@ -589,7 +587,7 @@ GAMES.push({
     function render(){
       const prog=root.querySelector('#prog'); if(!prog) return;       // win screen replaced the scaffold
       const stockEl=root.querySelector('#stock'), drawnEl=root.querySelector('#drawn'),
-            hollowsEl=root.querySelector('#hollows'), tableauEl=root.querySelector('#tableau'), hint=root.querySelector('#hint');
+            boardEl=root.querySelector('#board'), hint=root.querySelector('#hint');
       prog.textContent=`Pairs ${pairs}/${TOTAL}`;
       const deckrow=root.querySelector('#deckrow'); if(deckrow) deckrow.style.display=(stock.length||drawn)?'':'none'; // hide when there's no draw pile
       const selCard = sel ? refCard(sel) : null;
@@ -605,37 +603,37 @@ GAMES.push({
       if(drawn){ const ce=critEl(drawn, sel&&sel.k==='drawn'); ce.classList.add('playable');
         if(canMatch(drawn)) ce.style.outline='3px solid var(--good)'; ce.onclick=()=>clickCard({k:'drawn'}); drawnEl.appendChild(ce); }
       else drawnEl.appendChild(slotBox('—'));
-      // hollows — each a stack; top accessible; same-suit ±1 can be added (rule 2)
-      hollowsEl.innerHTML='';
-      hollows.forEach((stack,hi)=>{
-        if(!stack.length){ const s=slotBox('hollow'); if(selCard){ s.classList.add('playable'); s.style.borderColor='#8fe0b0'; s.onclick=()=>clickHollow(hi); } hollowsEl.appendChild(s); return; }
-        const col=el('div'); col.style.cssText='display:flex;flex-direction:column;align-items:center;flex:0 0 auto';
-        stack.forEach((card,idx)=>{
+      // aligned columns: each column is a hollow (top) directly above its burrow (bottom)
+      boardEl.innerHTML='';
+      for(let ci=0; ci<PILES; ci++){
+        const col=el('div'); col.style.cssText='display:flex;flex-direction:column;align-items:center;flex:0 0 auto;gap:14px';
+        // --- hollow (top) ---
+        const stack=hollows[ci], hcell=el('div'); hcell.style.cssText='display:flex;flex-direction:column;align-items:center';
+        if(!stack.length){ const s=slotBox('hollow'); if(selCard){ s.classList.add('playable'); s.style.borderColor='#8fe0b0'; s.onclick=()=>clickHollow(ci); } hcell.appendChild(s); }
+        else stack.forEach((card,idx)=>{
           const top=idx===stack.length-1;
-          const ce=critEl(card, top && !!sel && sel.k==='holl' && sel.i===hi);
+          const ce=critEl(card, top && !!sel && sel.k==='holl' && sel.i===ci);
           if(idx>0) ce.style.marginTop='-'+OVER+'px';
           if(top){ ce.classList.add('playable');
             if(canMatch(card)) ce.style.outline='3px solid var(--good)';
-            else if(selCard && !(sel.k==='holl'&&sel.i===hi) && canStack(card,selCard)) ce.style.outline='3px solid #8fe0b0';
-            ce.onclick=()=>clickHollow(hi); }
-          col.appendChild(ce);
+            else if(selCard && !(sel.k==='holl'&&sel.i===ci) && canStack(card,selCard)) ce.style.outline='3px solid #8fe0b0';
+            ce.onclick=()=>clickHollow(ci); }
+          hcell.appendChild(ce);
         });
-        hollowsEl.appendChild(col);
-      });
-      // burrows (piles) — face-down cards show as backs; front is face-up & pickable
-      tableauEl.innerHTML='';
-      piles.forEach((p,pi)=>{
-        const colEl=el('div'); colEl.style.cssText='display:flex;flex-direction:column;align-items:center;flex:0 0 auto';
-        if(!p.arr.length){ const s=slotBox(''); if(sel){ s.classList.add('playable'); s.style.borderColor='#8fe0b0'; s.onclick=()=>clickEmptyPile(pi); } colEl.appendChild(s); }
+        col.appendChild(hcell);
+        // --- burrow (bottom) ---
+        const p=piles[ci], bcell=el('div'); bcell.style.cssText='display:flex;flex-direction:column;align-items:center';
+        if(!p.arr.length){ const s=slotBox(''); if(sel){ s.classList.add('playable'); s.style.borderColor='#8fe0b0'; s.onclick=()=>clickEmptyPile(ci); } bcell.appendChild(s); }
         else p.arr.forEach((card,idx)=>{
-          const faceDown = idx < p.down, front = idx===p.arr.length-1;
-          const ce = faceDown ? box('card back') : critEl(card, front && !!sel && sel.k==='pile' && sel.i===pi);
+          const faceDown=idx<p.down, front=idx===p.arr.length-1;
+          const ce=faceDown ? box('card back') : critEl(card, front && !!sel && sel.k==='pile' && sel.i===ci);
           if(idx>0) ce.style.marginTop='-'+OVER+'px';
-          if(front && !faceDown){ ce.classList.add('playable'); if(canMatch(card)) ce.style.outline='3px solid var(--good)'; ce.onclick=()=>clickCard({k:'pile',i:pi}); }
-          colEl.appendChild(ce);
+          if(front && !faceDown){ ce.classList.add('playable'); if(canMatch(card)) ce.style.outline='3px solid var(--good)'; ce.onclick=()=>clickCard({k:'pile',i:ci}); }
+          bcell.appendChild(ce);
         });
-        tableauEl.appendChild(colEl);
-      });
+        col.appendChild(bcell);
+        boardEl.appendChild(col);
+      }
       hint.textContent = !anyLegalMove() ? 'No moves — tap ↶ Undo or New game.'
         : drawn ? 'Place the drawn critter — match it, stack it (same suit ±1), or drop it in a hollow or empty burrow.'
         : (stock.length && !drawRoom() ? 'No room to draw — free a hollow (match or stack a card) first.' : '');
