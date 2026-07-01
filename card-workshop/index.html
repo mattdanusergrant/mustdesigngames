@@ -437,8 +437,9 @@ GAMES.push({
 
 /* ============================================================
    GAME — BRAMBLEWAKE  (matching solitaire w/ hidden cards + stacking, 44-card deck)
-   Deal all 44 into 7 burrows face-down (far-left & far-right 7 cards, middle five
-   6). Each hollow AUTO-FILLS from the top card of the burrow directly beneath it
+   Deal all 44 into 7 burrows face-down (sizes 5,6,7,8,7,6,5 → face-down after
+   auto-fill = 3,4,5,6,5,4,3, a pyramid peaking at the center burrow). Each hollow
+   AUTO-FILLS from the top card of the burrow directly beneath it
    (same column) whenever it's empty — including at deal, giving 14 face-up cards
    (7 hollows + 7 revealed burrow fronts). Clearing a hollow pulls up and reveals
    the burrow's next card. NO draw pile. Hollows sit aligned above their burrows.
@@ -519,7 +520,8 @@ GAMES.push({
     function newDeal(){
       const d=shuffle(makeDeck({ranks:['A','2','3','4','5','6','7','8','9','10','J']})); // 44
       piles=[]; let i=0;
-      for(let p=0;p<PILES;p++){ const n=(p===0||p===PILES-1)?7:6; piles.push({arr:d.slice(i,i+n), down:n}); i+=n; } // all face-down; ends deeper
+      const SIZES=[5,6,7,8,7,6,5];  // after auto-fill, face-down per burrow = size-2 = 3,4,5,6,5,4,3
+      for(let p=0;p<PILES;p++){ const n=SIZES[p]; piles.push({arr:d.slice(i,i+n), down:n}); i+=n; } // all face-down
       hollows=Array.from({length:HOLL},()=>[]);
       stock=[]; drawn=null;                            // every card is dealt — no draw pile
       pairs=0; sel=null; history=[]; over=false;
