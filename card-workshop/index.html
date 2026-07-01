@@ -1138,6 +1138,140 @@ GAMES.push({
   }
 });
 
+/* ============================================================
+   GAME — MAU  (You vs 2 AI; Mau Mau / Crazy Eights shedding family, standard 52)
+   Shed your hand: play a card matching the top by SUIT or RANK, or a wild Jack.
+   Specials — 7: next player draws 2 (stackable); 8: skip; 9: reverse; J: wild
+   (choose the suit); A: normal. On your last card you must say "Mau!" — forget and
+   you're caught for +2 on the winning play. First to empty their hand wins.
+   (The real party game hides its rules — you learn them by penalty; here they're
+   shown, and the flavour lives in 7-stacks, wild Jacks, and the Mau call.)
+   ============================================================ */
+GAMES.push({
+  id:'mau', title:'Mau', players:'1 vs 2 AI', tag:'shedding · standard 52',
+  chips:[{k:'poker',t:'vs AI'}],
+  blurb:'A Mau Mau / Crazy Eights shedding duel vs two AI: match by suit or number, weaponize 7s (draw two, stackable), skips, reverses and wild Jacks — and don’t forget to say Mau on your last card.',
+  mount(root){
+    const NAMES=['You','Bramble','Thistle'];
+    const SUITN={S:'Spades',H:'Hearts',D:'Diamonds',C:'Clubs'}, SUITSYM={S:'♠',H:'♥',D:'♦',C:'♣'};
+    const isSpecial = r => r==='7'||r==='8'||r==='9'||r==='J';
+    let players, stock, discard, curSuit, dir, turn, drawPenalty, phase, pendingIdx=-1, youSaidMau, drewThisTurn, msg, over, winner=-1, timer=null, stallCount;
+
+    const top = () => discard[discard.length-1];
+    function canPlay(card){
+      if(drawPenalty>0) return card.r==='7';      // must stack a 7 or take the penalty
+      if(card.r==='J') return true;               // Jack is wild
+      return card.s===curSuit || card.r===top().r;
+    }
+    function reshuffle(){ if(discard.length<=1) return; const t=discard.pop(); stock=shuffle(discard); discard=[t]; }
+    function drawInto(pi,n){ let last=null; for(let k=0;k<n;k++){ if(!stock.length) reshuffle(); if(!stock.length) break; last=stock.pop(); players[pi].hand.push(last); } return last; }
+    function advance(steps){ turn = ((turn + dir*steps) % 3 + 3) % 3; }
+    const aiSuit = hand => { const c={S:0,H:0,D:0,C:0}; hand.forEach(x=>{ if(x.r!=='J') c[x.s]++; }); return ['S','H','D','C'].sort((a,b)=>c[b]-c[a])[0]; };
+
+    function start(){
+      const d=shuffle(makeDeck()); // 52
+      players=NAMES.map((name,i)=>({name, isAI:i>0, hand:d.splice(0,5)}));
+      let s; do{ s=d.shift(); if(isSpecial(s.r)) d.push(s); } while(isSpecial(s.r) && d.length); // start on a plain card
+      discard=[s]; stock=d; curSuit=s.s; dir=1; turn=0; drawPenalty=0; phase='play';
+      youSaidMau=false; drewThisTurn=false; over=false; winner=-1; stallCount=0;
+      beginTurn();
+    }
+    function beginTurn(){
+      const p=players[turn];
+      if(p.isAI){ msg=`${p.name} is thinking…`; render(); timer=setTimeout(aiMove,780); }
+      else { drewThisTurn=false; phase='play'; msg = drawPenalty>0 ? `A 7-stack is on you — play a 7 or take ${drawPenalty}.` : 'Your turn — match the suit or number, or play a Jack.'; render(); }
+    }
+    function finish(pi){ over=true; winner=pi; render(); }
+    function endByCount(){ let w=0; for(let i=1;i<3;i++) if(players[i].hand.length<players[w].hand.length) w=i; over=true; winner=w; render(); }
+    function passTurn(){ stallCount = stock.length===0 ? stallCount+1 : 0; if(stallCount>=3) return endByCount(); advance(1); beginTurn(); }
+
+    function playCard(pi, idx, chosenSuit){
+      stallCount=0;
+      const p=players[pi]; const card=p.hand.splice(idx,1)[0]; discard.push(card);
+      curSuit = card.r==='J' ? (chosenSuit || aiSuit(p.hand)) : card.s;
+      let steps=1;
+      if(card.r==='7') drawPenalty+=2; else if(card.r==='8') steps=2; else if(card.r==='9') dir=-dir;
+      if(pi>0 && p.hand.length===1) toast(`${p.name} says “Mau!”`);
+      if(p.hand.length===0){
+        if(pi===0 && !youSaidMau){ drawInto(0,2); youSaidMau=false; toast('Forgot to say Mau! +2'); msg='Caught — you forgot Mau and drew 2.'; advance(steps); return beginTurn(); }
+        return finish(pi);
+      }
+      if(pi===0 && p.hand.length>=2) youSaidMau=false;   // no longer in Mau range
+      advance(steps); beginTurn();
+    }
+    function aiMove(){
+      if(over) return; const p=players[turn];
+      if(drawPenalty>0){
+        const si=p.hand.findIndex(c=>c.r==='7');
+        if(si>=0){ toast(`${p.name} stacks a 7`); return playCard(turn, si); }
+        const n=drawPenalty; drawInto(turn,n); drawPenalty=0; stallCount=0; toast(`${p.name} takes ${n}`); advance(1); return beginTurn();
+      }
+      const valid=p.hand.map((c,i)=>({c,i})).filter(x=>canPlay(x.c));
+      if(!valid.length){ const drew=drawInto(turn,1); if(drew && canPlay(drew)) return playCard(turn, p.hand.indexOf(drew)); toast(`${p.name} draws`); return passTurn(); }
+      const nonJ=valid.filter(x=>x.c.r!=='J'); playCard(turn,(nonJ.length?nonJ:valid)[0].i);
+    }
+
+    // ---- human ----
+    function humanPlay(idx){ if(over||turn!==0||phase!=='play') return; const card=players[0].hand[idx]; if(!canPlay(card)) return;
+      if(card.r==='J'){ pendingIdx=idx; phase='chooseSuit'; render(); return; } playCard(0, idx); }
+    function chooseSuit(s){ if(phase!=='chooseSuit') return; const idx=pendingIdx; pendingIdx=-1; phase='play'; playCard(0, idx, s); }
+    function humanDraw(){ if(over||turn!==0) return;
+      if(drawPenalty>0){ const n=drawPenalty; drawInto(0,n); drawPenalty=0; stallCount=0; advance(1); return beginTurn(); }
+      if(drewThisTurn) return; drewThisTurn=true; const drew=drawInto(0,1);
+      msg = (drew && canPlay(drew)) ? 'You drew a playable card — play it or pass.' : 'Nothing to play — pass.'; render(); }
+    function humanPass(){ if(over||turn!==0||!drewThisTurn) return; passTurn(); }
+    function sayMau(){ if(players[0].hand.length===1){ youSaidMau=true; toast('You say “Mau!”'); render(); } }
+
+    // ---- render ----
+    function render(){
+      if(over){
+        root.innerHTML=`<div class="center" style="padding-top:14px"><div class="big">${winner===0?'🎉 Mau Mau! You win!':'🦊 '+players[winner].name+' sheds first — you lose this one.'}</div>
+          <p class="muted">Cards left — ${players.map(p=>p.name+' '+p.hand.length).join(' · ')}</p></div>`;
+        const again=el('button','btn','Play again'); again.onclick=()=>openGame(GAMES.find(g=>g.id==='mau'));
+        const r=el('div','row'); r.style.justifyContent='center'; r.appendChild(again); root.querySelector('.center').appendChild(r); return;
+      }
+      const you=players[0];
+      root.innerHTML=`
+        <div class="row" style="justify-content:space-between;align-items:center;gap:8px">
+          <span class="pill" style="${turn===1?'outline:2px solid var(--gold)':''}">🦊 ${players[1].name}: ${players[1].hand.length}</span>
+          <span class="pill" style="background:#143a4a">${dir>0?'↻ down':'↺ up'}${drawPenalty>0?' · draw '+drawPenalty:''}</span>
+          <span class="pill" style="${turn===2?'outline:2px solid var(--gold)':''}">🦔 ${players[2].name}: ${players[2].hand.length}</span>
+        </div>
+        <div class="felt" style="margin-top:10px">
+          <div class="row" style="justify-content:center;gap:20px;align-items:flex-start">
+            <div class="center"><div class="muted">Draw</div><div id="stock"></div></div>
+            <div class="center"><div class="muted">Must match: <b>${SUITSYM[curSuit]} ${SUITN[curSuit]}</b> or <b>${top().t}</b></div><div id="disc"></div></div>
+          </div>
+          <div class="center" id="msg" style="min-height:22px;margin-top:10px;font-weight:800"></div>
+          <div class="row" id="ctl" style="justify-content:center;margin-top:6px"></div>
+        </div>
+        <div class="h2" style="margin-top:10px">Your hand${you.hand.length===1?' — say Mau!':''}</div>
+        <div class="hand" id="hand"></div>`;
+      const st=root.querySelector('#stock'); st.appendChild(cardEl(null,{faceUp:false})); st.appendChild(el('div','muted',stock.length+' left'));
+      root.querySelector('#disc').appendChild(cardEl(top(),{faceUp:true}));
+      root.querySelector('#msg').textContent=msg;
+      const ctl=root.querySelector('#ctl');
+      if(phase==='chooseSuit'){
+        ctl.appendChild(el('div','muted','Wild Jack — choose a suit:'));
+        [['S','♠'],['H','♥'],['D','♦'],['C','♣']].forEach(([s,sym])=>{ const bt=el('button','btn sm',sym); bt.style.fontSize='18px'; bt.style.color=(s==='H'||s==='D')?'#ff9a9a':'#fff'; bt.onclick=()=>chooseSuit(s); ctl.appendChild(bt); });
+      } else if(turn===0){
+        if(drawPenalty>0){ const bt=el('button','btn','Take '+drawPenalty); bt.onclick=humanDraw; ctl.appendChild(bt); }
+        else { const bt=el('button','btn alt','Draw'); bt.disabled=drewThisTurn; bt.onclick=humanDraw; ctl.appendChild(bt);
+          if(drewThisTurn){ const ps=el('button','btn','Pass'); ps.onclick=humanPass; ctl.appendChild(ps); } }
+        if(you.hand.length===1 && !youSaidMau){ const m=el('button','btn good','🗣️ Mau!'); m.onclick=sayMau; ctl.appendChild(m); }
+      } else ctl.appendChild(el('div','muted',players[turn].name+' is playing…'));
+      const hand=root.querySelector('#hand'); hand.style.justifyContent='center';
+      you.hand.forEach((c,idx)=>{ const ce=cardEl(c,{faceUp:true});
+        if(turn===0 && phase==='play' && canPlay(c)){ ce.classList.add('playable'); ce.style.outline='2px solid var(--good)'; ce.onclick=()=>humanPlay(idx); }
+        else if(turn===0 && phase==='play') ce.style.opacity='.55';
+        hand.appendChild(ce); });
+    }
+
+    start();
+    return ()=>{ if(timer) clearTimeout(timer); };
+  }
+});
+
 /* ============================================================ */
 goHome();
 
