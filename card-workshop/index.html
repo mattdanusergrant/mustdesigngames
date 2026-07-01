@@ -618,17 +618,19 @@ GAMES.push({
 });
 
 /* ============================================================
-   GAME — KINGMAKER  (1v1 hotseat fae duel, 10-card royals+wyld deck)
-   A betting duel on a 3-way cycle: King ▸ Queen ▸ Wyld ▸ King (same rank
-   breaks by suit). Deal 5 each; 5 tricks; ante + one bet/call round of Favor
-   per trick; secret simultaneous commit (pass-the-device curtains). Most
-   Favor after 5 tricks wins; bust your rival's Favor for an early kill.
-   Online (hidden-hand) networking is the next pass.
+   GAME — KINGMAKER  (1v1 hotseat lane duel, 10-card royals+wyld deck)
+   Uses all 10 cards over 5 rounds. Each round both players are dealt one card
+   face-down; after seeing it (pass-the-device curtain) each secretly commits it
+   to the Left, Center, or Right throne. Scoring per throne: King=3, Queen=2;
+   each Wyld you place there topples (culls) the opponent's single strongest card
+   in that throne. Higher surviving value holds the throne (tie → strongest
+   surviving card by suit ♠♥♦♣, else neutral). Hold more thrones to win; total
+   surviving value breaks a tie.
    ============================================================ */
 GAMES.push({
-  id:'kingmaker', title:'Kingmaker', players:'2 players · hotseat', tag:'hardcore duel · 10-card deck',
+  id:'kingmaker', title:'Kingmaker', players:'2 players · hotseat', tag:'lane duel · 10-card deck',
   chips:[{k:'custom',t:'fae deck'},{k:'net',t:'online soon'}],
-  blurb:'A 1v1 fae duel of nerve and bluff. King fells Queen, Queen binds the Wyld, the Wyld topples King. Wager your Favor and read your rival.',
+  blurb:'A 1v1 fae duel for three thrones. Each round, draw a card in secret and commit it left, center, or right. Kings and Queens build a throne’s power; the Wyld topples the enemy’s mightiest. Hold two thrones to be crowned Kingmaker.',
   mount(root){
     const NAME={ KS:'The Standing Stone', KH:'The Wild Hunt', KD:'The Frost Crown', KC:'The Bog Father',
       QS:'The Thorn Queen', QH:'The Bloodmoon', QD:'The Hoarfrost Maiden', QC:'The Mire Witch' };
@@ -649,147 +651,118 @@ GAMES.push({
       return d;
     }
 
-    const START=10, ANTE=1, BETS=[1,2,3];
-    let favor=[START,START], hands=[[],[]], tricksWon=[0,0];
-    let trick=0, starter=0, pot=0, carry=0, committed=[null,null];
-    let betSize=0, betBy=-1, phase='intro', active=0, actor=0, foldHidden=false, msg='';
-
-    function deal(){
-      const d=shuffle([ ...makeDeck({ranks:['K','Q']}), mkJoker(1), mkJoker(2) ]); // 4K 4Q 2 wyld
-      hands=[ d.slice(0,5), d.slice(5,10) ];
-      favor=[START,START]; tricksWon=[0,0]; trick=0; starter=0; startTrick();
-    }
-    function startTrick(){
-      committed=[null,null]; betSize=0; betBy=-1; foldHidden=false;
-      pot=carry; carry=0;
-      [0,1].forEach(p=>{ const a=Math.min(ANTE,favor[p]); favor[p]-=a; pot+=a; });
-      active=starter; phase='handoff'; msg=`Trick ${trick+1} of 5 — ante paid.`; render();
-    }
-    function commit(idx){
-      committed[active]=hands[active].splice(idx,1)[0];
-      const other=1-active;
-      if(committed[other]===null){ active=other; phase='handoff'; }
-      else { actor=starter; phase='bet1'; }                 // both committed → betting
-      render();
-    }
-    function affordableBets(p){ return BETS.filter(b=>b<=favor[p]); }
-    function doBet(n){
-      betSize=n; betBy=actor; favor[actor]-=n; pot+=n;
-      actor=1-actor; phase = (phase==='bet1') ? 'bet2call' : 'bet3'; // bet1→responder call; bet2→starter call
-      render();
-    }
-    function doCall(){
-      const pay=Math.min(betSize,favor[actor]); favor[actor]-=pay; pot+=pay; reveal();
-    }
-    function doFold(){
-      const w=1-actor; favor[w]+=pot; tricksWon[w]++; foldHidden=true; pot=0;
-      msg=`Player ${actor+1} yields. Player ${w+1} takes the ley-line uncontested.`; phase='trickend'; render();
-    }
-    function reveal(){
-      const a=committed[0], b=committed[1]; const r=faeBeats(a,b);
-      if(r===0){ const half=Math.floor(pot/2); favor[0]+=half; favor[1]+=half; carry=pot-half*2;
-        msg='Clash! Wyld answers Wyld — the pot carries.'; }
-      else { const w=r>0?0:1; favor[w]+=pot; tricksWon[w]++;
-        msg=`${nameOf(committed[w])} overcomes ${nameOf(committed[1-w])} — Player ${w+1} wins the trick.`; }
-      pot=0; phase='trickend'; render();
-    }
-    function nextTrick(){
-      // early kill: a player with no Favor cannot ante
-      if(favor[0]<=0 || favor[1]<=0) return gameover();
-      trick++; if(trick>=5) return gameover();
-      starter=1-starter; startTrick();
-    }
-    function gameover(){
-      let winner;
-      if(favor[0]<=0 && favor[1]>0) winner=1;
-      else if(favor[1]<=0 && favor[0]>0) winner=0;
-      else if(favor[0]!==favor[1]) winner=favor[0]>favor[1]?0:1;
-      else winner = tricksWon[0]!==tricksWon[1] ? (tricksWon[0]>tricksWon[1]?0:1) : -1;
-      root.innerHTML=`<div class="center" style="padding-top:10px">
-        <div class="big">${winner<0?'A drawn duel — the wood keeps its throne.':'👑 Player '+(winner+1)+' is the Kingmaker!'}</div>
-        <p class="muted">Favor — P1 ${favor[0]} · P2 ${favor[1]} &nbsp;|&nbsp; Tricks — P1 ${tricksWon[0]} · P2 ${tricksWon[1]}</p></div>`;
-      const again=el('button','btn','Duel again'); again.onclick=()=>openGame(GAMES.find(g=>g.id==='kingmaker'));
-      const r=el('div','row'); r.style.justifyContent='center'; r.appendChild(again); root.querySelector('.center').appendChild(r);
+    const LANES=['L','C','R'], LNAME={ L:'Left', C:'Center', R:'Right' };
+    const suitOrd={ S:4, H:3, D:2, C:1 };
+    const val = c => c.joker ? 0 : c.r==='K' ? 3 : 2;                 // throne value
+    const strength = c => (c.r==='K'?100:50) + suitOrd[c.s];          // for culling + tiebreak
+    function mini(c, culled){
+      const d=el('div'); const accent = c.joker?'#c9b3ff' : c.r==='K'?'#ffd86b':'#c9b3ff';
+      d.style.cssText=`display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:42px;height:58px;border-radius:7px;background:linear-gradient(160deg,#241b3a,#0e1430);border:1px solid #4a3f6b;color:#e8e0ff;${culled?'opacity:.3;':''}`;
+      d.innerHTML = c.joker
+        ? `<div style="font-size:17px">🌀</div><div style="font-size:7px;font-weight:900">WYLD</div>`
+        : `<div style="font-size:11px;font-weight:900;color:${accent}">${c.t}${c.sym}</div><div style="font-size:15px">${GLYPH[c.s]}</div>`;
+      return d;
     }
 
-    function scoreboard(){
-      return `<div class="row" style="justify-content:space-between;margin-bottom:8px">
-        <span class="pill">P1 Favor ${favor[0]}</span>
-        <span class="pill" style="background:#143a4a">Pot ${pot}${carry?(' (+'+carry+' carry)'):''}</span>
-        <span class="pill">P2 Favor ${favor[1]}</span></div>`;
+    let deck, lanes, round, active, current, phase='intro', results=null;
+
+    function start(){
+      deck=shuffle([ ...makeDeck({ranks:['K','Q']}), mkJoker(1), mkJoker(2) ]);  // 4K 4Q 2 Wyld = 10
+      lanes=[{L:[],C:[],R:[]},{L:[],C:[],R:[]}]; round=0; active=0; current=null; results=null; phase='handoff'; render();
     }
-    function boardRow(){
-      return `<div class="felt" style="background:radial-gradient(circle at 50% 0%, #2a1f47, #0c1024)">
-        <div class="row" style="justify-content:space-around;align-items:center">
-          <div class="center"><div class="muted">Player 1</div><div id="slot0"></div></div>
-          <div class="big" style="opacity:.5">⚔️</div>
-          <div class="center"><div class="muted">Player 2</div><div id="slot1"></div></div>
-        </div></div>`;
+    function beginTurn(){ current=deck.pop(); phase='place'; render(); }
+    function place(l){
+      if(!current) return; lanes[active][l].push(current); current=null;
+      if(active===0){ active=1; phase='handoff'; render(); }
+      else { active=0; round++; if(round>=5) return resolve(); phase='handoff'; render(); }
     }
+    function laneResult(l){
+      const mine=lanes[0][l], opp=lanes[1][l];
+      const mW=mine.filter(c=>c.joker).length, oW=opp.filter(c=>c.joker).length;
+      const mR=mine.filter(c=>!c.joker).sort((a,b)=>strength(b)-strength(a));
+      const oR=opp.filter(c=>!c.joker).sort((a,b)=>strength(b)-strength(a));
+      const mCut=mR.slice(0,oW), oCut=oR.slice(0,mW);                 // enemy Wylds cull your strongest royals
+      const mVal=mR.slice(oW).reduce((s,c)=>s+val(c),0), oVal=oR.slice(mW).reduce((s,c)=>s+val(c),0);
+      let owner;
+      if(mVal>oVal) owner=0; else if(oVal>mVal) owner=1;
+      else { const mb=mR.slice(oW)[0], ob=oR.slice(mW)[0]; const ms=mb?strength(mb):-1, os=ob?strength(ob):-1;
+             owner = ms>os?0 : os>ms?1 : -1; }                       // tie → strongest surviving card, else neutral
+      return { l, mine, opp, mCut, oCut, mVal, oVal, owner };
+    }
+    function resolve(){ results=LANES.map(laneResult); phase='reveal'; render(); }
+    function tallies(){ const t=[0,0]; results.forEach(r=>{ if(r.owner>=0) t[r.owner]++; }); return t; }
 
     function render(){
-      // curtain for secret commit
+      if(phase==='intro'){
+        root.innerHTML=`<div class="felt" style="background:radial-gradient(circle at 50% 0%, #2a1f47, #0c1024)">
+          <div class="big center">👑 Kingmaker — Three Thrones</div>
+          <p class="muted" style="margin-top:8px">Two courts fight for three thrones with ten fae powers: four Kings, four Queens, two Wylds.</p>
+          <ul class="muted" style="line-height:1.7">
+            <li><b>Each round</b> (5 total): both players are secretly dealt one card. After seeing yours, commit it to the <b>Left</b>, <b>Center</b>, or <b>Right</b> throne — then pass the device.</li>
+            <li><b>Throne value:</b> 👑 King = 3, Queen = 2. Each 🌀 <b>Wyld</b> you place topples the opponent's strongest card in that throne (and scores 0 itself).</li>
+            <li><b>Hold a throne</b> with the higher surviving value (ties → strongest card by suit ♠♥♦♣). Win <b>two of three</b> thrones to be crowned.</li>
+          </ul>
+          <div class="center"><button class="btn" id="begin">Deal the duel</button></div></div>`;
+        root.querySelector('#begin').onclick=start; return;
+      }
       if(phase==='handoff'){
-        root.innerHTML=`${scoreboard()}
-          <div class="felt center" style="padding:34px 14px;background:radial-gradient(circle at 50% 0%, #2a1f47, #0c1024)">
-            <div class="big">Pass the device to Player ${active+1}</div>
-            <p class="muted">${msg}<br>Your rival shouldn’t see your hand.</p>
-            <button class="btn" id="ready">I’m Player ${active+1} — show my hand</button>
+        root.innerHTML=`<div class="felt center" style="padding:34px 14px;background:radial-gradient(circle at 50% 0%, #2a1f47, #0c1024)">
+          <div class="muted">Round ${round+1} of 5</div>
+          <div class="big" style="margin-top:6px">Pass the device to Player ${active+1}</div>
+          <p class="muted">Only you should see your card and where you place it.</p>
+          <button class="btn" id="ready">I'm Player ${active+1} — draw my card</button></div>`;
+        root.querySelector('#ready').onclick=beginTurn; return;
+      }
+      if(phase==='place'){
+        root.innerHTML=`
+          <div class="row" style="justify-content:space-between"><span class="pill">Player ${active+1}</span><span class="pill">Round ${round+1}/5</span></div>
+          <div class="felt" style="margin-top:10px;background:radial-gradient(circle at 50% 0%, #2a1f47, #0c1024)">
+            <div class="center"><div class="muted">Your card — commit it to a throne</div>
+              <div id="cardwrap" style="display:flex;justify-content:center;margin:8px 0"></div>
+              <div class="muted" style="font-size:12px">${nameOf(current)} — ${current.joker?'Wyld: topples the enemy’s strongest card in its throne':val(current)+' throne value'}</div></div>
+            <div class="row" id="thrones" style="justify-content:space-around;margin-top:14px;align-items:flex-start"></div>
           </div>`;
-        root.querySelector('#ready').onclick=()=>{ phase='commit'; render(); };
+        root.querySelector('#cardwrap').appendChild(faeCardEl(current,true));
+        const th=root.querySelector('#thrones');
+        LANES.forEach(l=>{
+          const col=el('div'); col.style.cssText='display:flex;flex-direction:column;align-items:center;gap:6px;min-width:100px';
+          col.appendChild(el('div','muted',LNAME[l]+' Throne'));
+          const yours=el('div'); yours.style.cssText='display:flex;gap:3px;flex-wrap:wrap;justify-content:center;min-height:60px';
+          lanes[active][l].forEach(c=>yours.appendChild(mini(c,false)));
+          if(!lanes[active][l].length) yours.appendChild(el('div','muted','—'));
+          col.appendChild(yours);
+          col.appendChild(el('div','muted','opponent: 🂠 hidden'));
+          const b=el('button','btn sm','Place here'); b.onclick=()=>place(l); col.appendChild(b);
+          th.appendChild(col);
+        });
         return;
       }
-      if(phase==='commit'){
-        root.innerHTML=`${scoreboard()}
-          <p class="muted">Player ${active+1}: choose a card to commit face-down. ${active===starter?'You lead this trick.':'You answer the lead.'}</p>
-          <div class="hand" id="hand" style="margin-top:8px"></div>
-          <p class="muted" style="margin-top:10px">Cycle: 👑 King fells Queen · Queen binds 🌀 Wyld · Wyld topples King. Same rank → higher suit ♠♥♦♣.</p>`;
-        const hand=root.querySelector('#hand');
-        hands[active].forEach((c,i)=>{ const ce=faeCardEl(c,true); ce.classList.add('playable'); ce.onclick=()=>commit(i); hand.appendChild(ce); });
-        return;
-      }
-      // betting + reveal share the board
-      const revealNow = (phase==='trickend');
-      root.innerHTML=`${scoreboard()}${boardRow()}
-        <div class="center" id="msg" style="min-height:24px;margin:12px 0;font-weight:800">${msg}</div>
-        <div class="row" id="ctl" style="justify-content:center"></div>
-        <div class="muted center" id="hint" style="margin-top:8px"></div>`;
-      const s0=root.querySelector('#slot0'), s1=root.querySelector('#slot1');
-      const showCards = revealNow && !foldHidden;  // a fold keeps both cards hidden (bluff preserved)
-      s0.appendChild(faeCardEl(committed[0], showCards));
-      s1.appendChild(faeCardEl(committed[1], showCards));
-      const ctl=root.querySelector('#ctl'), hint=root.querySelector('#hint');
-
-      if(phase==='bet1' || phase==='bet2'){
-        const who=actor; hint.textContent=`Player ${who+1}: open bets (cards stay hidden).`;
-        const check=el('button','btn alt',phase==='bet1'?'Check (lead)':'Check → reveal'); check.onclick=()=>{
-          if(phase==='bet1'){ actor=1-actor; phase='bet2'; render(); }
-          else reveal();
-        };
-        ctl.appendChild(check);
-        affordableBets(who).forEach(n=>{ const b=el('button','btn',`Bet ${n}`); b.onclick=()=>doBet(n); ctl.appendChild(b); });
-      }
-      else if(phase==='bet2call' || phase==='bet3'){
-        hint.textContent=`Player ${actor+1}: Player ${betBy+1} wagered ${betSize}. Call to reveal, or fold the trick.`;
-        const call=el('button','btn good',`Call ${Math.min(betSize,favor[actor])}`); call.onclick=doCall; ctl.appendChild(call);
-        const fold=el('button','btn bad','Fold'); fold.onclick=doFold; ctl.appendChild(fold);
-      }
-      else if(phase==='trickend'){
-        const go=el('button','btn good', (trick>=4||favor[0]<=0||favor[1]<=0)?'See result':'Next trick'); go.onclick=nextTrick; ctl.appendChild(go);
-      }
+      // reveal
+      const t=tallies();
+      let winner; if(t[0]!==t[1]) winner=t[0]>t[1]?0:1;
+      else { const v=[results.reduce((s,r)=>s+r.mVal,0), results.reduce((s,r)=>s+r.oVal,0)]; winner = v[0]!==v[1]?(v[0]>v[1]?0:1):-1; }
+      root.innerHTML=`
+        <div class="center" style="margin-bottom:8px"><div class="big">${winner<0?'A drawn duel — the thrones stay contested.':'👑 Player '+(winner+1)+' is crowned Kingmaker!'}</div>
+          <div class="muted">Thrones held — P1 ${t[0]} · P2 ${t[1]}</div></div>
+        <div id="board"></div>
+        <div class="row" style="justify-content:center;margin-top:12px"><button class="btn" id="again">Duel again</button></div>`;
+      const board=root.querySelector('#board');
+      results.forEach(r=>{
+        const panel=el('div','felt'); panel.style.cssText='margin:8px 0;background:radial-gradient(circle at 50% 0%, #241b3a, #0c1024)';
+        panel.appendChild(el('div','h2',`${LNAME[r.l]} Throne — ${r.owner<0?'⚖️ neutral':'👑 Player '+(r.owner+1)} <span class="muted" style="font-weight:400">(value P1 ${r.mVal} · P2 ${r.oVal})</span>`));
+        [['Player 1', r.mine, r.mCut],['Player 2', r.opp, r.oCut]].forEach(row=>{
+          const label=row[0], cards=row[1], cut=row[2];
+          const line=el('div'); line.style.cssText='display:flex;align-items:center;gap:6px;margin:4px 0;flex-wrap:wrap';
+          line.appendChild(el('div','muted',label));
+          if(!cards.length) line.appendChild(el('div','muted','—'));
+          cards.forEach(c=>line.appendChild(mini(c, cut.indexOf(c)>=0)));
+          panel.appendChild(line);
+        });
+        board.appendChild(panel);
+      });
+      root.querySelector('#again').onclick=()=>openGame(GAMES.find(g=>g.id==='kingmaker'));
     }
-
-    // intro screen
-    root.innerHTML=`<div class="felt" style="background:radial-gradient(circle at 50% 0%, #2a1f47, #0c1024)">
-      <div class="big center">⚔️ Kingmaker — a Fae Duel</div>
-      <p class="muted" style="margin-top:8px">Two courts vie to crown the wood's sovereign with ten imposing powers: four Kings, four Queens, two Wylds.</p>
-      <ul class="muted" style="line-height:1.7">
-        <li><b>The cycle:</b> 👑 King fells Queen · Queen binds 🌀 Wyld · Wyld topples King. Same rank → higher suit ♠♥♦♣.</li>
-        <li><b>Each trick:</b> both ante 1 Favor, secretly commit a card, then one open bet/call round. Higher card by the cycle takes the pot.</li>
-        <li><b>Win:</b> most Favor after 5 tricks — or bankrupt your rival for an early kill. Pass the device for secret commits.</li>
-      </ul>
-      <div class="center"><button class="btn" id="begin">Deal the duel</button></div></div>`;
-    root.querySelector('#begin').onclick=deal;
+    render();
   }
 });
 
