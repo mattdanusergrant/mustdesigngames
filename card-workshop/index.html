@@ -618,19 +618,20 @@ GAMES.push({
 });
 
 /* ============================================================
-   GAME — KINGMAKER  (1v1 hotseat lane duel, 10-card royals+wyld deck)
-   Uses all 10 cards over 5 rounds. Each round both players are dealt one card
-   face-down; after seeing it (pass-the-device curtain) each secretly commits it
-   to the Left, Center, or Right throne. Scoring per throne: King=3, Queen=2;
-   each Wyld you place there topples (culls) the opponent's single strongest card
-   in that throne. Higher surviving value holds the throne (tie → strongest
-   surviving card by suit ♠♥♦♣, else neutral). Hold more thrones to win; total
-   surviving value breaks a tie.
+   GAME — KINGMAKER  (1v1 lane duel — vs AI or online, 10-card royals+wyld deck)
+   Uses all 10 cards over 5 rounds. Each round both sides are secretly dealt one
+   card and commit it to the Left, Center, or Right throne. Scoring per throne:
+   King=3, Queen=2; each Wyld you place topples (culls) the opponent's strongest
+   card in that throne. Higher surviving value holds the throne (tie → strongest
+   surviving card by suit ♠♥♦♣, else neutral). Hold more thrones to win.
+   NO local hotseat — opponent is either the AI (authoritative local) or a remote
+   peer over the Net layer (host-authoritative, redacted per-seat state so each
+   side sees only their own throne cards until the reveal). Online is P2P/beta.
    ============================================================ */
 GAMES.push({
-  id:'kingmaker', title:'Kingmaker', players:'2 players · hotseat', tag:'lane duel · 10-card deck',
-  chips:[{k:'custom',t:'fae deck'},{k:'net',t:'online soon'}],
-  blurb:'A 1v1 fae duel for three thrones. Each round, draw a card in secret and commit it left, center, or right. Kings and Queens build a throne’s power; the Wyld topples the enemy’s mightiest. Hold two thrones to be crowned Kingmaker.',
+  id:'kingmaker', title:'Kingmaker', players:'vs AI / online', tag:'lane duel · online',
+  chips:[{k:'poker',t:'vs AI'},{k:'net',t:'online'}],
+  blurb:'A 1v1 fae duel for three thrones — play the AI or a friend online. Each round, draw a card in secret and commit it left, center, or right. Kings and Queens build a throne’s power; the Wyld topples the enemy’s mightiest. Hold two thrones to be crowned.',
   mount(root){
     const NAME={ KS:'The Standing Stone', KH:'The Wild Hunt', KD:'The Frost Crown', KC:'The Bog Father',
       QS:'The Thorn Queen', QH:'The Bloodmoon', QD:'The Hoarfrost Maiden', QC:'The Mire Witch' };
@@ -664,18 +665,10 @@ GAMES.push({
       return d;
     }
 
-    let deck, lanes, round, active, current, phase='intro', results=null;
+    const $ = s => root.querySelector(s);
+    const freshDeck = () => shuffle([ ...makeDeck({ranks:['K','Q']}), mkJoker(1), mkJoker(2) ]); // 4K 4Q 2 Wyld = 10
 
-    function start(){
-      deck=shuffle([ ...makeDeck({ranks:['K','Q']}), mkJoker(1), mkJoker(2) ]);  // 4K 4Q 2 Wyld = 10
-      lanes=[{L:[],C:[],R:[]},{L:[],C:[],R:[]}]; round=0; active=0; current=null; results=null; phase='handoff'; render();
-    }
-    function beginTurn(){ current=deck.pop(); phase='place'; render(); }
-    function place(l){
-      if(!current) return; lanes[active][l].push(current); current=null;
-      if(active===0){ active=1; phase='handoff'; render(); }
-      else { active=0; round++; if(round>=5) return resolve(); phase='handoff'; render(); }
-    }
+    // ---- shared scoring (lanes[0]=Player 1, lanes[1]=Player 2) ----
     function laneResult(l){
       const mine=lanes[0][l], opp=lanes[1][l];
       const mW=mine.filter(c=>c.joker).length, oW=opp.filter(c=>c.joker).length;
@@ -689,80 +682,164 @@ GAMES.push({
              owner = ms>os?0 : os>ms?1 : -1; }                       // tie → strongest surviving card, else neutral
       return { l, mine, opp, mCut, oCut, mVal, oVal, owner };
     }
-    function resolve(){ results=LANES.map(laneResult); phase='reveal'; render(); }
     function tallies(){ const t=[0,0]; results.forEach(r=>{ if(r.owner>=0) t[r.owner]++; }); return t; }
 
-    function render(){
-      if(phase==='intro'){
-        root.innerHTML=`<div class="felt" style="background:radial-gradient(circle at 50% 0%, #2a1f47, #0c1024)">
-          <div class="big center">👑 Kingmaker — Three Thrones</div>
-          <p class="muted" style="margin-top:8px">Two courts fight for three thrones with ten fae powers: four Kings, four Queens, two Wylds.</p>
-          <ul class="muted" style="line-height:1.7">
-            <li><b>Each round</b> (5 total): both players are secretly dealt one card. After seeing yours, commit it to the <b>Left</b>, <b>Center</b>, or <b>Right</b> throne — then pass the device.</li>
-            <li><b>Throne value:</b> 👑 King = 3, Queen = 2. Each 🌀 <b>Wyld</b> you place topples the opponent's strongest card in that throne (and scores 0 itself).</li>
-            <li><b>Hold a throne</b> with the higher surviving value (ties → strongest card by suit ♠♥♦♣). Win <b>two of three</b> thrones to be crowned.</li>
-          </ul>
-          <div class="center"><button class="btn" id="begin">Deal the duel</button></div></div>`;
-        root.querySelector('#begin').onclick=start; return;
-      }
-      if(phase==='handoff'){
-        root.innerHTML=`<div class="felt center" style="padding:34px 14px;background:radial-gradient(circle at 50% 0%, #2a1f47, #0c1024)">
-          <div class="muted">Round ${round+1} of 5</div>
-          <div class="big" style="margin-top:6px">Pass the device to Player ${active+1}</div>
-          <p class="muted">Only you should see your card and where you place it.</p>
-          <button class="btn" id="ready">I'm Player ${active+1} — draw my card</button></div>`;
-        root.querySelector('#ready').onclick=beginTurn; return;
-      }
-      if(phase==='place'){
-        root.innerHTML=`
-          <div class="row" style="justify-content:space-between"><span class="pill">Player ${active+1}</span><span class="pill">Round ${round+1}/5</span></div>
-          <div class="felt" style="margin-top:10px;background:radial-gradient(circle at 50% 0%, #2a1f47, #0c1024)">
-            <div class="center"><div class="muted">Your card — commit it to a throne</div>
-              <div id="cardwrap" style="display:flex;justify-content:center;margin:8px 0"></div>
-              <div class="muted" style="font-size:12px">${nameOf(current)} — ${current.joker?'Wyld: topples the enemy’s strongest card in its throne':val(current)+' throne value'}</div></div>
-            <div class="row" id="thrones" style="justify-content:space-around;margin-top:14px;align-items:flex-start"></div>
-          </div>`;
-        root.querySelector('#cardwrap').appendChild(faeCardEl(current,true));
-        const th=root.querySelector('#thrones');
-        LANES.forEach(l=>{
-          const col=el('div'); col.style.cssText='display:flex;flex-direction:column;align-items:center;gap:6px;min-width:100px';
-          col.appendChild(el('div','muted',LNAME[l]+' Throne'));
-          const yours=el('div'); yours.style.cssText='display:flex;gap:3px;flex-wrap:wrap;justify-content:center;min-height:60px';
-          lanes[active][l].forEach(c=>yours.appendChild(mini(c,false)));
-          if(!lanes[active][l].length) yours.appendChild(el('div','muted','—'));
-          col.appendChild(yours);
-          col.appendChild(el('div','muted','opponent: 🂠 hidden'));
-          const b=el('button','btn sm','Place here'); b.onclick=()=>place(l); col.appendChild(b);
-          th.appendChild(col);
-        });
-        return;
-      }
-      // reveal
-      const t=tallies();
-      let winner; if(t[0]!==t[1]) winner=t[0]>t[1]?0:1;
-      else { const v=[results.reduce((s,r)=>s+r.mVal,0), results.reduce((s,r)=>s+r.oVal,0)]; winner = v[0]!==v[1]?(v[0]>v[1]?0:1):-1; }
-      root.innerHTML=`
-        <div class="center" style="margin-bottom:8px"><div class="big">${winner<0?'A drawn duel — the thrones stay contested.':'👑 Player '+(winner+1)+' is crowned Kingmaker!'}</div>
-          <div class="muted">Thrones held — P1 ${t[0]} · P2 ${t[1]}</div></div>
-        <div id="board"></div>
-        <div class="row" style="justify-content:center;margin-top:12px"><button class="btn" id="again">Duel again</button></div>`;
-      const board=root.querySelector('#board');
-      results.forEach(r=>{
+    // ---- AI opponent (seat 1). Sees the board — a competent, mildly-advantaged foe. ----
+    function aiChoose(card){
+      const lv=(s,l)=>lanes[s][l].filter(c=>!c.joker).reduce((a,c)=>a+val(c),0);
+      if(card.joker){ let best='C',bv=-1; for(const l of LANES){ const v=lv(0,l); if(v>bv){bv=v;best=l;} } return best; } // topple opponent's strongest throne
+      let best='C',bs=-1e9;
+      for(const l of LANES){ const my=lv(1,l), op=lv(0,l), after=my+val(card);
+        let s; if(my<=op && after>op) s=100-(after-op); else if(after>op) s=40-(after-op); else s=op-after; // flip cheaply > extend > close gap
+        if(s>bs){ bs=s; best=l; } }
+      return best;
+    }
+
+    // ---- state ----
+    let mode=null, deck, lanes, round, cards, placed, results, phase='menu', hostCode=null;
+    const cli={ card:null, lanes:null, round:0, waiting:false, results:null, tally:null };
+    const localSeat = () => mode==='client' ? 1 : 0;
+    const resetBoard = () => { lanes=[{L:[],C:[],R:[]},{L:[],C:[],R:[]}]; round=0; results=null; };
+    const myCard = () => mode==='client' ? cli.card : (cards?cards[0]:null);
+    const myLanes = () => (mode==='client' ? cli.lanes : lanes && lanes[0]) || {L:[],C:[],R:[]};
+    const roundNow = () => mode==='client' ? cli.round : round;
+
+    // ---- authoritative flow (ai + host) ----
+    function authDeal(){ cards=[deck.pop(), deck.pop()]; placed=[false,false]; phase='place'; if(mode==='host') pushClient(); render(); }
+    function authNext(){
+      if(placed[0] && placed[1]){ round++; if(round>=5){ resolve(); if(mode==='host') pushClient(); render(); } else authDeal(); }
+      else { phase='wait'; render(); }   // client is pushed only on a new round / reveal — avoids a stale re-enable race
+    }
+    function myPlace(lane){
+      if(mode==='client') return clientPlace(lane);
+      if(phase!=='place' || placed[0]) return;
+      lanes[0][lane].push(cards[0]); placed[0]=true;
+      if(mode==='ai'){ lanes[1][aiChoose(cards[1])].push(cards[1]); placed[1]=true; }
+      authNext();
+    }
+    function onClientPlace(lane){ if(!cards || placed[1]) return; lanes[1][lane].push(cards[1]); placed[1]=true; authNext(); }
+    function resolve(){ results=LANES.map(laneResult); phase='reveal'; }
+
+    // ---- client mirror ----
+    function pushClient(){
+      const v = phase==='reveal' ? { p:'reveal', results, tally:tallies() }
+        : { p:'place', round, card:cards[1], lanes:lanes[1], placed:placed[1] };
+      Net.broadcastState(v);
+    }
+    function onHostState(v){
+      if(v.p==='reveal'){ cli.results=v.results; cli.tally=v.tally; phase='reveal'; render(); return; }
+      cli.card=v.card; cli.lanes=v.lanes; cli.round=v.round; cli.waiting=v.placed;
+      phase = v.placed ? 'wait' : 'place'; render();
+    }
+    function clientPlace(lane){
+      if(cli.waiting || phase!=='place' || !cli.card) return;
+      (cli.lanes[lane]=cli.lanes[lane]||[]).push(cli.card); cli.card=null; cli.waiting=true; // optimistic
+      Net.sendIntent({t:'place', lane}); phase='wait'; render();
+    }
+
+    // ---- mode entry ----
+    function startAI(){ mode='ai'; deck=freshDeck(); resetBoard(); authDeal(); }
+    async function startHost(){
+      phase='lobby'; render();
+      const res=await Net.host();
+      if(!res.ok){ mode=null; phase='menu'; render(); toast(res.err); return; }
+      mode='host'; hostCode=res.code;
+      Net.onIntent=(intent)=>{ if(intent.t==='place') onClientPlace(intent.lane); else if(intent.t==='ready') pushClient(); else if(intent.t==='again') restartHost(); };
+      Net.onJoin=()=>{ if(!lanes){ deck=freshDeck(); resetBoard(); authDeal(); } else pushClient(); toast('Opponent joined.'); };
+      render();
+    }
+    function restartHost(){ deck=freshDeck(); resetBoard(); authDeal(); }
+    async function startJoin(code){
+      phase='connect'; render();
+      const res=await Net.join(code);
+      if(!res.ok){ mode=null; phase='menu'; render(); toast(res.err); return; }
+      mode='client'; Net.onState=onHostState; Net.sendIntent({t:'ready'}); phase='wait'; render();
+    }
+
+    // ---- rendering ----
+    function buildBoard(container, res){
+      res.forEach(r=>{
         const panel=el('div','felt'); panel.style.cssText='margin:8px 0;background:radial-gradient(circle at 50% 0%, #241b3a, #0c1024)';
         panel.appendChild(el('div','h2',`${LNAME[r.l]} Throne — ${r.owner<0?'⚖️ neutral':'👑 Player '+(r.owner+1)} <span class="muted" style="font-weight:400">(value P1 ${r.mVal} · P2 ${r.oVal})</span>`));
         [['Player 1', r.mine, r.mCut],['Player 2', r.opp, r.oCut]].forEach(row=>{
-          const label=row[0], cards=row[1], cut=row[2];
+          const label=row[0], cs=row[1], cut=row[2];
           const line=el('div'); line.style.cssText='display:flex;align-items:center;gap:6px;margin:4px 0;flex-wrap:wrap';
           line.appendChild(el('div','muted',label));
-          if(!cards.length) line.appendChild(el('div','muted','—'));
-          cards.forEach(c=>line.appendChild(mini(c, cut.indexOf(c)>=0)));
+          if(!cs.length) line.appendChild(el('div','muted','—'));
+          cs.forEach(c=>line.appendChild(mini(c, cut.indexOf(c)>=0)));
           panel.appendChild(line);
         });
-        board.appendChild(panel);
+        container.appendChild(panel);
       });
-      root.querySelector('#again').onclick=()=>openGame(GAMES.find(g=>g.id==='kingmaker'));
+    }
+    function renderPlace(canPlace, waitMsg){
+      const card=myCard(), lanesMe=myLanes();
+      const modeLabel = mode==='ai'?'vs AI' : mode==='host'?('online · room '+hostCode) : 'online';
+      root.innerHTML=`
+        <div class="row" style="justify-content:space-between"><span class="pill">You — Player ${localSeat()+1}</span><span class="pill">Round ${roundNow()+1}/5 · ${modeLabel}</span></div>
+        <div class="felt" style="margin-top:10px;background:radial-gradient(circle at 50% 0%, #2a1f47, #0c1024)">
+          <div class="center"><div class="muted">${canPlace?'Your card — commit it to a throne':(waitMsg||'Waiting…')}</div>
+            <div id="cardwrap" style="display:flex;justify-content:center;margin:8px 0"></div>
+            <div class="muted" style="font-size:12px">${card?nameOf(card)+' — '+(card.joker?'Wyld: topples the enemy’s strongest card in its throne':val(card)+' throne value'):''}</div></div>
+          <div class="row" id="thrones" style="justify-content:space-around;margin-top:14px;align-items:flex-start"></div>
+        </div>`;
+      if(card) $('#cardwrap').appendChild(faeCardEl(card,true));
+      const th=$('#thrones');
+      LANES.forEach(l=>{
+        const col=el('div'); col.style.cssText='display:flex;flex-direction:column;align-items:center;gap:6px;min-width:100px';
+        col.appendChild(el('div','muted',LNAME[l]+' Throne'));
+        const yours=el('div'); yours.style.cssText='display:flex;gap:3px;flex-wrap:wrap;justify-content:center;min-height:60px';
+        (lanesMe[l]||[]).forEach(c=>yours.appendChild(mini(c,false)));
+        if(!(lanesMe[l]||[]).length) yours.appendChild(el('div','muted','—'));
+        col.appendChild(yours);
+        col.appendChild(el('div','muted','opponent: 🂠 hidden'));
+        const b=el('button','btn sm','Place here'); b.disabled=!canPlace; b.onclick=()=>myPlace(l); col.appendChild(b);
+        th.appendChild(col);
+      });
+    }
+    function renderReveal(){
+      const rd = mode==='client' ? {results:cli.results, tally:cli.tally} : {results, tally:tallies()};
+      if(!rd.results){ return; }
+      const seat=localSeat(), t=rd.tally;
+      let winner; if(t[0]!==t[1]) winner=t[0]>t[1]?0:1;
+      else { const v=[rd.results.reduce((s,r)=>s+r.mVal,0), rd.results.reduce((s,r)=>s+r.oVal,0)]; winner=v[0]!==v[1]?(v[0]>v[1]?0:1):-1; }
+      const head = winner<0 ? 'A drawn duel — the thrones stay contested.' : (winner===seat ? '👑 You are crowned Kingmaker!' : 'Player '+(winner+1)+' takes the crown.');
+      root.innerHTML=`<div class="center" style="margin-bottom:8px"><div class="big">${head}</div>
+        <div class="muted">Thrones — P1 ${t[0]} · P2 ${t[1]} &nbsp;(you are Player ${seat+1})</div></div>
+        <div id="board"></div>
+        <div class="row" style="justify-content:center;margin-top:12px"><button class="btn" id="again">${mode==='client'?'Request rematch':'Duel again'}</button><button class="btn alt" id="menu">Menu</button></div>`;
+      buildBoard($('#board'), rd.results);
+      $('#again').onclick=()=>{ if(mode==='ai') startAI(); else if(mode==='host') restartHost(); else Net.sendIntent({t:'again'}); };
+      $('#menu').onclick=()=>{ Net.teardown(); mode=null; phase='menu'; render(); };
+    }
+    function render(){
+      if(phase==='menu'){
+        root.innerHTML=`<div class="felt" style="background:radial-gradient(circle at 50% 0%, #2a1f47, #0c1024)">
+          <div class="big center">👑 Kingmaker — Three Thrones</div>
+          <p class="muted" style="margin-top:8px">Over 5 rounds you're each dealt one fae card per round; commit it to the Left, Center, or Right throne (secretly). 👑 King = 3, Queen = 2; each 🌀 Wyld topples the enemy's strongest card in its throne. Hold two of three thrones to win.</p>
+          <div class="grid" style="margin-top:6px">
+            <div class="tile"><div class="nm">🤖 Play vs AI</div><div class="bl">Duel the Wyldwood AI on this device.</div><button class="btn" id="ai" style="margin-top:8px">Start</button></div>
+            <div class="tile"><div class="nm">🌐 Host online</div><div class="bl">Create a room; a friend joins by code (peer-to-peer).</div><button class="btn" id="host" style="margin-top:8px">Create room</button></div>
+            <div class="tile"><div class="nm">🔑 Join online</div><div class="bl">Enter a friend's room code.</div>
+              <div class="row" style="margin-top:8px"><input class="code" id="code" placeholder="CODE" maxlength="4"><button class="btn" id="join">Join</button></div></div>
+          </div>
+          <p class="muted" style="font-size:11px;margin-top:8px">Online is peer-to-peer (works best on home networks) and still in beta.</p></div>`;
+        $('#ai').onclick=startAI; $('#host').onclick=startHost;
+        $('#join').onclick=()=>{ const c=($('#code').value||'').toUpperCase().trim(); if(c.length===4) startJoin(c); else toast('Enter the 4-letter code.'); };
+        return;
+      }
+      if(phase==='lobby'){ root.innerHTML=`<div class="felt center" style="padding:28px 14px;background:radial-gradient(circle at 50% 0%, #2a1f47, #0c1024)">
+        <div class="muted">Your room code</div><div class="big" style="letter-spacing:.2em;margin:6px 0">${hostCode||'…'}</div>
+        <p class="muted">Share it with your rival. Waiting for them to join…</p>
+        <button class="btn alt sm" id="menu">Cancel</button></div>`;
+        $('#menu').onclick=()=>{ Net.teardown(); mode=null; phase='menu'; render(); }; return; }
+      if(phase==='connect'){ root.innerHTML=`<div class="felt center" style="padding:30px;background:radial-gradient(circle at 50% 0%, #2a1f47, #0c1024)"><div class="big">Connecting…</div></div>`; return; }
+      if(phase==='place') return renderPlace(true);
+      if(phase==='wait') return renderPlace(false, mode==='client'?'Waiting for the host…':'Waiting for your opponent…');
+      if(phase==='reveal') return renderReveal();
     }
     render();
+    return ()=>Net.teardown();
   }
 });
 
