@@ -17,7 +17,7 @@ served at its own sub-path.
 | Eat, Monkey, Eat | [`/eat-monkey-eat/`](eat-monkey-eat/) |
 | Grand Theft Apples | [`/grand-theft-apples/`](grand-theft-apples/) |
 | Groundwork | [`/groundwork/`](groundwork/) |
-| Keep Ripping Packs | [`/ripping-packs/`](ripping-packs/) |
+| Keep Ripping Packs | [`/keeprippingpacks/`](keeprippingpacks/) |
 | Matgo | [`/matgo/`](matgo/) |
 | Mosslings | [`/mosslings/`](mosslings/) |
 | Prism Pond | [`/prism-pond/`](prism-pond/) |
