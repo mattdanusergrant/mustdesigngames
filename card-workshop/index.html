@@ -437,10 +437,11 @@ GAMES.push({
 
 /* ============================================================
    GAME — BRAMBLEWAKE  (matching solitaire w/ hidden cards + stacking, 44-card deck)
-   Deal 7 burrows (far-left & far-right: 5 face-DOWN + 1 up = 6; middle five: 4
-   face-DOWN + 1 up = 5) = 37; the remaining 7 cards seed all 7 hollows face-up.
-   NO draw pile. 14 cards are face-up at the start. Hollows sit aligned directly
-   above their burrows in 7 columns.
+   Deal all 44 into 7 burrows face-down (far-left & far-right 7 cards, middle five
+   6). Each hollow AUTO-FILLS from the top card of the burrow directly beneath it
+   (same column) whenever it's empty — including at deal, giving 14 face-up cards
+   (7 hollows + 7 revealed burrow fronts). Clearing a hollow pulls up and reveals
+   the burrow's next card. NO draw pile. Hollows sit aligned above their burrows.
    The Drawn slot holds ONE card: you can only draw when it's empty AND there's room
    to place a card — an empty hollow or empty burrow (rule 1). 5 hollows are stacks:
    a card can be added to a hollow if it's the SAME SUIT and one rank higher/lower
@@ -448,8 +449,8 @@ GAMES.push({
    front, the drawn card, or a hollow top: pair two of the SAME animal (colour +
    rank), stack onto a hollow, or drop into an empty hollow/burrow. Clearing a
    burrow front UNCOVERS the sleeper behind it. Clear all 22 pairs to win.
-   Unlimited undo. Well-balanced: a greedy bot wins ~78% (avg ~19/22) — the 14
-   face-up cards give plenty to sort even with all hollows full to start.
+   Unlimited undo. Smooth & winnable: with auto-fill a greedy bot wins ~86% (avg
+   ~20/22) — clearing a hollow auto-digs its burrow.
    ============================================================ */
 GAMES.push({
   id:'bramblewake', title:'Bramblewake', players:'1 player', tag:'solitaire · pairs · stacking',
@@ -499,6 +500,8 @@ GAMES.push({
     // pile = {arr,down} (front=arr[last], face-up; idx<down face-down). hollows[i]=stack, top accessible.
     let piles, stock, drawn, hollows, pairs, sel, history, over;
     const normalize = p => { if(p.arr.length===0) p.down=0; else if(p.down>=p.arr.length) p.down=p.arr.length-1; };
+    // each empty hollow auto-fills with the top card of the burrow directly beneath it (same column)
+    const settle = () => { for(let i=0;i<PILES;i++){ if(hollows[i].length===0 && piles[i].arr.length){ hollows[i].push(piles[i].arr.pop()); normalize(piles[i]); } } };
     const drawRoom = () => hollows.some(h=>h.length===0) || piles.some(p=>!p.arr.length); // somewhere a drawn card can land
     function refCard(ref){ if(!ref) return null;
       if(ref.k==='pile'){ const p=piles[ref.i]; return p.arr.length? p.arr[p.arr.length-1] : null; }
@@ -516,11 +519,12 @@ GAMES.push({
     function newDeal(){
       const d=shuffle(makeDeck({ranks:['A','2','3','4','5','6','7','8','9','10','J']})); // 44
       piles=[]; let i=0;
-      for(let p=0;p<PILES;p++){ const n=(p===0||p===PILES-1)?6:5; piles.push({arr:d.slice(i,i+n), down:n-1}); i+=n; } // ends deeper; 1 face-up each
+      for(let p=0;p<PILES;p++){ const n=(p===0||p===PILES-1)?7:6; piles.push({arr:d.slice(i,i+n), down:n}); i+=n; } // all face-down; ends deeper
       hollows=Array.from({length:HOLL},()=>[]);
-      d.slice(i).forEach((c,k)=>hollows[k].push(c));   // the remaining 7 cards seed all 7 hollows (face-up)
       stock=[]; drawn=null;                            // every card is dealt — no draw pile
-      pairs=0; sel=null; history=[]; over=false; render();
+      pairs=0; sel=null; history=[]; over=false;
+      settle();                                        // each hollow auto-fills from its burrow → 14 face-up (7 hollows + 7 burrow fronts)
+      render();
     }
     // draw one card — only if the Drawn slot is empty AND there's room to place it (rule 1)
     function draw(){ if(over||drawn||!stock.length||!drawRoom()) return; pushHist(); drawn=stock.pop(); sel=null; render(); }
@@ -534,7 +538,7 @@ GAMES.push({
         if(hollows.some(h=>h.length && canStack(h[h.length-1],drawn))) return true; }
       return false;
     }
-    function afterMove(){ if(pairs===TOTAL){ over=true; return finishWin(); } render(); }
+    function afterMove(){ settle(); if(pairs===TOTAL){ over=true; return finishWin(); } render(); }
     function clickCard(ref){                                  // pile fronts & the drawn card: select / match
       if(over) return; const card=refCard(ref); if(!card) return;
       if(!sel){ sel=ref; render(); return; }
@@ -549,14 +553,14 @@ GAMES.push({
         if(sameRef(sel,{k:'holl',i:hi})){ sel=null; render(); return; }
         const selCard=refCard(sel);
         if(top && match(selCard,top)){ pushHist(); removeRef(sel); stack.pop(); pairs++; sel=null; toast('Match! ✨'); afterMove(); return; }
-        if(selCard && (stack.length===0 || canStack(top,selCard))){ pushHist(); removeRef(sel); stack.push(selCard); sel=null; render(); return; } // stack same-suit ±1 (rule 2)
+        if(selCard && (stack.length===0 || canStack(top,selCard))){ pushHist(); removeRef(sel); stack.push(selCard); sel=null; afterMove(); return; } // stack same-suit ±1 (rule 2)
         if(top){ sel={k:'holl',i:hi}; render(); return; }
         return;
       }
       if(top){ sel={k:'holl',i:hi}; render(); }
     }
     function clickEmptyPile(pi){ if(over||!sel||piles[pi].arr.length) return;
-      const card=refCard(sel); if(!card) return; pushHist(); removeRef(sel); piles[pi]={arr:[card],down:0}; sel=null; render(); }
+      const card=refCard(sel); if(!card) return; pushHist(); removeRef(sel); piles[pi]={arr:[card],down:0}; sel=null; afterMove(); }
 
     function finishWin(){
       root.innerHTML=`<div class="center" style="padding-top:14px"><div class="big">🦄🐴🦊🦉🦭 Every animal is paired!</div>
@@ -566,7 +570,7 @@ GAMES.push({
     }
 
     root.innerHTML=`
-      <p class="muted">Match every pair of the <b>same animal</b> (same colour + number). Every card is dealt at the start. Dig the <b>burrows</b> — park a front card in an empty <b>hollow</b> to <b>uncover</b> the critter behind it — and <b>stack</b> a card on a hollow that's the <b>same suit, one rank higher or lower</b> to free space. Clear all 22 pairs. Undo anytime.</p>
+      <p class="muted">Match every pair of the <b>same animal</b> (same colour + number). Each <b>hollow auto-fills</b> from the <b>burrow</b> directly beneath it — so clearing a hollow pulls up and <b>uncovers</b> the next critter. <b>Stack</b> a card onto a hollow that's the <b>same suit, one rank higher or lower</b> to free space. Clear all 22 pairs. Undo anytime.</p>
       <div class="felt" style="background:radial-gradient(circle at 50% 6%, #1c4f33, #0c2a1b);width:fit-content;max-width:100%;margin:0 auto">
         <div class="row" style="justify-content:space-between;align-items:flex-start;gap:20px">
           <div class="row" id="deckrow" style="gap:12px;align-items:flex-start">
