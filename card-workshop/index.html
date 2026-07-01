@@ -437,9 +437,10 @@ GAMES.push({
 
 /* ============================================================
    GAME — BRAMBLEWAKE  (matching solitaire w/ hidden cards + stacking, 44-card deck)
-   Deal 5 burrows of 8 (7 face-DOWN, 1 face-up) = 40; the remaining 4 cards seed 4
-   of the 5 hollows (1 empty). NO draw pile. Hollows sit aligned directly above
-   their burrows in 5 columns.
+   Deal 7 burrows (far-left & far-right: 5 face-DOWN + 1 up = 6; middle five: 4
+   face-DOWN + 1 up = 5) = 37; the remaining 7 cards seed all 7 hollows face-up.
+   NO draw pile. 14 cards are face-up at the start. Hollows sit aligned directly
+   above their burrows in 7 columns.
    The Drawn slot holds ONE card: you can only draw when it's empty AND there's room
    to place a card — an empty hollow or empty burrow (rule 1). 5 hollows are stacks:
    a card can be added to a hollow if it's the SAME SUIT and one rank higher/lower
@@ -447,13 +448,13 @@ GAMES.push({
    front, the drawn card, or a hollow top: pair two of the SAME animal (colour +
    rank), stack onto a hollow, or drop into an empty hollow/burrow. Clearing a
    burrow front UNCOVERS the sleeper behind it. Clear all 22 pairs to win.
-   Unlimited undo. HARD layout: deep 7-down burrows with only 5 hollows (1 empty)
-   choke digging — a greedy bot wins ~4% (avg ~4/22). Playable but punishing.
+   Unlimited undo. Well-balanced: a greedy bot wins ~78% (avg ~19/22) — the 14
+   face-up cards give plenty to sort even with all hollows full to start.
    ============================================================ */
 GAMES.push({
   id:'bramblewake', title:'Bramblewake', players:'1 player', tag:'solitaire · pairs · stacking',
   chips:[{k:'custom',t:'fae deck'}],
-  blurb:'A tough fae matching solitaire: pair every animal across a two-part bestiary — red (Pegasus→Horse) and black (Unicorn→Seal). All 44 cards deal into 5 deep burrows with a hollow above each; dig to uncover critters, stack same-suit runs in the hollows to free space, and undo freely.',
+  blurb:'A fae matching solitaire: pair every animal across a two-part bestiary — red (Pegasus→Horse) and black (Unicorn→Seal). All 44 cards deal into 7 burrows with a hollow above each (14 face-up to start); dig to uncover critters, stack same-suit runs in the hollows to free space, and undo freely.',
   mount(root){
     // creature depends on COLOUR × RANK: red suits (♥♦) and black suits (♠♣) are
     // two parallel families of eleven. Suits render as the normal four pips.
@@ -492,7 +493,7 @@ GAMES.push({
     const match = (a,b) => a.color===b.color && a.r===b.r;   // pair = same animal (colour + rank)
     const rv = c => c.r==='A'?1 : c.r==='J'?11 : +c.r;        // sequence value A=1 … J=11
     const canStack = (top,card) => !!top && top.s===card.s && Math.abs(rv(top)-rv(card))===1; // same suit, ±1 rank
-    const HOLL=5, TOTAL=22, PILES=5, PILE_N=8, DOWN=7;        // 5 burrows of 8 (7 down, 1 up)=40, 5 hollows (4 seeded, 1 empty), no deck
+    const HOLL=7, TOTAL=22, PILES=7;   // 7 burrows (ends 5 down+1 up, middles 4 down+1 up)=37, 7 hollows all seeded, no deck; 14 face-up at start
 
     // ---- state ----
     // pile = {arr,down} (front=arr[last], face-up; idx<down face-down). hollows[i]=stack, top accessible.
@@ -514,9 +515,10 @@ GAMES.push({
 
     function newDeal(){
       const d=shuffle(makeDeck({ranks:['A','2','3','4','5','6','7','8','9','10','J']})); // 44
-      piles=[]; let i=0; for(let p=0;p<PILES;p++){ piles.push({arr:d.slice(i,i+PILE_N), down:DOWN}); i+=PILE_N; } // 10×4 = 40
+      piles=[]; let i=0;
+      for(let p=0;p<PILES;p++){ const n=(p===0||p===PILES-1)?6:5; piles.push({arr:d.slice(i,i+n), down:n-1}); i+=n; } // ends deeper; 1 face-up each
       hollows=Array.from({length:HOLL},()=>[]);
-      d.slice(i).forEach((c,k)=>hollows[k].push(c));   // the remaining 4 cards seed the first hollows
+      d.slice(i).forEach((c,k)=>hollows[k].push(c));   // the remaining 7 cards seed all 7 hollows (face-up)
       stock=[]; drawn=null;                            // every card is dealt — no draw pile
       pairs=0; sel=null; history=[]; over=false; render();
     }
