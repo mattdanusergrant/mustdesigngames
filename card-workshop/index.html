@@ -446,8 +446,10 @@ GAMES.push({
    front, the drawn card, or a hollow top: pair two of the SAME animal (colour +
    rank), stack onto a hollow, or drop into an empty hollow/burrow. Clearing a
    burrow front UNCOVERS the sleeper behind it. Clear all 22 pairs to win.
-   Unlimited undo. With 10 burrows + 10 hollows a greedy bot wins ~34% (avg 19/22
-   pairs) — a fair, playable game; humans do better.
+   Unlimited undo. Any exposed card (burrow front, drawn, hollow top) can go to an
+   empty hollow — so with 10 hollows you can dig every burrow and it's ~99%
+   winnable with good play (an earlier bot that refused burrow→empty-hollow moves
+   under-measured it at ~34%).
    ============================================================ */
 GAMES.push({
   id:'bramblewake', title:'Bramblewake', players:'1 player', tag:'solitaire · pairs · stacking',
