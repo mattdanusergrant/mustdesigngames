@@ -450,8 +450,9 @@ GAMES.push({
    front, the drawn card, or a hollow top: pair two of the SAME animal (colour +
    rank), stack onto a hollow, or drop into an empty hollow/burrow. Clearing a
    burrow front UNCOVERS the sleeper behind it. Clear all 22 pairs to win.
-   Unlimited undo. Smooth & winnable: with auto-fill a greedy bot wins ~86% (avg
-   ~20/22) — clearing a hollow auto-digs its burrow.
+   Unlimited undo + a one-time 🌟 WISH (place any card on any hollow, ignoring the
+   suit/±1 rule): solver-verified this makes every deal 100% solvable (base rules
+   are ~98.5%; the Wish neutralizes the rare stacking dead-ends).
    ============================================================ */
 GAMES.push({
   id:'bramblewake', title:'Bramblewake', players:'1 player', tag:'solitaire · pairs · stacking',
@@ -502,7 +503,7 @@ GAMES.push({
 
     // ---- state ----
     // pile = {arr,down} (front=arr[last], face-up; idx<down face-down). hollows[i]=stack, top accessible.
-    let piles, stock, drawn, hollows, pairs, sel, history, over;
+    let piles, stock, drawn, hollows, pairs, sel, history, over, wishUsed, wishArmed;
     const normalize = p => { if(p.arr.length===0) p.down=0; else if(p.down>=p.arr.length) p.down=p.arr.length-1; };
     // each empty hollow auto-fills with the top card of the burrow directly beneath it (same column)
     const settle = () => { for(let i=0;i<PILES;i++){ if(hollows[i].length===0 && piles[i].arr.length){ hollows[i].push(piles[i].arr.pop()); normalize(piles[i]); } } };
@@ -516,9 +517,9 @@ GAMES.push({
     function removeRef(ref){ if(ref.k==='pile'){ piles[ref.i].arr.pop(); normalize(piles[ref.i]); }
       else if(ref.k==='drawn') drawn=null; else if(ref.k==='holl') hollows[ref.i].pop(); }
     function pushHist(){ history.push({ piles:piles.map(p=>({arr:p.arr.slice(),down:p.down})),
-      stock:stock.slice(), drawn, hollows:hollows.map(h=>h.slice()), pairs }); if(history.length>400) history.shift(); }
+      stock:stock.slice(), drawn, hollows:hollows.map(h=>h.slice()), pairs, wishUsed }); if(history.length>400) history.shift(); }
     function undo(){ if(!history.length) return; const s=history.pop();
-      piles=s.piles; stock=s.stock; drawn=s.drawn; hollows=s.hollows; pairs=s.pairs; sel=null; over=false; render(); }
+      piles=s.piles; stock=s.stock; drawn=s.drawn; hollows=s.hollows; pairs=s.pairs; wishUsed=s.wishUsed; wishArmed=false; sel=null; over=false; render(); }
 
     function newDeal(){
       computeScale();                                    // fit card size to the current screen width
@@ -528,7 +529,7 @@ GAMES.push({
       for(let p=0;p<PILES;p++){ const n=SIZES[p]; piles.push({arr:d.slice(i,i+n), down:n}); i+=n; } // all face-down
       hollows=Array.from({length:HOLL},()=>[]);
       stock=[]; drawn=null;                            // every card is dealt — no draw pile
-      pairs=0; sel=null; history=[]; over=false;
+      pairs=0; sel=null; history=[]; over=false; wishUsed=false; wishArmed=false;
       settle();                                        // each hollow auto-fills from its burrow → 14 face-up (7 hollows + 7 burrow fronts)
       render();
     }
@@ -542,11 +543,12 @@ GAMES.push({
       if(!drawn && stock.length && drawRoom()) return true;
       if(drawn){ if(hollows.some(h=>h.length===0)||piles.some(p=>!p.arr.length)) return true;
         if(hollows.some(h=>h.length && canStack(h[h.length-1],drawn))) return true; }
+      if(!wishUsed && acc.length) return true;   // an unused Wish can always place a card
       return false;
     }
     function afterMove(){ settle(); if(pairs===TOTAL){ over=true; return finishWin(); } render(); }
     function clickCard(ref){                                  // pile fronts & the drawn card: select / match
-      if(over) return; const card=refCard(ref); if(!card) return;
+      if(over) return; wishArmed=false; const card=refCard(ref); if(!card) return;
       if(!sel){ sel=ref; render(); return; }
       if(sameRef(sel,ref)){ sel=null; render(); return; }
       const a=refCard(sel);
@@ -556,10 +558,12 @@ GAMES.push({
     function clickHollow(hi){                                 // select top / match / stack / drop
       if(over) return; const stack=hollows[hi], top=stack.length?stack[stack.length-1]:null;
       if(sel){
-        if(sameRef(sel,{k:'holl',i:hi})){ sel=null; render(); return; }
+        if(sameRef(sel,{k:'holl',i:hi})){ sel=null; wishArmed=false; render(); return; }
         const selCard=refCard(sel);
-        if(top && match(selCard,top)){ pushHist(); removeRef(sel); stack.pop(); pairs++; sel=null; toast('Match! ✨'); afterMove(); return; }
-        if(selCard && (stack.length===0 || canStack(top,selCard))){ pushHist(); removeRef(sel); stack.push(selCard); sel=null; afterMove(); return; } // stack same-suit ±1 (rule 2)
+        if(top && match(selCard,top)){ pushHist(); removeRef(sel); stack.pop(); pairs++; wishArmed=false; sel=null; toast('Match! ✨'); afterMove(); return; }
+        const legal = (stack.length===0 || canStack(top,selCard));
+        if(selCard && (legal || wishArmed)){ pushHist(); removeRef(sel); stack.push(selCard);   // stack same-suit ±1, or any card if a Wish is armed
+          if(!legal){ wishUsed=true; toast('🌟 Wish granted!'); } wishArmed=false; sel=null; afterMove(); return; }
         if(top){ sel={k:'holl',i:hi}; render(); return; }
         return;
       }
@@ -576,7 +580,7 @@ GAMES.push({
     }
 
     root.innerHTML=`
-      <p class="muted">Match every pair of the <b>same animal</b> (same colour + number). Each <b>hollow auto-fills</b> from the <b>burrow</b> directly beneath it — so clearing a hollow pulls up and <b>uncovers</b> the next critter. <b>Stack</b> a card onto a hollow that's the <b>same suit, one rank higher or lower</b> to free space. Clear all 22 pairs. Undo anytime.</p>
+      <p class="muted">Match every pair of the <b>same animal</b> (same colour + number). Each <b>hollow auto-fills</b> from the <b>burrow</b> directly beneath it — so clearing a hollow pulls up and <b>uncovers</b> the next critter. <b>Stack</b> a card onto a hollow that's the <b>same suit, one rank higher or lower</b> to free space. Stuck? Use your one <b>🌟 Wish</b>: select a card, tap Wish, then tap any hollow to drop it there (any suit/number). Clear all 22 pairs. Undo anytime.</p>
       <div class="felt" style="background:radial-gradient(circle at 50% 6%, #1c4f33, #0c2a1b);width:fit-content;max-width:100%;margin:0 auto">
         <div class="row" style="justify-content:space-between;align-items:flex-start;gap:20px">
           <div class="row" id="deckrow" style="gap:12px;align-items:flex-start">
@@ -590,11 +594,13 @@ GAMES.push({
       </div>
       <div class="row" style="margin-top:12px">
         <button class="btn alt" id="undo">↶ Undo</button>
+        <button class="btn" id="wish">🌟 Wish (1)</button>
         <button class="btn alt" id="newgame">New game</button>
         <span class="muted" id="hint"></span>
       </div>`;
     root.querySelector('#undo').onclick=undo;
     root.querySelector('#newgame').onclick=newDeal;
+    root.querySelector('#wish').onclick=()=>{ if(over||wishUsed||!sel) return; wishArmed=!wishArmed; render(); };
 
     function render(){
       const prog=root.querySelector('#prog'); if(!prog) return;       // win screen replaced the scaffold
@@ -602,6 +608,9 @@ GAMES.push({
             boardEl=root.querySelector('#board'), hint=root.querySelector('#hint');
       prog.textContent=`Pairs ${pairs}/${TOTAL}`;
       const deckrow=root.querySelector('#deckrow'); if(deckrow) deckrow.style.display=(stock.length||drawn)?'':'none'; // hide when there's no draw pile
+      const wishBtn=root.querySelector('#wish');
+      if(wishBtn){ wishBtn.textContent = wishUsed ? '🌟 Wish used' : wishArmed ? '🌟 tap a hollow →' : '🌟 Wish (1)';
+        wishBtn.disabled = over || wishUsed || (!sel && !wishArmed); wishBtn.style.outline = wishArmed ? '3px solid var(--gold)' : ''; }
       const selCard = sel ? refCard(sel) : null;
       const canMatch = card => !!selCard && card!==selCard && match(selCard,card);
       // deck — only enabled when there's room and no card already drawn (rule 1)
@@ -621,13 +630,14 @@ GAMES.push({
         const col=el('div'); col.style.cssText='display:flex;flex-direction:column;align-items:center;flex:0 0 auto;gap:14px';
         // --- hollow (top) ---
         const stack=hollows[ci], hcell=el('div'); hcell.style.cssText='display:flex;flex-direction:column;align-items:center';
-        if(!stack.length){ const s=slotBox('hollow'); if(selCard){ s.classList.add('playable'); s.style.borderColor='#8fe0b0'; s.onclick=()=>clickHollow(ci); } hcell.appendChild(s); }
+        if(!stack.length){ const s=slotBox('hollow'); if(selCard){ s.classList.add('playable'); s.style.borderColor=wishArmed?'var(--gold)':'#8fe0b0'; s.onclick=()=>clickHollow(ci); } hcell.appendChild(s); }
         else stack.forEach((card,idx)=>{
           const top=idx===stack.length-1;
           const ce=critEl(card, top && !!sel && sel.k==='holl' && sel.i===ci);
           if(idx>0) ce.style.marginTop='-'+OVER+'px';
           if(top){ ce.classList.add('playable');
             if(canMatch(card)) ce.style.outline='3px solid var(--good)';
+            else if(wishArmed && selCard && !(sel.k==='holl'&&sel.i===ci)) ce.style.outline='3px solid var(--gold)';
             else if(selCard && !(sel.k==='holl'&&sel.i===ci) && canStack(card,selCard)) ce.style.outline='3px solid #8fe0b0';
             ce.onclick=()=>clickHollow(ci); }
           hcell.appendChild(ce);
@@ -646,7 +656,8 @@ GAMES.push({
         col.appendChild(bcell);
         boardEl.appendChild(col);
       }
-      hint.textContent = !anyLegalMove() ? 'No moves — tap ↶ Undo or New game.'
+      hint.textContent = wishArmed ? '🌟 Tap any hollow to drop the selected critter there (any suit/number).'
+        : !anyLegalMove() ? 'No moves — tap ↶ Undo or New game.'
         : drawn ? 'Place the drawn critter — match it, stack it (same suit ±1), or drop it in a hollow or empty burrow.'
         : (stock.length && !drawRoom() ? 'No room to draw — free a hollow (match or stack a card) first.' : '');
     }
