@@ -438,6 +438,7 @@ GAMES.push({
 /* ============================================================
    GAME — BRAMBLEWAKE  (matching solitaire w/ hidden cards + stacking, 44-card deck)
    Deal 10 burrows of 3 (2 face-DOWN, 1 face-up) = 30; the other 14 form a stock.
+   10 hollows.
    The Drawn slot holds ONE card: you can only draw when it's empty AND there's room
    to place a card — an empty hollow or empty burrow (rule 1). 5 hollows are stacks:
    a card can be added to a hollow if it's the SAME SUIT and one rank higher/lower
@@ -445,7 +446,7 @@ GAMES.push({
    front, the drawn card, or a hollow top: pair two of the SAME animal (colour +
    rank), stack onto a hollow, or drop into an empty hollow/burrow. Clearing a
    burrow front UNCOVERS the sleeper behind it. Clear all 22 pairs to win.
-   Unlimited undo. With 10 burrows + 5 hollows a greedy bot wins ~33% (avg 18/22
+   Unlimited undo. With 10 burrows + 10 hollows a greedy bot wins ~34% (avg 19/22
    pairs) — a fair, playable game; humans do better.
    ============================================================ */
 GAMES.push({
@@ -490,7 +491,7 @@ GAMES.push({
     const match = (a,b) => a.color===b.color && a.r===b.r;   // pair = same animal (colour + rank)
     const rv = c => c.r==='A'?1 : c.r==='J'?11 : +c.r;        // sequence value A=1 … J=11
     const canStack = (top,card) => !!top && top.s===card.s && Math.abs(rv(top)-rv(card))===1; // same suit, ±1 rank
-    const HOLL=5, TOTAL=22, PILES=10, PILE_N=3, DOWN=2;       // 10 burrows of 3 (2 down, 1 up), 5 hollows, 14 in deck
+    const HOLL=10, TOTAL=22, PILES=10, PILE_N=3, DOWN=2;      // 10 burrows of 3 (2 down, 1 up), 10 hollows, 14 in deck
 
     // ---- state ----
     // pile = {arr,down} (front=arr[last], face-up; idx<down face-down). hollows[i]=stack, top accessible.
