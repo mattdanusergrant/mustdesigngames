@@ -436,19 +436,19 @@ GAMES.push({
 });
 
 /* ============================================================
-   GAME — BRAMBLEWAKE  (kids' FreeCell-matching solitaire, 44-card A..J deck)
-   All 44 cards deal face-up into 8 burrows (columns); 4 hollows are free cells.
-   Only a burrow's front (bottom) card is accessible: pair two accessible cards
-   of the SAME animal (same colour + rank), or park an accessible card in a free
-   hollow / empty burrow to reach the one behind it. Clear all 22 pairs to win.
-   Winnable-deals-only: an embedded solver reshuffles until the deal is solvable
-   (8 cols + 4 hollows measured 100% solvable), so every game can be won with
-   smart play. Unlimited undo. Matches glow green when a card is selected.
+   GAME — BRAMBLEWAKE  (kids' matching solitaire w/ hidden cards, 44-card deck)
+   Deal 5 burrows of 5 (3 face-DOWN, 2 face-up) = 25; the other 19 form a stock
+   drawn one at a time to the waste (recycle when empty). 5 hollows (free cells).
+   Only each burrow's front (face-up) card, the waste top, and hollow cards are
+   pickable: pair two of the SAME animal (colour + rank), or park a front/waste
+   card in a hollow / empty burrow. Clearing a burrow's front UNCOVERS the sleeper
+   behind it (the flip payoff). Clear all 22 pairs to win. Unlimited undo; matches
+   glow green. ~43% winnable by a crude bot (humans do better) — a real solitaire.
    ============================================================ */
 GAMES.push({
-  id:'bramblewake', title:'Bramblewake', players:'1 player', tag:'kids · freecell · pairs',
+  id:'bramblewake', title:'Bramblewake', players:'1 player', tag:'kids · pairs · hidden',
   chips:[{k:'custom',t:'fae deck'}],
-  blurb:'A cuddly FreeCell for kids: match every pair of the same fae animal across a two-part bestiary — red (Pegasus→Horse) and black (Unicorn→Seal). Park cards in hollows to dig, undo freely, and every deal is guaranteed winnable.',
+  blurb:'A cuddly matching solitaire for kids: pair every fae animal across a two-part bestiary — red (Pegasus→Horse) and black (Unicorn→Seal). Dig the burrows to uncover sleeping critters, draw from the deck, park cards in hollows, and undo freely.',
   mount(root){
     // creature depends on COLOUR × RANK: red suits (♥♦) and black suits (♠♣) are
     // two parallel families of eleven. Suits render as the normal four pips.
@@ -477,49 +477,44 @@ GAMES.push({
       return d;
     }
     const match = (a,b) => a.color===b.color && a.r===b.r;   // same animal = same colour + same rank
-    const COLS=8, HOLL=4, TOTAL=22;                          // 8 burrows + 4 hollows → every deal is solvable
-    const tok = c => (c.color==='red'?'r':'b')+c.r;
-
-    // ---- solver: is this deal winnable? (perfect-info FreeCell-matching search) ----
-    function solvable(Ccards){
-      const seen=new Set(); let budget=150000;
-      const greedy=(cols,holl)=>{ let ch=true; while(ch){ ch=false;
-        const acc=[]; cols.forEach((c,i)=>{ if(c.length) acc.push(['c',i,c[c.length-1]]); }); holl.forEach((h,i)=>{ if(h) acc.push(['h',i,h]); });
-        o: for(let a=0;a<acc.length;a++) for(let b=a+1;b<acc.length;b++) if(acc[a][2]===acc[b][2]){
-          (acc[a][0]==='c'?cols[acc[a][1]].pop():holl[acc[a][1]]=null); (acc[b][0]==='c'?cols[acc[b][1]].pop():holl[acc[b][1]]=null); ch=true; break o; } } };
-      const done=(cols,holl)=>cols.every(c=>!c.length)&&holl.every(h=>!h);
-      const key=(cols,holl)=>cols.map(c=>c.join(',')).sort().join('|')+'#'+holl.filter(Boolean).sort().join(',');
-      function dfs(cols,holl){ if(--budget<=0) return false; cols=cols.map(c=>c.slice()); holl=holl.slice(); greedy(cols,holl);
-        if(done(cols,holl)) return true; const k=key(cols,holl); if(seen.has(k)) return false; seen.add(k);
-        const ec=cols.findIndex(c=>!c.length), fh=holl.findIndex(h=>!h);
-        if(fh>=0) for(let i=0;i<cols.length;i++) if(cols[i].length){ const nc=cols.map(c=>c.slice()),nh=holl.slice(); nh[fh]=nc[i].pop(); if(dfs(nc,nh)) return true; }
-        if(ec>=0) for(let i=0;i<cols.length;i++) if(cols[i].length>1&&i!==ec){ const nc=cols.map(c=>c.slice()); nc[ec].push(nc[i].pop()); if(dfs(nc,holl.slice())) return true; }
-        if(ec>=0) for(let i=0;i<holl.length;i++) if(holl[i]){ const nc=cols.map(c=>c.slice()),nh=holl.slice(); nc[ec].push(nh[i]); nh[i]=null; if(dfs(nc,nh)) return true; }
-        return false; }
-      return dfs(Ccards.map(c=>c.map(tok)), Array(HOLL).fill(null));
-    }
+    const HOLL=5, TOTAL=22, PILES=5, PILE_N=5, DOWN=3;       // 5 piles of 5 (3 down, 2 up), 5 hollows, 19 in deck
 
     // ---- state ----
-    let cols, hollows, pairs, sel, history, over;
-    const refCard = ref => !ref ? null : ref.k==='col' ? (cols[ref.i].length?cols[ref.i][cols[ref.i].length-1]:null) : hollows[ref.i];
+    // pile = { arr:[cards], down:n }  front = arr[last] (always face-up); indices < down are face-down.
+    let piles, stock, waste, hollows, pairs, sel, history, over;
+    const normalize = p => { if(p.arr.length===0) p.down=0; else if(p.down>=p.arr.length) p.down=p.arr.length-1; };
+    function refCard(ref){ if(!ref) return null;
+      if(ref.k==='pile'){ const p=piles[ref.i]; return p.arr.length? p.arr[p.arr.length-1] : null; }
+      if(ref.k==='waste') return waste.length? waste[waste.length-1] : null;
+      if(ref.k==='holl') return hollows[ref.i];
+      return null; }
     const sameRef = (a,b) => a&&b&&a.k===b.k&&a.i===b.i;
-    const removeRef = ref => { if(ref.k==='col') cols[ref.i].pop(); else hollows[ref.i]=null; };
-    function pushHist(){ history.push({cols:cols.map(c=>c.slice()),hollows:hollows.slice(),pairs}); if(history.length>400) history.shift(); }
-    function undo(){ if(!history.length) return; const s=history.pop(); cols=s.cols; hollows=s.hollows; pairs=s.pairs; sel=null; over=false; render(); }
+    function removeRef(ref){ if(ref.k==='pile'){ piles[ref.i].arr.pop(); normalize(piles[ref.i]); }
+      else if(ref.k==='waste') waste.pop(); else hollows[ref.i]=null; }
+    function pushHist(){ history.push({ piles:piles.map(p=>({arr:p.arr.slice(),down:p.down})),
+      stock:stock.slice(), waste:waste.slice(), hollows:hollows.slice(), pairs }); if(history.length>400) history.shift(); }
+    function undo(){ if(!history.length) return; const s=history.pop();
+      piles=s.piles; stock=s.stock; waste=s.waste; hollows=s.hollows; pairs=s.pairs; sel=null; over=false; render(); }
 
     function newDeal(){
-      let C,t=0;
-      do{ const d=shuffle(makeDeck({ranks:['A','2','3','4','5','6','7','8','9','10','J']}));
-          C=Array.from({length:COLS},()=>[]); d.forEach((c,i)=>C[i%COLS].push(c)); t++; }
-      while(!solvable(C) && t<80);
-      cols=C; hollows=Array(HOLL).fill(null); pairs=0; sel=null; history=[]; over=false; render();
+      const d=shuffle(makeDeck({ranks:['A','2','3','4','5','6','7','8','9','10','J']})); // 44
+      piles=[]; let i=0; for(let p=0;p<PILES;p++){ piles.push({arr:d.slice(i,i+PILE_N), down:DOWN}); i+=PILE_N; }
+      stock=d.slice(i); waste=[]; hollows=Array(HOLL).fill(null);   // stock = remaining 19
+      pairs=0; sel=null; history=[]; over=false; render();
+    }
+    function draw(){
+      if(over) return;
+      if(stock.length){ pushHist(); waste.push(stock.pop()); sel=null; render(); }
+      else if(waste.length){ pushHist(); stock=waste.reverse(); waste=[]; sel=null; render(); } // recycle
     }
     function anyLegalMove(){
-      const acc=[]; cols.forEach(c=>{ if(c.length) acc.push(c[c.length-1]); }); hollows.forEach(h=>{ if(h) acc.push(h); });
+      const acc=[]; piles.forEach(p=>{ if(p.arr.length) acc.push(p.arr[p.arr.length-1]); });
+      if(waste.length) acc.push(waste[waste.length-1]); hollows.forEach(h=>{ if(h) acc.push(h); });
       for(let i=0;i<acc.length;i++) for(let j=i+1;j<acc.length;j++) if(match(acc[i],acc[j])) return true;
-      const emptyCol=cols.some(c=>!c.length), freeHoll=hollows.some(h=>!h);
-      if((freeHoll||emptyCol) && cols.some(c=>c.length)) return true;
-      if(emptyCol && hollows.some(h=>h)) return true;
+      if(stock.length||waste.length) return true;                          // draw or recycle
+      const freeHoll=hollows.includes(null), emptyPile=piles.some(p=>!p.arr.length);
+      if(freeHoll && (piles.some(p=>p.arr.length)||waste.length)) return true;
+      if(emptyPile && (piles.some(p=>p.arr.length)||waste.length||hollows.some(Boolean))) return true;
       return false;
     }
     function afterMove(){ if(pairs===TOTAL){ over=true; return finishWin(); } render(); }
@@ -531,25 +526,30 @@ GAMES.push({
       if(a && match(a,card)){ pushHist(); removeRef(sel); removeRef(ref); pairs++; sel=null; toast('Match! ✨'); afterMove(); return; }
       sel=ref; render();
     }
-    function clickHollow(hi){ if(over||!sel||sel.k!=='col'||hollows[hi]) return; const card=refCard(sel); if(!card) return;
-      pushHist(); cols[sel.i].pop(); hollows[hi]=card; sel=null; render(); }
-    function clickEmptyCol(ci){ if(over||!sel||cols[ci].length) return; const card=refCard(sel); if(!card) return;
-      pushHist(); removeRef(sel); cols[ci].push(card); sel=null; render(); }
+    function clickHollow(hi){ if(over||!sel||hollows[hi]||(sel.k!=='pile'&&sel.k!=='waste')) return;
+      const card=refCard(sel); if(!card) return; pushHist(); removeRef(sel); hollows[hi]=card; sel=null; render(); }
+    function clickEmptyPile(pi){ if(over||!sel||piles[pi].arr.length) return;
+      const card=refCard(sel); if(!card) return; pushHist(); removeRef(sel); piles[pi]={arr:[card],down:0}; sel=null; render(); }
 
     function finishWin(){
       root.innerHTML=`<div class="center" style="padding-top:14px"><div class="big">🦄🐴🦊🦉🦭 Every animal is paired!</div>
-        <p class="muted">You matched all 22 pairs and cleared every burrow. The Bramblewake glows.</p></div>`;
+        <p class="muted">You uncovered and matched all 22 pairs. The Bramblewake glows.</p></div>`;
       const again=el('button','btn','Play again'); again.onclick=()=>openGame(GAMES.find(g=>g.id==='bramblewake'));
       const r=el('div','row'); r.style.justifyContent='center'; r.appendChild(again); root.querySelector('.center').appendChild(r);
     }
 
     root.innerHTML=`
-      <p class="muted">Match every pair of the <b>same animal</b> (same colour + number). Only the <b>front card of a burrow</b> can be picked. Park a card in a <b>hollow</b> to reach the one behind it. Every deal can be won — take your time!</p>
+      <p class="muted">Match every pair of the <b>same animal</b> (same colour + number). Flip the <b>deck</b> for more critters, and dig the <b>burrows</b> — clearing a critter <b>uncovers</b> the one sleeping behind it! Park cards in <b>hollows</b> to make room. Undo anytime.</p>
       <div class="felt" style="background:radial-gradient(circle at 50% 6%, #1c4f33, #0c2a1b)">
-        <div class="row" style="justify-content:space-between;align-items:flex-start">
-          <div><div class="h2" style="color:#dffbe9;margin:0 0 6px">🕳️ Hollows</div><div class="row" id="hollows" style="min-height:80px"></div></div>
+        <div class="row" style="justify-content:space-between;align-items:flex-start;gap:10px">
+          <div class="row" style="gap:12px;align-items:flex-start">
+            <div class="center"><div class="muted" style="margin-bottom:4px">Deck</div><div id="stock"></div></div>
+            <div class="center"><div class="muted" style="margin-bottom:4px">Drawn</div><div id="waste"></div></div>
+          </div>
           <span class="pill" id="prog">Pairs 0/${TOTAL}</span>
         </div>
+        <div class="h2" style="color:#dffbe9;margin-top:8px">🕳️ Hollows</div>
+        <div class="row" id="hollows" style="min-height:80px"></div>
         <div class="h2" style="color:#dffbe9">🌲 Burrows</div>
         <div id="tableau" style="display:flex;gap:8px;align-items:flex-start;overflow-x:auto;padding-bottom:6px"></div>
       </div>
@@ -563,25 +563,39 @@ GAMES.push({
 
     function render(){
       const prog=root.querySelector('#prog'); if(!prog) return;       // win screen replaced the scaffold
-      const hollowsEl=root.querySelector('#hollows'), tableauEl=root.querySelector('#tableau'), hint=root.querySelector('#hint');
+      const stockEl=root.querySelector('#stock'), wasteEl=root.querySelector('#waste'),
+            hollowsEl=root.querySelector('#hollows'), tableauEl=root.querySelector('#tableau'), hint=root.querySelector('#hint');
       prog.textContent=`Pairs ${pairs}/${TOTAL}`;
       const selCard = sel ? refCard(sel) : null;
-      const glow = card => { if(selCard && card!==selCard && match(selCard,card)) return true; return false; };
+      const glow = card => !!selCard && card!==selCard && match(selCard,card);
+      // stock
+      stockEl.innerHTML='';
+      if(stock.length){ const b=el('div','card back playable'); b.onclick=draw; stockEl.appendChild(b); stockEl.appendChild(el('div','muted',stock.length+' left')); }
+      else if(waste.length){ const s=el('div','slot playable','↻'); s.style.borderColor='#8fe0b0'; s.onclick=draw; stockEl.appendChild(s); stockEl.appendChild(el('div','muted','recycle')); }
+      else stockEl.appendChild(el('div','slot','—'));
+      // waste
+      wasteEl.innerHTML='';
+      if(waste.length){ const top=waste[waste.length-1]; const ce=critEl(top, sel&&sel.k==='waste'); ce.classList.add('playable');
+        if(glow(top)) ce.style.outline='3px solid var(--good)'; ce.onclick=()=>clickCard({k:'waste'}); wasteEl.appendChild(ce);
+        if(waste.length>1) wasteEl.appendChild(el('div','muted',waste.length+' drawn')); }
+      else wasteEl.appendChild(el('div','slot','—'));
+      // hollows
       hollowsEl.innerHTML='';
       hollows.forEach((card,hi)=>{
         if(card){ const ce=critEl(card, sel&&sel.k==='holl'&&sel.i===hi); ce.classList.add('playable');
           if(glow(card)) ce.style.outline='3px solid var(--good)'; ce.onclick=()=>clickCard({k:'holl',i:hi}); hollowsEl.appendChild(ce); }
-        else { const s=el('div','slot','hollow'); if(sel&&sel.k==='col'){ s.classList.add('playable'); s.style.borderColor='#8fe0b0'; s.onclick=()=>clickHollow(hi); } hollowsEl.appendChild(s); }
+        else { const s=el('div','slot','hollow'); if(sel&&(sel.k==='pile'||sel.k==='waste')){ s.classList.add('playable'); s.style.borderColor='#8fe0b0'; s.onclick=()=>clickHollow(hi); } hollowsEl.appendChild(s); }
       });
+      // burrows (piles) — face-down cards show as backs; front is face-up & pickable
       tableauEl.innerHTML='';
-      cols.forEach((col,ci)=>{
+      piles.forEach((p,pi)=>{
         const colEl=el('div'); colEl.style.cssText='display:flex;flex-direction:column;align-items:center;flex:0 0 auto';
-        if(!col.length){ const s=el('div','slot',''); if(sel){ s.classList.add('playable'); s.style.borderColor='#8fe0b0'; s.onclick=()=>clickEmptyCol(ci); } colEl.appendChild(s); }
-        else col.forEach((card,idx)=>{
-          const bottom = idx===col.length-1;
-          const ce=critEl(card, bottom && !!sel && sel.k==='col' && sel.i===ci);
+        if(!p.arr.length){ const s=el('div','slot',''); if(sel){ s.classList.add('playable'); s.style.borderColor='#8fe0b0'; s.onclick=()=>clickEmptyPile(pi); } colEl.appendChild(s); }
+        else p.arr.forEach((card,idx)=>{
+          const faceDown = idx < p.down, front = idx===p.arr.length-1;
+          const ce = faceDown ? el('div','card back') : critEl(card, front && !!sel && sel.k==='pile' && sel.i===pi);
           if(idx>0) ce.style.marginTop='-36px';
-          if(bottom){ ce.classList.add('playable'); if(glow(card)) ce.style.outline='3px solid var(--good)'; ce.onclick=()=>clickCard({k:'col',i:ci}); }
+          if(front && !faceDown){ ce.classList.add('playable'); if(glow(card)) ce.style.outline='3px solid var(--good)'; ce.onclick=()=>clickCard({k:'pile',i:pi}); }
           colEl.appendChild(ce);
         });
         tableauEl.appendChild(colEl);
