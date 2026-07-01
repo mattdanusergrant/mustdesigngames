@@ -436,17 +436,19 @@ GAMES.push({
 });
 
 /* ============================================================
-   GAME — BRAMBLEWAKE  (solo pairing/excavation solitaire, 44-card A..J deck)
-   Match pairs of the SAME animal (same colour + same rank — the two same-colour
-   suits of a creature). Starts with 3 pre-dealt burrows (2 buried + 1 face-up
-   each). Unmatchable cards open a new burrow that buries one face-down deck card,
-   excavated by pairing the card above it. Clear all 22 pairs to win; no legal
-   move = stuck. (~29% winnable by greedy play with the starting burrows.)
+   GAME — BRAMBLEWAKE  (kids' FreeCell-matching solitaire, 44-card A..J deck)
+   All 44 cards deal face-up into 8 burrows (columns); 4 hollows are free cells.
+   Only a burrow's front (bottom) card is accessible: pair two accessible cards
+   of the SAME animal (same colour + rank), or park an accessible card in a free
+   hollow / empty burrow to reach the one behind it. Clear all 22 pairs to win.
+   Winnable-deals-only: an embedded solver reshuffles until the deal is solvable
+   (8 cols + 4 hollows measured 100% solvable), so every game can be won with
+   smart play. Unlimited undo. Matches glow green when a card is selected.
    ============================================================ */
 GAMES.push({
-  id:'bramblewake', title:'Bramblewake', players:'1 player', tag:'solitaire · pairs · A–J',
+  id:'bramblewake', title:'Bramblewake', players:'1 player', tag:'kids · freecell · pairs',
   chips:[{k:'custom',t:'fae deck'}],
-  blurb:'Match pairs of the same fae animal (same colour + number) across a two-part bestiary — red (Pegasus→Horse) and black (Unicorn→Seal). Stash mismatches in burrows — each buries a card you must dig back out by pairing the one on top.',
+  blurb:'A cuddly FreeCell for kids: match every pair of the same fae animal across a two-part bestiary — red (Pegasus→Horse) and black (Unicorn→Seal). Park cards in hollows to dig, undo freely, and every deal is guaranteed winnable.',
   mount(root){
     // creature depends on COLOUR × RANK: red suits (♥♦) and black suits (♠♣) are
     // two parallel families of eleven. Suits render as the normal four pips.
@@ -475,99 +477,118 @@ GAMES.push({
       return d;
     }
     const match = (a,b) => a.color===b.color && a.r===b.r;   // same animal = same colour + same rank
-    let deck = shuffle(makeDeck({ ranks:['A','2','3','4','5','6','7','8','9','10','J'] })); // 44 = 22 pairs
-    let burrows=[];      // each = pile array; last element is the face-up top, earlier are buried face-down
-    for(let i=0;i<3;i++) burrows.push([deck.pop(),deck.pop(),deck.pop()]); // start: 3 burrows, each 2 buried + 1 face-up
-    let cur=null, pairs=0, sel=null, over=false;  // sel: 'current' | a pile reference; over: false|true(win)|'stuck'
+    const COLS=8, HOLL=4, TOTAL=22;                          // 8 burrows + 4 hollows → every deal is solvable
+    const tok = c => (c.color==='red'?'r':'b')+c.r;
 
-    root.innerHTML=`
-      <p class="muted" id="msg">You start with <b>three burrows</b> already dug (2 buried, 1 critter showing). Flip cards and match <b>pairs of the same animal</b> (same colour + number). A card that matches nothing opens a new <b>burrow</b>, burying one deck card beneath it — dig it back out by pairing the card on top.</p>
-      <div class="felt" style="background:radial-gradient(circle at 50% 10%, #1c4f33, #0c2a1b)">
-        <div class="h2" style="color:#dffbe9">🕳️ Burrows <span class="muted" id="binfo"></span></div>
-        <div class="row" id="burrows" style="align-items:flex-start;min-height:104px"></div>
-      </div>
-      <div class="row" style="margin-top:14px">
-        <div class="deckpile"><div class="card back"></div><div class="count" id="dc"></div></div>
-        <div id="curwrap"></div>
-        <button class="btn" id="flip">Flip a card</button>
-        <button class="btn alt" id="bury"></button>
-        <span class="pill" id="prog">Pairs 0/22</span>
-      </div>
-      <p class="muted" id="hint" style="margin-top:8px;min-height:18px"></p>`;
-    const $=s=>root.querySelector(s);
-    const burrowsEl=$('#burrows'), dc=$('#dc'), flip=$('#flip'), bury=$('#bury'),
-          prog=$('#prog'), curwrap=$('#curwrap'), binfo=$('#binfo'), hint=$('#hint');
+    // ---- solver: is this deal winnable? (perfect-info FreeCell-matching search) ----
+    function solvable(Ccards){
+      const seen=new Set(); let budget=150000;
+      const greedy=(cols,holl)=>{ let ch=true; while(ch){ ch=false;
+        const acc=[]; cols.forEach((c,i)=>{ if(c.length) acc.push(['c',i,c[c.length-1]]); }); holl.forEach((h,i)=>{ if(h) acc.push(['h',i,h]); });
+        o: for(let a=0;a<acc.length;a++) for(let b=a+1;b<acc.length;b++) if(acc[a][2]===acc[b][2]){
+          (acc[a][0]==='c'?cols[acc[a][1]].pop():holl[acc[a][1]]=null); (acc[b][0]==='c'?cols[acc[b][1]].pop():holl[acc[b][1]]=null); ch=true; break o; } } };
+      const done=(cols,holl)=>cols.every(c=>!c.length)&&holl.every(h=>!h);
+      const key=(cols,holl)=>cols.map(c=>c.join(',')).sort().join('|')+'#'+holl.filter(Boolean).sort().join(',');
+      function dfs(cols,holl){ if(--budget<=0) return false; cols=cols.map(c=>c.slice()); holl=holl.slice(); greedy(cols,holl);
+        if(done(cols,holl)) return true; const k=key(cols,holl); if(seen.has(k)) return false; seen.add(k);
+        const ec=cols.findIndex(c=>!c.length), fh=holl.findIndex(h=>!h);
+        if(fh>=0) for(let i=0;i<cols.length;i++) if(cols[i].length){ const nc=cols.map(c=>c.slice()),nh=holl.slice(); nh[fh]=nc[i].pop(); if(dfs(nc,nh)) return true; }
+        if(ec>=0) for(let i=0;i<cols.length;i++) if(cols[i].length>1&&i!==ec){ const nc=cols.map(c=>c.slice()); nc[ec].push(nc[i].pop()); if(dfs(nc,holl.slice())) return true; }
+        if(ec>=0) for(let i=0;i<holl.length;i++) if(holl[i]){ const nc=cols.map(c=>c.slice()),nh=holl.slice(); nc[ec].push(nh[i]); nh[i]=null; if(dfs(nc,nh)) return true; }
+        return false; }
+      return dfs(Ccards.map(c=>c.map(tok)), Array(HOLL).fill(null));
+    }
 
-    const topOf = pile => pile[pile.length-1];
-    const cardOf = ref => ref==='current' ? cur : topOf(ref);
-    function exposed(){ const e=[]; if(cur) e.push(cur); burrows.forEach(p=>e.push(topOf(p))); return e; }
-    const anyMatch = () => { const e=exposed(); return e.some((a,i)=>e.some((b,j)=>j>i && match(a,b))); };
-    function burrowCost(){ return 1; }   // each burrow buries exactly one deck card (excavate by pairing the top)
+    // ---- state ----
+    let cols, hollows, pairs, sel, history, over;
+    const refCard = ref => !ref ? null : ref.k==='col' ? (cols[ref.i].length?cols[ref.i][cols[ref.i].length-1]:null) : hollows[ref.i];
+    const sameRef = (a,b) => a&&b&&a.k===b.k&&a.i===b.i;
+    const removeRef = ref => { if(ref.k==='col') cols[ref.i].pop(); else hollows[ref.i]=null; };
+    function pushHist(){ history.push({cols:cols.map(c=>c.slice()),hollows:hollows.slice(),pairs}); if(history.length>400) history.shift(); }
+    function undo(){ if(!history.length) return; const s=history.pop(); cols=s.cols; hollows=s.hollows; pairs=s.pairs; sel=null; over=false; render(); }
 
-    function selectRef(ref){
-      if(over) return;
-      if(sel===null){ sel=ref; render(); return; }
-      if(sel===ref){ sel=null; render(); return; }            // tap again to deselect
-      const a=cardOf(sel), b=cardOf(ref);
-      if(a && b && match(a,b)) pairUp(sel,ref);
-      else { sel=ref; render(); }                             // not a match → switch selection
+    function newDeal(){
+      let C,t=0;
+      do{ const d=shuffle(makeDeck({ranks:['A','2','3','4','5','6','7','8','9','10','J']}));
+          C=Array.from({length:COLS},()=>[]); d.forEach((c,i)=>C[i%COLS].push(c)); t++; }
+      while(!solvable(C) && t<80);
+      cols=C; hollows=Array(HOLL).fill(null); pairs=0; sel=null; history=[]; over=false; render();
     }
-    function removeRef(ref){ if(ref==='current') cur=null; else ref.pop(); }
-    function pairUp(rA,rB){
-      removeRef(rA); removeRef(rB);
-      burrows=burrows.filter(p=>p.length>0);                  // an emptied burrow is gone
-      pairs++; sel=null; toast('Pair! ✨'); checkEnd(); render();
+    function anyLegalMove(){
+      const acc=[]; cols.forEach(c=>{ if(c.length) acc.push(c[c.length-1]); }); hollows.forEach(h=>{ if(h) acc.push(h); });
+      for(let i=0;i<acc.length;i++) for(let j=i+1;j<acc.length;j++) if(match(acc[i],acc[j])) return true;
+      const emptyCol=cols.some(c=>!c.length), freeHoll=hollows.some(h=>!h);
+      if((freeHoll||emptyCol) && cols.some(c=>c.length)) return true;
+      if(emptyCol && hollows.some(h=>h)) return true;
+      return false;
     }
-    function flipCard(){ if(over||cur||!deck.length) return; cur=deck.pop(); sel=null; checkEnd(); render(); }
-    function makeBurrow(){
-      if(over||!cur) return; const cost=burrowCost(); if(deck.length<cost) return;
-      const buried=deck.splice(deck.length-cost,cost);        // X face-down off the deck
-      burrows.push(buried.concat([cur]));                     // the unmatchable card sits face-up on top
-      cur=null; sel=null; checkEnd(); render();
+    function afterMove(){ if(pairs===TOTAL){ over=true; return finishWin(); } render(); }
+    function clickCard(ref){
+      if(over) return; const card=refCard(ref); if(!card) return;
+      if(!sel){ sel=ref; render(); return; }
+      if(sameRef(sel,ref)){ sel=null; render(); return; }
+      const a=refCard(sel);
+      if(a && match(a,card)){ pushHist(); removeRef(sel); removeRef(ref); pairs++; sel=null; toast('Match! ✨'); afterMove(); return; }
+      sel=ref; render();
     }
-    function checkEnd(){
-      if(pairs===22){ over=true; return; }
-      const canFlip=!cur && deck.length>0, canBurrow=!!cur && deck.length>=burrowCost();
-      if(!anyMatch() && !canFlip && !canBurrow) over='stuck';
-    }
-    function finish(win){
-      root.innerHTML = win
-        ? `<div class="center"><div class="big">🦄🐴🦊🦉🦭 Every animal is paired!</div>
-           <p class="muted">You matched all 22 pairs and dug every burrow clean. The Bramblewake glows.</p></div>`
-        : `<div class="center"><div class="big">🌙 The wood goes quiet…</div>
-           <p class="muted">No moves left — ${pairs}/22 pairs found. A kinder shuffle awaits.</p></div>`;
-      const again=el('button','btn',win?'Play again':'Try again'); again.onclick=()=>openGame(GAMES.find(g=>g.id==='bramblewake'));
+    function clickHollow(hi){ if(over||!sel||sel.k!=='col'||hollows[hi]) return; const card=refCard(sel); if(!card) return;
+      pushHist(); cols[sel.i].pop(); hollows[hi]=card; sel=null; render(); }
+    function clickEmptyCol(ci){ if(over||!sel||cols[ci].length) return; const card=refCard(sel); if(!card) return;
+      pushHist(); removeRef(sel); cols[ci].push(card); sel=null; render(); }
+
+    function finishWin(){
+      root.innerHTML=`<div class="center" style="padding-top:14px"><div class="big">🦄🐴🦊🦉🦭 Every animal is paired!</div>
+        <p class="muted">You matched all 22 pairs and cleared every burrow. The Bramblewake glows.</p></div>`;
+      const again=el('button','btn','Play again'); again.onclick=()=>openGame(GAMES.find(g=>g.id==='bramblewake'));
       const r=el('div','row'); r.style.justifyContent='center'; r.appendChild(again); root.querySelector('.center').appendChild(r);
     }
+
+    root.innerHTML=`
+      <p class="muted">Match every pair of the <b>same animal</b> (same colour + number). Only the <b>front card of a burrow</b> can be picked. Park a card in a <b>hollow</b> to reach the one behind it. Every deal can be won — take your time!</p>
+      <div class="felt" style="background:radial-gradient(circle at 50% 6%, #1c4f33, #0c2a1b)">
+        <div class="row" style="justify-content:space-between;align-items:flex-start">
+          <div><div class="h2" style="color:#dffbe9;margin:0 0 6px">🕳️ Hollows</div><div class="row" id="hollows" style="min-height:80px"></div></div>
+          <span class="pill" id="prog">Pairs 0/${TOTAL}</span>
+        </div>
+        <div class="h2" style="color:#dffbe9">🌲 Burrows</div>
+        <div id="tableau" style="display:flex;gap:8px;align-items:flex-start;overflow-x:auto;padding-bottom:6px"></div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn alt" id="undo">↶ Undo</button>
+        <button class="btn alt" id="newgame">New game</button>
+        <span class="muted" id="hint"></span>
+      </div>`;
+    root.querySelector('#undo').onclick=undo;
+    root.querySelector('#newgame').onclick=newDeal;
+
     function render(){
-      if(over===true) return finish(true);
-      if(over==='stuck') return finish(false);
-      dc.textContent=deck.length; prog.textContent=`Pairs ${pairs}/22`;
-      binfo.textContent = burrows.length ? `(${burrows.length} open)` : '(none yet)';
-      flip.disabled = !!cur || !deck.length;
-      const cost=burrowCost();
-      bury.textContent=`New burrow (bury ${cost})`; bury.disabled = !cur || deck.length<cost;
-      hint.textContent = cur
-        ? (anyMatch() ? 'A match is on the table — tap two cards of the same animal to pair them.'
-                      : `No match for the ${creatOf(cur).n}. Bury it (costs ${cost}) to keep digging.`)
-        : (deck.length ? 'Flip a card, or pair any two exposed animals that match.'
-                       : 'Deck empty — clear the burrows by pairing their top cards.');
-      curwrap.innerHTML='';
-      if(cur){ const ce=critEl(cur, sel==='current'); ce.classList.add('playable'); ce.onclick=()=>selectRef('current'); curwrap.appendChild(ce); }
-      burrowsEl.innerHTML='';
-      if(!burrows.length) burrowsEl.appendChild(el('div','slot','no burrows'));
-      burrows.forEach(pile=>{
-        const col=el('div'); col.style.cssText='display:flex;flex-direction:column;align-items:center;gap:4px';
-        const buriedN=pile.length-1;
-        const top=critEl(topOf(pile), sel===pile); top.classList.add('playable'); top.onclick=()=>selectRef(pile);
-        col.appendChild(top);
-        col.appendChild(el('div','muted', buriedN?(buriedN+' buried'):'nothing below'));
-        burrowsEl.appendChild(col);
+      const prog=root.querySelector('#prog'); if(!prog) return;       // win screen replaced the scaffold
+      const hollowsEl=root.querySelector('#hollows'), tableauEl=root.querySelector('#tableau'), hint=root.querySelector('#hint');
+      prog.textContent=`Pairs ${pairs}/${TOTAL}`;
+      const selCard = sel ? refCard(sel) : null;
+      const glow = card => { if(selCard && card!==selCard && match(selCard,card)) return true; return false; };
+      hollowsEl.innerHTML='';
+      hollows.forEach((card,hi)=>{
+        if(card){ const ce=critEl(card, sel&&sel.k==='holl'&&sel.i===hi); ce.classList.add('playable');
+          if(glow(card)) ce.style.outline='3px solid var(--good)'; ce.onclick=()=>clickCard({k:'holl',i:hi}); hollowsEl.appendChild(ce); }
+        else { const s=el('div','slot','hollow'); if(sel&&sel.k==='col'){ s.classList.add('playable'); s.style.borderColor='#8fe0b0'; s.onclick=()=>clickHollow(hi); } hollowsEl.appendChild(s); }
       });
+      tableauEl.innerHTML='';
+      cols.forEach((col,ci)=>{
+        const colEl=el('div'); colEl.style.cssText='display:flex;flex-direction:column;align-items:center;flex:0 0 auto';
+        if(!col.length){ const s=el('div','slot',''); if(sel){ s.classList.add('playable'); s.style.borderColor='#8fe0b0'; s.onclick=()=>clickEmptyCol(ci); } colEl.appendChild(s); }
+        else col.forEach((card,idx)=>{
+          const bottom = idx===col.length-1;
+          const ce=critEl(card, bottom && !!sel && sel.k==='col' && sel.i===ci);
+          if(idx>0) ce.style.marginTop='-36px';
+          if(bottom){ ce.classList.add('playable'); if(glow(card)) ce.style.outline='3px solid var(--good)'; ce.onclick=()=>clickCard({k:'col',i:ci}); }
+          colEl.appendChild(ce);
+        });
+        tableauEl.appendChild(colEl);
+      });
+      hint.textContent = anyLegalMove() ? '' : 'No moves — tap ↶ Undo or New game.';
     }
-    flip.addEventListener('click',flipCard);
-    bury.addEventListener('click',makeBurrow);
-    render();
+    newDeal();
   }
 });
 
