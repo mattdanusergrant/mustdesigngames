@@ -473,12 +473,15 @@ GAMES.push({
       },
     };
     const creatOf = c => CREAT[c.color][c.r];
-    // responsive sizing — cards scale up on wider desktop screens
+    // responsive sizing — fit all PILES columns to the screen width (shrink on mobile, grow on desktop)
     let S=1, CW=54, CH=76, OVER=36;
-    function computeScale(){ const w=window.innerWidth||760;
-      S = w>=1080?1.6 : w>=860?1.4 : w>=620?1.18 : 1;
-      CW=Math.round(54*S); CH=Math.round(76*S); OVER=Math.round(36*S); }
-    computeScale();
+    function computeScale(){
+      const w=window.innerWidth||760, gap=8;
+      const usable=Math.min(w-60, 1000);                 // subtract #view (32) + felt (28) padding
+      const perCol=(usable-gap*(PILES-1))/PILES;          // width available per column
+      const cw=Math.max(30, Math.min(perCol, 86));        // clamp: never smaller than 30, never bigger than 86
+      S=cw/54; CW=Math.round(54*S); CH=Math.round(76*S); OVER=Math.round(36*S);
+    }
     function box(cls){ const d=el('div',cls); d.style.width=CW+'px'; d.style.height=CH+'px'; d.style.flex='0 0 auto'; return d; }
     function slotBox(txt){ const s=box('slot'); if(txt!=null) s.textContent=txt; s.style.fontSize=Math.round(11*S)+'px'; return s; }
     function critEl(c, sel){
@@ -518,6 +521,7 @@ GAMES.push({
       piles=s.piles; stock=s.stock; drawn=s.drawn; hollows=s.hollows; pairs=s.pairs; sel=null; over=false; render(); }
 
     function newDeal(){
+      computeScale();                                    // fit card size to the current screen width
       const d=shuffle(makeDeck({ranks:['A','2','3','4','5','6','7','8','9','10','J']})); // 44
       piles=[]; let i=0;
       const SIZES=[5,6,7,8,7,6,5];  // after auto-fill, face-down per burrow = size-2 = 3,4,5,6,5,4,3
@@ -582,7 +586,7 @@ GAMES.push({
           <span class="pill" id="prog">Pairs 0/${TOTAL}</span>
         </div>
         <div class="h2" style="color:#dffbe9;margin-top:8px">🕳️ Hollows &amp; 🌲 Burrows</div>
-        <div id="board" style="display:flex;gap:10px;align-items:flex-start;justify-content:center;overflow-x:auto;padding-bottom:6px"></div>
+        <div id="board" style="display:flex;gap:8px;align-items:flex-start;justify-content:center;overflow-x:auto;padding-bottom:6px"></div>
       </div>
       <div class="row" style="margin-top:12px">
         <button class="btn alt" id="undo">↶ Undo</button>
