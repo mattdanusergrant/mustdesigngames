@@ -437,13 +437,13 @@ GAMES.push({
 
 /* ============================================================
    GAME — BRAMBLEWAKE  (kids' matching solitaire w/ hidden cards, 44-card deck)
-   Deal 5 burrows of 5 (3 face-DOWN, 2 face-up) = 25; the other 19 form a stock
+   Deal 5 burrows of 3 (2 face-DOWN, 1 face-up) = 15; the other 29 form a stock
    drawn one at a time to the waste (recycle when empty). 5 hollows (free cells).
    Only each burrow's front (face-up) card, the waste top, and hollow cards are
    pickable: pair two of the SAME animal (colour + rank), or park a front/waste
    card in a hollow / empty burrow. Clearing a burrow's front UNCOVERS the sleeper
    behind it (the flip payoff). Clear all 22 pairs to win. Unlimited undo; matches
-   glow green. ~43% winnable by a crude bot (humans do better) — a real solitaire.
+   glow green. Very forgiving layout (crude bot wins ~100%) — easy for little kids.
    ============================================================ */
 GAMES.push({
   id:'bramblewake', title:'Bramblewake', players:'1 player', tag:'kids · pairs · hidden',
@@ -485,7 +485,7 @@ GAMES.push({
       return d;
     }
     const match = (a,b) => a.color===b.color && a.r===b.r;   // same animal = same colour + same rank
-    const HOLL=5, TOTAL=22, PILES=5, PILE_N=5, DOWN=3;       // 5 piles of 5 (3 down, 2 up), 5 hollows, 19 in deck
+    const HOLL=5, TOTAL=22, PILES=5, PILE_N=3, DOWN=2;       // 5 piles of 3 (2 down, 1 up), 5 hollows, 29 in deck
 
     // ---- state ----
     // pile = { arr:[cards], down:n }  front = arr[last] (always face-up); indices < down are face-down.
