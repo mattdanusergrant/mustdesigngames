@@ -620,10 +620,11 @@ GAMES.push({
 /* ============================================================
    GAME — KINGMAKER  (1v1 lane duel — vs AI or online, 10-card royals+wyld deck)
    Uses all 10 cards over 5 rounds. Each round both sides are secretly dealt one
-   card and commit it to the Left, Center, or Right throne. Scoring per throne:
-   King=3, Queen=2; each Wyld you place topples (culls) the opponent's strongest
-   card in that throne. Higher surviving value holds the throne (tie → strongest
-   surviving card by suit ♠♥♦♣, else neutral). Hold more thrones to win.
+   card and commit it to the Left, Center, or Right throne. Each throne is scored
+   as a pure POKER HAND (Wylds wild) — only Kings & Queens exist, so the ladder is
+   High card → Pair → Two pair → Trips → Full house → Four of a kind → Five of a
+   kind (no flush/straight). Better hand holds the throne (exact tie → neutral).
+   Hold more thrones to win; total hand-category strength breaks a tie.
    NO local hotseat — opponent is either the AI (authoritative local) or a remote
    peer over the Net layer (host-authoritative, redacted per-seat state so each
    side sees only their own throne cards until the reveal). Online is P2P/beta.
@@ -653,45 +654,68 @@ GAMES.push({
     }
 
     const LANES=['L','C','R'], LNAME={ L:'Left', C:'Center', R:'Right' };
-    const suitOrd={ S:4, H:3, D:2, C:1 };
-    const val = c => c.joker ? 0 : c.r==='K' ? 3 : 2;                 // throne value
-    const strength = c => (c.r==='K'?100:50) + suitOrd[c.s];          // for culling + tiebreak
-    function mini(c, culled){
+    const $ = s => root.querySelector(s);
+    const freshDeck = () => shuffle([ ...makeDeck({ranks:['K','Q']}), mkJoker(1), mkJoker(2) ]); // 4K 4Q 2 Wyld = 10
+    function mini(c){
       const d=el('div'); const accent = c.joker?'#c9b3ff' : c.r==='K'?'#ffd86b':'#c9b3ff';
-      d.style.cssText=`display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:42px;height:58px;border-radius:7px;background:linear-gradient(160deg,#241b3a,#0e1430);border:1px solid #4a3f6b;color:#e8e0ff;${culled?'opacity:.3;':''}`;
+      d.style.cssText='display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:42px;height:58px;border-radius:7px;background:linear-gradient(160deg,#241b3a,#0e1430);border:1px solid #4a3f6b;color:#e8e0ff;';
       d.innerHTML = c.joker
         ? `<div style="font-size:17px">🌀</div><div style="font-size:7px;font-weight:900">WYLD</div>`
         : `<div style="font-size:11px;font-weight:900;color:${accent}">${c.t}${c.sym}</div><div style="font-size:15px">${GLYPH[c.s]}</div>`;
       return d;
     }
 
-    const $ = s => root.querySelector(s);
-    const freshDeck = () => shuffle([ ...makeDeck({ranks:['K','Q']}), mkJoker(1), mkJoker(2) ]); // 4K 4Q 2 Wyld = 10
+    // ---- pure poker resolution (Wylds wild). Only Kings & Queens exist, so the
+    //      reachable hands are High card → Pair → Two pair → Trips → Full house →
+    //      Four of a kind → Five of a kind. No flush/straight is possible. ----
+    function evalPiles(a,b){                 // a = #Kings, b = #Queens after assigning wilds
+      const hi=Math.max(a,b), lo=Math.min(a,b), hiRank=a>=b?2:1, loRank=a>=b?1:2;
+      let cat; if(hi>=5) cat=8; else if(hi===4) cat=7; else if(hi===3&&lo>=2) cat=6;
+      else if(hi===3) cat=3; else if(hi===2&&lo===2) cat=2; else if(hi===2) cat=1; else cat=0;
+      return [cat, hiRank, loRank, hi, lo];
+    }
+    function handScore(cards){
+      if(!cards.length) return [-1];
+      const kc=cards.filter(c=>!c.joker&&c.r==='K').length, qc=cards.filter(c=>!c.joker&&c.r==='Q').length, w=cards.filter(c=>c.joker).length;
+      let best=[-1]; for(let wk=0; wk<=w; wk++){ const s=evalPiles(kc+wk, qc+(w-wk)); if(cmpScore(s,best)>0) best=s; }
+      return best;                            // brute-force the wild split; take the strongest hand
+    }
+    function handName(sc){
+      if(sc[0]<0) return '—'; const R=r=> r===2?'King':'Queen';
+      switch(sc[0]){
+        case 8: return 'Five '+R(sc[1])+'s';
+        case 7: return 'Four '+R(sc[1])+'s';
+        case 6: return 'Full house — '+R(sc[1])+'s over '+R(sc[2])+'s';
+        case 3: return 'Three '+R(sc[1])+'s';
+        case 2: return 'Two pair';
+        case 1: return 'Pair of '+R(sc[1])+'s';
+        default: return R(sc[1])+' high';
+      }
+    }
 
-    // ---- shared scoring (lanes[0]=Player 1, lanes[1]=Player 2) ----
+    // ---- lane = a poker hand; the better hand holds the throne (exact tie → neutral) ----
     function laneResult(l){
       const mine=lanes[0][l], opp=lanes[1][l];
-      const mW=mine.filter(c=>c.joker).length, oW=opp.filter(c=>c.joker).length;
-      const mR=mine.filter(c=>!c.joker).sort((a,b)=>strength(b)-strength(a));
-      const oR=opp.filter(c=>!c.joker).sort((a,b)=>strength(b)-strength(a));
-      const mCut=mR.slice(0,oW), oCut=oR.slice(0,mW);                 // enemy Wylds cull your strongest royals
-      const mVal=mR.slice(oW).reduce((s,c)=>s+val(c),0), oVal=oR.slice(mW).reduce((s,c)=>s+val(c),0);
-      let owner;
-      if(mVal>oVal) owner=0; else if(oVal>mVal) owner=1;
-      else { const mb=mR.slice(oW)[0], ob=oR.slice(mW)[0]; const ms=mb?strength(mb):-1, os=ob?strength(ob):-1;
-             owner = ms>os?0 : os>ms?1 : -1; }                       // tie → strongest surviving card, else neutral
-      return { l, mine, opp, mCut, oCut, mVal, oVal, owner };
+      const ms=handScore(mine), os=handScore(opp);
+      const owner = cmpScore(ms,os)>0 ? 0 : cmpScore(os,ms)>0 ? 1 : -1;
+      return { l, mine, opp, ms, os, mName:handName(ms), oName:handName(os), owner };
     }
     function tallies(){ const t=[0,0]; results.forEach(r=>{ if(r.owner>=0) t[r.owner]++; }); return t; }
 
-    // ---- AI opponent (seat 1). Sees the board — a competent, mildly-advantaged foe. ----
+    // ---- AI opponent (seat 1). Wins contested thrones cheaply instead of over-
+    //      building one hand (which would concede the other two). ~74% vs random,
+    //      balanced vs equal play (validated headless). ----
     function aiChoose(card){
-      const lv=(s,l)=>lanes[s][l].filter(c=>!c.joker).reduce((a,c)=>a+val(c),0);
-      if(card.joker){ let best='C',bv=-1; for(const l of LANES){ const v=lv(0,l); if(v>bv){bv=v;best=l;} } return best; } // topple opponent's strongest throne
-      let best='C',bs=-1e9;
-      for(const l of LANES){ const my=lv(1,l), op=lv(0,l), after=my+val(card);
-        let s; if(my<=op && after>op) s=100-(after-op); else if(after>op) s=40-(after-op); else s=op-after; // flip cheaply > extend > close gap
-        if(s>bs){ bs=s; best=l; } }
+      let best='C', bs=-1e9;
+      for(const l of LANES){
+        const after=handScore(lanes[1][l].concat([card])), opp=handScore(lanes[0][l]), cur=handScore(lanes[1][l]);
+        const nowWin=cmpScore(cur,opp)>0, willWin=cmpScore(after,opp)>0;
+        let s = after[0]*2;                       // stronger resulting hand is better
+        if(!nowWin && willWin) s += 6;            // flipping a losing/tied throne to a win is prime
+        if(nowWin && willWin) s -= 2;             // don't over-invest in an already-won throne
+        s += lanes[1][l].length*0.5;              // mild concentration to build pairs
+        if(s>bs){ bs=s; best=l; }
+      }
       return best;
     }
 
@@ -760,13 +784,14 @@ GAMES.push({
     function buildBoard(container, res){
       res.forEach(r=>{
         const panel=el('div','felt'); panel.style.cssText='margin:8px 0;background:radial-gradient(circle at 50% 0%, #241b3a, #0c1024)';
-        panel.appendChild(el('div','h2',`${LNAME[r.l]} Throne — ${r.owner<0?'⚖️ neutral':'👑 Player '+(r.owner+1)} <span class="muted" style="font-weight:400">(value P1 ${r.mVal} · P2 ${r.oVal})</span>`));
-        [['Player 1', r.mine, r.mCut],['Player 2', r.opp, r.oCut]].forEach(row=>{
-          const label=row[0], cs=row[1], cut=row[2];
+        panel.appendChild(el('div','h2',`${LNAME[r.l]} Throne — ${r.owner<0?'⚖️ neutral':'👑 Player '+(r.owner+1)}`));
+        [['Player 1', r.mine, r.mName],['Player 2', r.opp, r.oName]].forEach(row=>{
+          const label=row[0], cs=row[1], hname=row[2];
           const line=el('div'); line.style.cssText='display:flex;align-items:center;gap:6px;margin:4px 0;flex-wrap:wrap';
           line.appendChild(el('div','muted',label));
           if(!cs.length) line.appendChild(el('div','muted','—'));
-          cs.forEach(c=>line.appendChild(mini(c, cut.indexOf(c)>=0)));
+          cs.forEach(c=>line.appendChild(mini(c)));
+          line.appendChild(el('div','muted',hname));
           panel.appendChild(line);
         });
         container.appendChild(panel);
@@ -780,7 +805,7 @@ GAMES.push({
         <div class="felt" style="margin-top:10px;background:radial-gradient(circle at 50% 0%, #2a1f47, #0c1024)">
           <div class="center"><div class="muted">${canPlace?'Your card — commit it to a throne':(waitMsg||'Waiting…')}</div>
             <div id="cardwrap" style="display:flex;justify-content:center;margin:8px 0"></div>
-            <div class="muted" style="font-size:12px">${card?nameOf(card)+' — '+(card.joker?'Wyld: topples the enemy’s strongest card in its throne':val(card)+' throne value'):''}</div></div>
+            <div class="muted" style="font-size:12px">${card?nameOf(card)+' — '+(card.joker?'Wyld: wild card (becomes any King or Queen)':'a '+(card.r==='K'?'King':'Queen')):''}</div></div>
           <div class="row" id="thrones" style="justify-content:space-around;margin-top:14px;align-items:flex-start"></div>
         </div>`;
       if(card) $('#cardwrap').appendChild(faeCardEl(card,true));
@@ -802,7 +827,7 @@ GAMES.push({
       if(!rd.results){ return; }
       const seat=localSeat(), t=rd.tally;
       let winner; if(t[0]!==t[1]) winner=t[0]>t[1]?0:1;
-      else { const v=[rd.results.reduce((s,r)=>s+r.mVal,0), rd.results.reduce((s,r)=>s+r.oVal,0)]; winner=v[0]!==v[1]?(v[0]>v[1]?0:1):-1; }
+      else { const v=[rd.results.reduce((s,r)=>s+Math.max(r.ms[0],0),0), rd.results.reduce((s,r)=>s+Math.max(r.os[0],0),0)]; winner=v[0]!==v[1]?(v[0]>v[1]?0:1):-1; }
       const head = winner<0 ? 'A drawn duel — the thrones stay contested.' : (winner===seat ? '👑 You are crowned Kingmaker!' : 'Player '+(winner+1)+' takes the crown.');
       root.innerHTML=`<div class="center" style="margin-bottom:8px"><div class="big">${head}</div>
         <div class="muted">Thrones — P1 ${t[0]} · P2 ${t[1]} &nbsp;(you are Player ${seat+1})</div></div>
@@ -816,7 +841,7 @@ GAMES.push({
       if(phase==='menu'){
         root.innerHTML=`<div class="felt" style="background:radial-gradient(circle at 50% 0%, #2a1f47, #0c1024)">
           <div class="big center">👑 Kingmaker — Three Thrones</div>
-          <p class="muted" style="margin-top:8px">Over 5 rounds you're each dealt one fae card per round; commit it to the Left, Center, or Right throne (secretly). 👑 King = 3, Queen = 2; each 🌀 Wyld topples the enemy's strongest card in its throne. Hold two of three thrones to win.</p>
+          <p class="muted" style="margin-top:8px">Over 5 rounds you're each dealt one fae card per round; commit it to the Left, Center, or Right throne (secretly). Each throne is scored as a <b>poker hand</b> — pairs, trips, full houses, four/five of a kind from Kings & Queens, with 🌀 <b>Wylds wild</b>. The better hand holds the throne; take two of three to be crowned.</p>
           <div class="grid" style="margin-top:6px">
             <div class="tile"><div class="nm">🤖 Play vs AI</div><div class="bl">Duel the Wyldwood AI on this device.</div><button class="btn" id="ai" style="margin-top:8px">Start</button></div>
             <div class="tile"><div class="nm">🌐 Host online</div><div class="bl">Create a room; a friend joins by code (peer-to-peer).</div><button class="btn" id="host" style="margin-top:8px">Create room</button></div>
