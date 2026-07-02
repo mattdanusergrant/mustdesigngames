@@ -454,9 +454,9 @@ GAMES.push({
    100% solvable. Unlimited undo.
    ============================================================ */
 GAMES.push({
-  id:'bramblewake', title:'Bramblewake', players:'1 player', tag:'solitaire · pairs · stacking',
+  id:'bramblewake', title:'Bramblewake', players:'1 player', tag:'solitaire · pairs · no stacking',
   chips:[{k:'custom',t:'fae deck'}],
-  blurb:'A fae matching solitaire: pair every animal across a two-part bestiary — red (Pegasus→Horse) and black (Unicorn→Seal). All 44 cards deal into 7 burrows with a hollow above each (14 face-up to start); dig to uncover critters, park any card in the hollows to free space, and undo freely.',
+  blurb:'A fae matching solitaire: pair every animal across a two-part bestiary — red (Pegasus→Horse) and black (Unicorn→Seal). All 44 cards deal into 7 burrows with a hollow above each (14 face-up to start); dig to uncover critters, set a blocker aside in the Meadow (one card per spot — never stacked), and undo freely.',
   mount(root){
     // creature depends on COLOUR × RANK: red suits (♥♦) and black suits (♠♣) are
     // two parallel families of eleven. Suits render as the normal four pips.
@@ -496,11 +496,12 @@ GAMES.push({
       return d;
     }
     const match = (a,b) => a.color===b.color && a.r===b.r;   // pair = same animal (colour + rank)
-    const HOLL=7, TOTAL=22, PILES=7;   // 7 burrows (ends 5 down+1 up, middles 4 down+1 up)=37, 7 hollows all seeded, no deck; 14 face-up at start
+    const HOLL=7, TOTAL=22, PILES=7, MEADOW=5;   // 7 burrows (ends 5 down+1 up, middles 4 down+1 up)=37, 7 hollows all seeded, no deck; 14 face-up at start; 5 single-card meadow reserves
 
     // ---- state ----
-    // pile = {arr,down} (front=arr[last], face-up; idx<down face-down). hollows[i]=stack, top accessible.
-    let piles, stock, drawn, hollows, pairs, sel, history, over;
+    // pile = {arr,down} (front=arr[last], face-up; idx<down face-down). hollows[i]=stack (holds 0-1, no stacking).
+    // meadow[i] = one parked card or null (never stacked) — the only place to set a blocker aside.
+    let piles, stock, drawn, hollows, meadow, pairs, sel, history, over;
     const normalize = p => { if(p.arr.length===0) p.down=0; else if(p.down>=p.arr.length) p.down=p.arr.length-1; };
     // each empty hollow auto-fills with the top card of the burrow directly beneath it (same column)
     const settle = () => { for(let i=0;i<PILES;i++){ if(hollows[i].length===0 && piles[i].arr.length){ hollows[i].push(piles[i].arr.pop()); normalize(piles[i]); } } };
@@ -509,14 +510,16 @@ GAMES.push({
       if(ref.k==='pile'){ const p=piles[ref.i]; return p.arr.length? p.arr[p.arr.length-1] : null; }
       if(ref.k==='drawn') return drawn;
       if(ref.k==='holl'){ const s=hollows[ref.i]; return s.length? s[s.length-1] : null; }
+      if(ref.k==='res') return meadow[ref.i];
       return null; }
     const sameRef = (a,b) => a&&b&&a.k===b.k&&a.i===b.i;
     function removeRef(ref){ if(ref.k==='pile'){ piles[ref.i].arr.pop(); normalize(piles[ref.i]); }
-      else if(ref.k==='drawn') drawn=null; else if(ref.k==='holl') hollows[ref.i].pop(); }
+      else if(ref.k==='drawn') drawn=null; else if(ref.k==='holl') hollows[ref.i].pop();
+      else if(ref.k==='res') meadow[ref.i]=null; }
     function pushHist(){ history.push({ piles:piles.map(p=>({arr:p.arr.slice(),down:p.down})),
-      stock:stock.slice(), drawn, hollows:hollows.map(h=>h.slice()), pairs }); if(history.length>400) history.shift(); }
+      stock:stock.slice(), drawn, hollows:hollows.map(h=>h.slice()), meadow:meadow.slice(), pairs }); if(history.length>400) history.shift(); }
     function undo(){ if(!history.length) return; const s=history.pop();
-      piles=s.piles; stock=s.stock; drawn=s.drawn; hollows=s.hollows; pairs=s.pairs; sel=null; over=false; render(); }
+      piles=s.piles; stock=s.stock; drawn=s.drawn; hollows=s.hollows; meadow=s.meadow; pairs=s.pairs; sel=null; over=false; render(); }
 
     function newDeal(){
       computeScale();                                    // fit card size to the current screen width
@@ -525,6 +528,7 @@ GAMES.push({
       const SIZES=[5,6,7,8,7,6,5];  // after auto-fill, face-down per burrow = size-2 = 3,4,5,6,5,4,3
       for(let p=0;p<PILES;p++){ const n=SIZES[p]; piles.push({arr:d.slice(i,i+n), down:n}); i+=n; } // all face-down
       hollows=Array.from({length:HOLL},()=>[]);
+      meadow=Array.from({length:MEADOW},()=>null);      // empty single-card reserves
       stock=[]; drawn=null;                            // every card is dealt — no draw pile
       pairs=0; sel=null; history=[]; over=false;
       settle();                                        // each hollow auto-fills from its burrow → 14 face-up (7 hollows + 7 burrow fronts)
@@ -536,9 +540,10 @@ GAMES.push({
     function anyLegalMove(){
       const acc=[]; piles.forEach(p=>{ if(p.arr.length) acc.push(p.arr[p.arr.length-1]); });
       if(drawn) acc.push(drawn); hollows.forEach(h=>{ if(h.length) acc.push(h[h.length-1]); });
+      meadow.forEach(c=>{ if(c) acc.push(c); });
       for(let i=0;i<acc.length;i++) for(let j=i+1;j<acc.length;j++) if(match(acc[i],acc[j])) return true;
       if(!drawn && stock.length && drawRoom()) return true;
-      if(acc.length) return true;   // any accessible card can always be placed on a hollow
+      if(meadow.includes(null) && piles.some(p=>p.arr.length)) return true; // can set a burrow front aside to dig
       return false;
     }
     function afterMove(){ settle(); if(pairs===TOTAL){ over=true; return finishWin(); } render(); }
@@ -550,17 +555,28 @@ GAMES.push({
       if(a && match(a,card)){ pushHist(); removeRef(sel); removeRef(ref); pairs++; sel=null; toast('Match! ✨'); afterMove(); return; }
       sel=ref; render();
     }
-    function clickHollow(hi){                                 // select top / match / stack / drop
+    function clickHollow(hi){                                 // hollows hold one card: select / match only (no stacking)
       if(over) return; const stack=hollows[hi], top=stack.length?stack[stack.length-1]:null;
+      if(!top) return;                                        // empty hollows auto-fill from the burrow — never a drop target
       if(sel){
         if(sameRef(sel,{k:'holl',i:hi})){ sel=null; render(); return; }
         const selCard=refCard(sel);
-        if(top && match(selCard,top)){ pushHist(); removeRef(sel); stack.pop(); pairs++; sel=null; toast('Match! ✨'); afterMove(); return; }
-        if(selCard){ pushHist(); removeRef(sel); stack.push(selCard); sel=null; afterMove(); return; } // any card can be placed on any hollow
-        if(top){ sel={k:'holl',i:hi}; render(); return; }
+        if(match(selCard,top)){ pushHist(); removeRef(sel); stack.pop(); pairs++; sel=null; toast('Match! ✨'); afterMove(); return; }
+        sel={k:'holl',i:hi}; render(); return;
+      }
+      sel={k:'holl',i:hi}; render();
+    }
+    function clickReserve(ri){                                // meadow: one card per spot, no stacking — set aside / match
+      if(over) return; const cur=meadow[ri];
+      if(sel){
+        if(sameRef(sel,{k:'res',i:ri})){ sel=null; render(); return; }
+        const selCard=refCard(sel);
+        if(cur && match(selCard,cur)){ pushHist(); removeRef(sel); meadow[ri]=null; pairs++; sel=null; toast('Match! ✨'); afterMove(); return; }
+        if(!cur && selCard){ pushHist(); removeRef(sel); meadow[ri]=selCard; sel=null; afterMove(); return; } // park exactly one card
+        if(cur){ sel={k:'res',i:ri}; render(); return; }
         return;
       }
-      if(top){ sel={k:'holl',i:hi}; render(); }
+      if(cur){ sel={k:'res',i:ri}; render(); }
     }
     function clickEmptyPile(pi){ if(over||!sel||piles[pi].arr.length) return;
       const card=refCard(sel); if(!card) return; pushHist(); removeRef(sel); piles[pi]={arr:[card],down:0}; sel=null; afterMove(); }
@@ -573,7 +589,7 @@ GAMES.push({
     }
 
     root.innerHTML=`
-      <p class="muted">Match every pair of the <b>same animal</b> (same colour + number). Each <b>hollow auto-fills</b> from the <b>burrow</b> directly beneath it — so clearing a hollow pulls up and <b>uncovers</b> the next critter. Park <b>any card on any hollow</b> to dig and make room. Clear all 22 pairs. Undo anytime.</p>
+      <p class="muted">Match every pair of the <b>same animal</b> (same colour + number). Each <b>hollow auto-fills</b> from the <b>burrow</b> directly beneath it — so clearing a hollow pulls up and <b>uncovers</b> the next critter. Nothing stacks: to dig past a blocker, <b>set it aside in the Meadow</b> (one card per spot). Clear all 22 pairs. Undo anytime.</p>
       <div class="felt" style="background:radial-gradient(circle at 50% 6%, #1c4f33, #0c2a1b);width:fit-content;max-width:100%;margin:0 auto">
         <div class="row" style="justify-content:space-between;align-items:flex-start;gap:20px">
           <div class="row" id="deckrow" style="gap:12px;align-items:flex-start">
@@ -582,6 +598,8 @@ GAMES.push({
           </div>
           <span class="pill" id="prog">Pairs 0/${TOTAL}</span>
         </div>
+        <div class="h2" style="color:#dffbe9;margin-top:8px">🌾 Meadow <span class="muted" style="font-weight:400;font-size:.8em">— set a critter aside (one per spot)</span></div>
+        <div id="meadow" style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;padding-bottom:6px"></div>
         <div class="h2" style="color:#dffbe9;margin-top:8px">🕳️ Hollows &amp; 🌲 Burrows</div>
         <div id="board" style="display:flex;gap:8px;align-items:flex-start;justify-content:center;overflow-x:auto;padding-bottom:6px"></div>
       </div>
@@ -596,7 +614,7 @@ GAMES.push({
     function render(){
       const prog=root.querySelector('#prog'); if(!prog) return;       // win screen replaced the scaffold
       const stockEl=root.querySelector('#stock'), drawnEl=root.querySelector('#drawn'),
-            boardEl=root.querySelector('#board'), hint=root.querySelector('#hint');
+            boardEl=root.querySelector('#board'), meadowEl=root.querySelector('#meadow'), hint=root.querySelector('#hint');
       prog.textContent=`Pairs ${pairs}/${TOTAL}`;
       const deckrow=root.querySelector('#deckrow'); if(deckrow) deckrow.style.display=(stock.length||drawn)?'':'none'; // hide when there's no draw pile
       const selCard = sel ? refCard(sel) : null;
@@ -612,20 +630,31 @@ GAMES.push({
       if(drawn){ const ce=critEl(drawn, sel&&sel.k==='drawn'); ce.classList.add('playable');
         if(canMatch(drawn)) ce.style.outline='3px solid var(--good)'; ce.onclick=()=>clickCard({k:'drawn'}); drawnEl.appendChild(ce); }
       else drawnEl.appendChild(slotBox('—'));
+      // meadow — single-card reserves (no stacking): set a critter aside to dig, or match against a parked one
+      meadowEl.innerHTML='';
+      for(let ri=0; ri<MEADOW; ri++){
+        const cur=meadow[ri];
+        if(!cur){ const s=slotBox('set aside');
+          if(selCard){ s.classList.add('playable'); s.style.borderColor='#cfe3a0'; s.onclick=()=>clickReserve(ri); }
+          meadowEl.appendChild(s); }
+        else { const ce=critEl(cur, sel&&sel.k==='res'&&sel.i===ri); ce.classList.add('playable');
+          if(canMatch(cur)) ce.style.outline='3px solid var(--good)';
+          else if(selCard && !(sel.k==='res'&&sel.i===ri)) ce.style.outline='3px solid #cfe3a0';
+          ce.onclick=()=>clickReserve(ri); meadowEl.appendChild(ce); }
+      }
       // aligned columns: each column is a hollow (top) directly above its burrow (bottom)
       boardEl.innerHTML='';
       for(let ci=0; ci<PILES; ci++){
         const col=el('div'); col.style.cssText='display:flex;flex-direction:column;align-items:center;flex:0 0 auto;gap:14px';
         // --- hollow (top) ---
         const stack=hollows[ci], hcell=el('div'); hcell.style.cssText='display:flex;flex-direction:column;align-items:center';
-        if(!stack.length){ const s=slotBox('hollow'); if(selCard){ s.classList.add('playable'); s.style.borderColor='#8fe0b0'; s.onclick=()=>clickHollow(ci); } hcell.appendChild(s); }
+        if(!stack.length){ hcell.appendChild(slotBox('hollow')); }   // empty hollows auto-fill — not a drop target
         else stack.forEach((card,idx)=>{
           const top=idx===stack.length-1;
           const ce=critEl(card, top && !!sel && sel.k==='holl' && sel.i===ci);
           if(idx>0) ce.style.marginTop='-'+OVER+'px';
           if(top){ ce.classList.add('playable');
             if(canMatch(card)) ce.style.outline='3px solid var(--good)';
-            else if(selCard && !(sel.k==='holl'&&sel.i===ci)) ce.style.outline='3px solid #8fe0b0'; // any card can be placed here
             ce.onclick=()=>clickHollow(ci); }
           hcell.appendChild(ce);
         });
